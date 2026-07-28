@@ -63,19 +63,83 @@ export const UploadExcelView: React.FC = () => {
 
         const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet);
 
+        const parseNumber = (val: any): number => {
+          if (typeof val === 'number') return isNaN(val) ? 0 : val;
+          if (val === undefined || val === null) return 0;
+          let s = String(val).trim();
+          if (!s) return 0;
+
+          s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
+
+          if (s.includes('.') && s.includes(',')) {
+            if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
+              s = s.replace(/\./g, '').replace(',', '.');
+            } else {
+              s = s.replace(/,/g, '');
+            }
+          } else if (s.includes('.')) {
+            const parts = s.split('.');
+            if (parts.length > 2) {
+              s = s.replace(/\./g, '');
+            } else if (parts.length === 2 && parts[1].length === 3) {
+              s = s.replace(/\./g, '');
+            }
+          } else if (s.includes(',')) {
+            const parts = s.split(',');
+            if (parts.length > 2) {
+              s = s.replace(/,/g, '');
+            } else if (parts.length === 2) {
+              if (parts[1].length === 3) {
+                s = s.replace(/,/g, '');
+              } else {
+                s = s.replace(',', '.');
+              }
+            }
+          }
+
+          const num = parseFloat(s);
+          return isNaN(num) ? 0 : num;
+        };
+
         // Parse and validate rows
         const parsedRows: PreviewRow[] = jsonRows.map((row, index) => {
-          // Expected columns: Tahun, Program, Kegiatan, SubKegiatan, Belanja, SP2D, Nilai, Uraian, Rekanan, Tanggal
-          const thn = Number(row['Tahun'] || row['tahun'] || selectedTahun);
-          const prog = String(row['Program'] || row['program'] || row['Kode Program'] || '5.01.01');
-          const keg = String(row['Kegiatan'] || row['kegiatan'] || row['Kode Kegiatan'] || '5.01.01.2.01');
-          const sub = String(row['Sub Kegiatan'] || row['sub'] || row['Kode Sub'] || '5.01.01.2.01.01');
-          const bel = String(row['Belanja'] || row['belanja'] || row['Kode Belanja'] || '5.1.02.01.01.0024');
-          const sp2d = String(row['SP2D'] || row['sp2d'] || row['No SP2D'] || '');
-          const nilai = Number(row['Nilai'] || row['nilai'] || row['Jumlah'] || 0);
-          const uraian = String(row['Uraian'] || row['uraian'] || 'Realisasi Import Excel');
-          const rekanan = String(row['Rekanan'] || row['rekanan'] || 'PT Bank NTB Syariah');
-          const tanggal = String(row['Tanggal'] || row['tanggal'] || new Date().toISOString().split('T')[0]);
+          const getVal = (...keys: string[]) => {
+            for (const key of keys) {
+              const matchedKey = Object.keys(row).find(k => {
+                if (!k) return false;
+                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                return cleanK === cleanKey;
+              });
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
+                return String(row[matchedKey]).trim();
+              }
+            }
+            for (const key of keys) {
+              const matchedKey = Object.keys(row).find(k => {
+                if (!k) return false;
+                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                return cleanK.includes(cleanKey);
+              });
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
+                return String(row[matchedKey]).trim();
+              }
+            }
+            return '';
+          };
+
+          const thn = parseInt(getVal('tahun', 'thn', 'ta') || String(selectedTahun), 10) || selectedTahun;
+          const prog = getVal('program', 'kodeprogram', 'kodeprog') || '5.01.01';
+          const keg = getVal('kegiatan', 'kodekegiatan', 'kodekeg') || '5.01.01.2.01';
+          const sub = getVal('subkegiatan', 'sub', 'kodesub') || '5.01.01.2.01.01';
+          const bel = getVal('belanja', 'kodebelanja', 'koderekening', 'rekening') || '5.1.02.01.01.0024';
+          const sp2d = getVal('sp2d', 'nosp2d', 'nomorsp2d', 'sp2dno');
+          const nilaiRaw = getVal('nilai', 'realisasi', 'jumlah', 'nilaisp2d', 'nilairealisasi');
+          const nilai = parseNumber(nilaiRaw);
+          const uraian = getVal('uraian', 'keterangan', 'uraianrealisasi') || 'Realisasi Import Excel';
+          const rekanan = getVal('rekanan', 'penyedia', 'pihakketiga') || 'PT Bank NTB Syariah';
+          const tanggal = getVal('tanggal', 'tgl', 'tanggalsp2d') || new Date().toISOString().split('T')[0];
 
           const isDup = sp2d ? existingSP2DSet.has(sp2d.trim().toLowerCase()) : false;
 

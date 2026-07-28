@@ -205,30 +205,84 @@ export const InputRealisasiView: React.FC = () => {
         const parsedRows: PreviewRealisasiRow[] = [];
         const errs: string[] = [];
 
+        const parseNumber = (val: any): number => {
+          if (typeof val === 'number') return isNaN(val) ? 0 : val;
+          if (val === undefined || val === null) return 0;
+          let s = String(val).trim();
+          if (!s) return 0;
+
+          s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
+
+          if (s.includes('.') && s.includes(',')) {
+            if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
+              s = s.replace(/\./g, '').replace(',', '.');
+            } else {
+              s = s.replace(/,/g, '');
+            }
+          } else if (s.includes('.')) {
+            const parts = s.split('.');
+            if (parts.length > 2) {
+              s = s.replace(/\./g, '');
+            } else if (parts.length === 2 && parts[1].length === 3) {
+              s = s.replace(/\./g, '');
+            }
+          } else if (s.includes(',')) {
+            const parts = s.split(',');
+            if (parts.length > 2) {
+              s = s.replace(/,/g, '');
+            } else if (parts.length === 2) {
+              if (parts[1].length === 3) {
+                s = s.replace(/,/g, '');
+              } else {
+                s = s.replace(',', '.');
+              }
+            }
+          }
+
+          const num = parseFloat(s);
+          return isNaN(num) ? 0 : num;
+        };
+
         rawJson.forEach((row, idx) => {
           const getVal = (...keys: string[]) => {
             for (const key of keys) {
-              const matchedKey = Object.keys(row).find(
-                k => k.trim().toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, '')
-              );
-              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+              const matchedKey = Object.keys(row).find(k => {
+                if (!k) return false;
+                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                return cleanK === cleanKey;
+              });
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
+                return String(row[matchedKey]).trim();
+              }
+            }
+
+            for (const key of keys) {
+              const matchedKey = Object.keys(row).find(k => {
+                if (!k) return false;
+                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                return cleanK.includes(cleanKey);
+              });
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
                 return String(row[matchedKey]).trim();
               }
             }
             return '';
           };
 
-          const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran') || String(selectedTahun), 10) || selectedTahun;
+          const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran', 'ta') || String(selectedTahun), 10) || selectedTahun;
           const prog = getVal('kodeprogram', 'kodeprog', 'program') || '5.01.01';
           const keg = getVal('kodekegiatan', 'kodekeg', 'kegiatan') || '5.01.01.2.01';
           const sub = getVal('kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub') || '5.01.01.2.01.01';
-          const bel = getVal('kodebelanja', 'koderekening', 'kode', 'rekening') || '5.1.02.01.01.0024';
+          const bel = getVal('kodebelanja', 'koderekening', 'rekening', 'kode') || '5.1.02.01.01.0024';
           const belObj = belanjaList.find(b => b.kodeBelanja === bel);
           const namaBel = getVal('namabelanja', 'uraianbelanja', 'namarekening') || belObj?.namaBelanja || `Belanja ${bel}`;
 
           const sp2dVal = getVal('nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls');
           const spmVal = getVal('nospm', 'spm', 'nomorspm') || sp2dVal.replace('SP2D', 'SPM');
-          const nilaiVal = parseFloat(getVal('nilairealisasi', 'nilai', 'realisasi', 'jumlah') || '0') || 0;
+          const nilaiRaw = getVal('nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d');
+          const nilaiVal = parseNumber(nilaiRaw);
           const uraianVal = getVal('uraian', 'keterangan', 'uraianrealisasi', 'rincian') || 'Realisasi Keuangan';
           const rekananVal = getVal('penyedia', 'rekanan', 'penerima', 'namarekanan') || 'PT Bank NTB Syariah';
           const tglVal = getVal('tanggal', 'tgl', 'tanggalsp2d') || new Date().toISOString().split('T')[0];

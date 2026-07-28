@@ -467,67 +467,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let duplicateCount = 0;
     const errors: string[] = [];
 
-    const existingKeys = new Set(anggaranList.map(a => `${a.tahun}_${a.kodeBelanja}`));
-    const newAnggaranItems: Anggaran[] = [];
-
-    items.forEach((row, index) => {
-      if (!row.kodeBelanja) {
-        errors.push(`Baris ${index + 1}: Kode Belanja/Rekening tidak boleh kosong.`);
-        return;
-      }
-
-      const rowTahun = row.tahun || selectedTahun;
-      const key = `${rowTahun}_${row.kodeBelanja}`;
-      const belObj = belanjaList.find(b => b.kodeBelanja === row.kodeBelanja);
-      const namaBelanja = row.namaBelanja || belObj?.namaBelanja || `Belanja ${row.kodeBelanja}`;
-      const pagu = Number(row.pagu) || 0;
-      const revisi = Number(row.revisi) || 0;
-      const nilaiSPD = row.nilaiSPD !== undefined ? Number(row.nilaiSPD) : (pagu + revisi);
-
-      if (existingKeys.has(key)) {
-        duplicateCount++;
-        setAnggaranList(prev =>
-          prev.map(a => {
-            if (a.tahun === rowTahun && a.kodeBelanja === row.kodeBelanja) {
-              return {
-                ...a,
-                pagu,
-                revisi,
-                nilaiSPD,
-                paguAkhir: pagu + revisi,
-                namaBelanja: namaBelanja || a.namaBelanja,
-                sumberDana: row.sumberDana || a.sumberDana
-              };
-            }
-            return a;
-          })
-        );
-        successCount++;
-      } else {
-        newAnggaranItems.push({
-          id: `ANG-${rowTahun}-${Date.now()}-${index}`,
-          tahun: rowTahun,
-          kodeProgram: row.kodeProgram || '5.01.01',
-          kodeKegiatan: row.kodeKegiatan || '5.01.01.2.01',
-          kodeSub: row.kodeSub || '5.01.01.2.01.01',
-          kodeBelanja: row.kodeBelanja,
-          namaBelanja,
-          pagu,
-          revisi,
-          nilaiSPD,
-          paguAkhir: pagu + revisi,
-          tanggalInput: new Date().toISOString().split('T')[0],
-          operator: currentUser.nama,
-          sumberDana: row.sumberDana || 'DAU'
-        });
-        existingKeys.add(key);
-        successCount++;
-      }
+    const importedMap = new Map<string, typeof items[0]>();
+    items.forEach(item => {
+      if (!item.kodeBelanja) return;
+      const t = item.tahun || selectedTahun;
+      const key = `${t}_${item.kodeBelanja.trim()}`;
+      importedMap.set(key, item);
     });
 
-    if (newAnggaranItems.length > 0) {
-      setAnggaranList(prev => [...newAnggaranItems, ...prev]);
-    }
+    setAnggaranList(prev => {
+      const existingKeysSeen = new Set<string>();
+
+      const updatedList = prev.map(a => {
+        const key = `${a.tahun}_${a.kodeBelanja}`;
+        if (importedMap.has(key)) {
+          existingKeysSeen.add(key);
+          duplicateCount++;
+          successCount++;
+          const row = importedMap.get(key)!;
+          const pagu = Number(row.pagu) || 0;
+          const revisi = Number(row.revisi) || 0;
+          const nilaiSPD = row.nilaiSPD !== undefined ? Number(row.nilaiSPD) : (pagu + revisi);
+          const belObj = belanjaList.find(b => b.kodeBelanja === row.kodeBelanja);
+          const namaBelanja = row.namaBelanja || belObj?.namaBelanja || a.namaBelanja;
+
+          return {
+            ...a,
+            kodeProgram: row.kodeProgram || a.kodeProgram,
+            kodeKegiatan: row.kodeKegiatan || a.kodeKegiatan,
+            kodeSub: row.kodeSub || a.kodeSub,
+            pagu,
+            revisi,
+            nilaiSPD,
+            paguAkhir: pagu + revisi,
+            namaBelanja,
+            sumberDana: row.sumberDana || a.sumberDana
+          };
+        }
+        return a;
+      });
+
+      const newItems: Anggaran[] = [];
+      importedMap.forEach((row, key) => {
+        if (!existingKeysSeen.has(key)) {
+          successCount++;
+          const rowTahun = row.tahun || selectedTahun;
+          const belObj = belanjaList.find(b => b.kodeBelanja === row.kodeBelanja);
+          const namaBelanja = row.namaBelanja || belObj?.namaBelanja || `Belanja ${row.kodeBelanja}`;
+          const pagu = Number(row.pagu) || 0;
+          const revisi = Number(row.revisi) || 0;
+          const nilaiSPD = row.nilaiSPD !== undefined ? Number(row.nilaiSPD) : (pagu + revisi);
+
+          newItems.push({
+            id: `ANG-${rowTahun}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            tahun: rowTahun,
+            kodeProgram: row.kodeProgram || '5.01.01',
+            kodeKegiatan: row.kodeKegiatan || '5.01.01.2.01',
+            kodeSub: row.kodeSub || '5.01.01.2.01.01',
+            kodeBelanja: row.kodeBelanja.trim(),
+            namaBelanja,
+            pagu,
+            revisi,
+            nilaiSPD,
+            paguAkhir: pagu + revisi,
+            tanggalInput: new Date().toISOString().split('T')[0],
+            operator: currentUser.nama,
+            sumberDana: row.sumberDana || 'DAU'
+          });
+        }
+      });
+
+      return [...newItems, ...updatedList];
+    });
 
     const importLogEntry: ImportLog = {
       id: `IMP-${Date.now()}`,

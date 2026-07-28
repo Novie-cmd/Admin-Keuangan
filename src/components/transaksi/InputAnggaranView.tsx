@@ -187,30 +187,96 @@ export const InputAnggaranView: React.FC = () => {
         const parsedRows: PreviewAnggaranRow[] = [];
         const errs: string[] = [];
 
+        const parseNumber = (val: any): number => {
+          if (typeof val === 'number') return isNaN(val) ? 0 : val;
+          if (val === undefined || val === null) return 0;
+          let s = String(val).trim();
+          if (!s) return 0;
+
+          s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
+
+          if (s.includes('.') && s.includes(',')) {
+            if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
+              s = s.replace(/\./g, '').replace(',', '.');
+            } else {
+              s = s.replace(/,/g, '');
+            }
+          } else if (s.includes('.')) {
+            const parts = s.split('.');
+            if (parts.length > 2) {
+              s = s.replace(/\./g, '');
+            } else if (parts.length === 2 && parts[1].length === 3) {
+              s = s.replace(/\./g, '');
+            }
+          } else if (s.includes(',')) {
+            const parts = s.split(',');
+            if (parts.length > 2) {
+              s = s.replace(/,/g, '');
+            } else if (parts.length === 2) {
+              if (parts[1].length === 3) {
+                s = s.replace(/,/g, '');
+              } else {
+                s = s.replace(',', '.');
+              }
+            }
+          }
+
+          const num = parseFloat(s);
+          return isNaN(num) ? 0 : num;
+        };
+
         rawJson.forEach((row, idx) => {
           const getVal = (...keys: string[]) => {
             for (const key of keys) {
-              const matchedKey = Object.keys(row).find(
-                k => k.trim().toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, '')
-              );
-              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+              const matchedKey = Object.keys(row).find(k => {
+                if (!k) return false;
+                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                return cleanK === cleanKey;
+              });
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
+                return String(row[matchedKey]).trim();
+              }
+            }
+
+            for (const key of keys) {
+              const matchedKey = Object.keys(row).find(k => {
+                if (!k) return false;
+                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
+                return cleanK.includes(cleanKey);
+              });
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
                 return String(row[matchedKey]).trim();
               }
             }
             return '';
           };
 
-          const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran') || String(selectedTahun), 10) || selectedTahun;
+          const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran', 'ta') || String(selectedTahun), 10) || selectedTahun;
           const prog = getVal('kodeprogram', 'kodeprog', 'program') || '5.01.01';
           const keg = getVal('kodekegiatan', 'kodekeg', 'kegiatan') || '5.01.01.2.01';
           const sub = getVal('kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub') || '5.01.01.2.01.01';
-          const bel = getVal('kodebelanja', 'koderekening', 'kode', 'rekening');
+          const bel = getVal('kodebelanja', 'koderekening', 'rekening', 'kode');
           const belObj = belanjaList.find(b => b.kodeBelanja === bel);
           const namaBel = getVal('namabelanja', 'uraianbelanja', 'uraian', 'namarekening') || belObj?.namaBelanja || `Belanja ${bel}`;
-          const paguVal = parseFloat(getVal('pagumurni', 'pagu', 'nilaipagu', 'nilai') || '0') || 0;
-          const revVal = parseFloat(getVal('revisi', 'pergeseran', 'perubahan') || '0') || 0;
+          
+          const paguMurniRaw = getVal('pagumurni', 'nilaipagumurni', 'anggaranpagumurni', 'pagumurni(rp)', 'murni');
+          const paguAkhirRaw = getVal('paguakhir', 'totalpagu', 'pagusetelahpergeseran', 'paguakhir(rp)', 'anggaranakhir');
+          const paguGeneralRaw = getVal('pagu', 'nilaipagu', 'anggaranpagu', 'nilai', 'anggaran');
+
+          let paguVal = parseNumber(paguMurniRaw || paguGeneralRaw);
+          const revVal = parseNumber(getVal('revisi', 'pergeseran', 'perubahan', 'revisipergeseran'));
+          let paguAkhirVal = parseNumber(paguAkhirRaw);
+
+          if (paguVal === 0 && paguAkhirVal > 0) {
+            paguVal = Math.max(0, paguAkhirVal - revVal);
+          } else if (paguAkhirVal === 0 && paguVal > 0) {
+            paguAkhirVal = paguVal + revVal;
+          }
+
           const spdValRaw = getVal('nilaispd', 'spd', 'paguspd', 'jumlahspd');
-          const spdVal = spdValRaw ? parseFloat(spdValRaw) || 0 : (paguVal + revVal);
+          const spdVal = spdValRaw ? parseNumber(spdValRaw) : paguAkhirVal;
           const sdVal = getVal('sumberdana', 'sumber', 'sd') || 'DAU';
 
           const key = `${thn}_${bel}`;
