@@ -253,7 +253,15 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
         {/* OFFICIAL GOVERNMENT REPORT KOP SURAT / HEADER */}
         <div className="text-center border-b-2 border-slate-700 print:border-slate-900 pb-4 mb-6">
           <div className="flex justify-center mb-2">
-            <NTBLogo size={56} />
+            {opd?.logoUrl ? (
+              <img
+                src={opd.logoUrl}
+                alt="Logo NTB"
+                className="h-14 w-14 object-contain rounded-xl bg-slate-950 print:bg-transparent p-1 border border-emerald-500/40 print:border-none shadow-md"
+              />
+            ) : (
+              <NTBLogo size={56} />
+            )}
           </div>
           <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 print:text-slate-700">
             PEMERINTAH PROVINSI NUSA TENGGARA BARAT
