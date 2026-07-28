@@ -263,16 +263,16 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     } else if (cat === 'kegiatan') {
       filename = 'Template_Master_Kegiatan_NTB.xlsx';
       sampleData = [
-        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.01', 'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah', 'Tahun': selectedTahun },
-        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.02', 'Nama Kegiatan': 'Administrasi Keuangan Perangkat Daerah', 'Tahun': selectedTahun },
-        { 'Kode Program': '5.01.02', 'Kode Kegiatan': '5.01.02.2.01', 'Nama Kegiatan': 'Perumusan Kebijakan Teknis Kebangsaan', 'Tahun': selectedTahun }
+        { 'Kode Program': '5.01.01', 'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI', 'Kode Kegiatan': '5.01.01.2.01', 'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.01', 'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI', 'Kode Kegiatan': '5.01.01.2.02', 'Nama Kegiatan': 'Administrasi Keuangan Perangkat Daerah', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.02', 'Nama Program': 'PROGRAM BINA IDEOLOGI DAN WAWASAN KEBANGSAAN', 'Kode Kegiatan': '5.01.02.2.01', 'Nama Kegiatan': 'Perumusan Kebijakan Teknis Kebangsaan', 'Tahun': selectedTahun }
       ];
     } else if (cat === 'subkegiatan') {
       filename = 'Template_Master_Sub_Kegiatan_NTB.xlsx';
       sampleData = [
-        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.01', 'Kode Sub Kegiatan': '5.01.01.2.01.0001', 'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan Perangkat Daerah', 'Tahun': selectedTahun },
-        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.02', 'Kode Sub Kegiatan': '5.01.01.2.02.0001', 'Nama Sub Kegiatan': 'Penyediaan Gaji dan Tunjangan ASN', 'Tahun': selectedTahun },
-        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.02', 'Kode Sub Kegiatan': '5.01.01.2.02.0005', 'Nama Sub Kegiatan': 'Koordinasi dan Penyusunan Laporan Keuangan Sub-Sistem', 'Tahun': selectedTahun }
+        { 'Kode Program': '5.01.01', 'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI', 'Kode Kegiatan': '5.01.01.2.01', 'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah', 'Kode Sub Kegiatan': '5.01.01.2.01.0001', 'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan Perangkat Daerah', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.01', 'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI', 'Kode Kegiatan': '5.01.01.2.02', 'Nama Kegiatan': 'Administrasi Keuangan Perangkat Daerah', 'Kode Sub Kegiatan': '5.01.01.2.02.0001', 'Nama Sub Kegiatan': 'Penyediaan Gaji dan Tunjangan ASN', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.01', 'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI', 'Kode Kegiatan': '5.01.01.2.02', 'Nama Kegiatan': 'Administrasi Keuangan Perangkat Daerah', 'Kode Sub Kegiatan': '5.01.01.2.02.0005', 'Nama Sub Kegiatan': 'Koordinasi dan Penyusunan Laporan Keuangan Sub-Sistem', 'Tahun': selectedTahun }
       ];
     } else if (cat === 'belanja') {
       filename = 'Template_Master_Belanja_Rekening_NTB.xlsx';
@@ -316,7 +316,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
         const errs: string[] = [];
 
         rawJson.forEach((row, idx) => {
-          // Normalize key names (trim, lowercase check)
+          // Flexible column reader with multi-alias matching
           const getVal = (...keys: string[]) => {
             for (const key of keys) {
               const matchedKey = Object.keys(row).find(
@@ -332,8 +332,8 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
           const rowTahun = parseInt(getVal('tahun', 'tahunanggaran', 'thn') || String(selectedTahun), 10) || selectedTahun;
 
           if (importCategory === 'program') {
-            const kodeProgram = getVal('kodeprogram', 'kodeprog', 'kode');
-            const namaProgram = getVal('namaprogram', 'namaprog', 'uraian', 'program');
+            const kodeProgram = getVal('kodeprogram', 'kodeprog', 'kodeskpd', 'kode');
+            const namaProgram = getVal('namaprogram', 'namaprog', 'uraianprogram', 'uraian', 'program', 'nama');
 
             if (!kodeProgram || !namaProgram) {
               errs.push(`Baris ${idx + 2}: Kode atau Nama Program kosong.`);
@@ -346,15 +346,17 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               });
             }
           } else if (importCategory === 'kegiatan') {
-            const kodeProgram = getVal('kodeprogram', 'kodeprog') || (kodeProgram => kodeProgram ? kodeProgram : (programs[0]?.kodeProgram || '5.01.01'));
+            const kodeProgram = getVal('kodeprogram', 'kodeprog', 'kodeprogramskpd') || '5.01.01';
+            const namaProgram = getVal('namaprogram', 'namaprog', 'uraianprogram', 'program');
             const kodeKegiatan = getVal('kodekegiatan', 'kodekeg', 'kode');
-            const namaKegiatan = getVal('namakegiatan', 'namakeg', 'uraian', 'kegiatan');
+            const namaKegiatan = getVal('namakegiatan', 'namakeg', 'uraiankegiatan', 'uraian', 'kegiatan', 'nama');
 
             if (!kodeKegiatan || !namaKegiatan) {
               errs.push(`Baris ${idx + 2}: Kode atau Nama Kegiatan kosong.`);
             } else {
               normalizedRows.push({
-                kodeProgram: typeof kodeProgram === 'string' ? kodeProgram : '5.01.01',
+                kodeProgram,
+                namaProgram,
                 kodeKegiatan,
                 namaKegiatan,
                 tahun: rowTahun,
@@ -363,16 +365,20 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             }
           } else if (importCategory === 'subkegiatan') {
             const kodeProgram = getVal('kodeprogram', 'kodeprog') || '5.01.01';
+            const namaProgram = getVal('namaprogram', 'namaprog', 'uraianprogram', 'program');
             const kodeKegiatan = getVal('kodekegiatan', 'kodekeg') || '5.01.01.2.01';
+            const namaKegiatan = getVal('namakegiatan', 'namakeg', 'uraiankegiatan', 'kegiatan');
             const kodeSub = getVal('kodesubkegiatan', 'kodesub', 'kodesubkeg', 'kode');
-            const namaSub = getVal('namasubkegiatan', 'namasub', 'namasubkeg', 'uraian');
+            const namaSub = getVal('namasubkegiatan', 'namasub', 'namasubkeg', 'uraiansubkegiatan', 'uraiansub', 'uraian', 'namasub');
 
             if (!kodeSub || !namaSub) {
               errs.push(`Baris ${idx + 2}: Kode atau Nama Sub Kegiatan kosong.`);
             } else {
               normalizedRows.push({
                 kodeProgram,
+                namaProgram,
                 kodeKegiatan,
+                namaKegiatan,
                 kodeSub,
                 namaSub,
                 tahun: rowTahun,
@@ -413,14 +419,88 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     if (parsedDataPreview.length === 0) return;
 
     if (importCategory === 'program') {
-      const result = importProgramsBatch(parsedDataPreview as Program[]);
-      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Program baru (${result.duplicateCount} data duplikat diperbarui).`);
+      const progList: Program[] = parsedDataPreview.map(r => ({
+        kodeProgram: r.kodeProgram,
+        namaProgram: r.namaProgram,
+        tahun: r.tahun
+      }));
+      const result = importProgramsBatch(progList);
+      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Program baru (${result.duplicateCount} data Program diperbarui secara otomatis).`);
     } else if (importCategory === 'kegiatan') {
-      const result = importKegiatanBatch(parsedDataPreview as Kegiatan[]);
-      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Kegiatan baru (${result.duplicateCount} data duplikat diperbarui).`);
+      // Auto save parent Program data if included in Excel file
+      const autoProgramsMap = new Map<string, Program>();
+      parsedDataPreview.forEach(r => {
+        if (r.kodeProgram && r.namaProgram) {
+          const keyP = `${r.kodeProgram}_${r.tahun}`;
+          if (!autoProgramsMap.has(keyP)) {
+            autoProgramsMap.set(keyP, {
+              kodeProgram: r.kodeProgram,
+              namaProgram: r.namaProgram,
+              tahun: r.tahun
+            });
+          }
+        }
+      });
+
+      let progSavedCount = 0;
+      if (autoProgramsMap.size > 0) {
+        const progRes = importProgramsBatch(Array.from(autoProgramsMap.values()));
+        progSavedCount = progRes.successCount + progRes.duplicateCount;
+      }
+
+      const kegList: Kegiatan[] = parsedDataPreview.map(r => ({
+        kodeProgram: r.kodeProgram,
+        kodeKegiatan: r.kodeKegiatan,
+        namaKegiatan: r.namaKegiatan,
+        tahun: r.tahun
+      }));
+      const result = importKegiatanBatch(kegList);
+      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Kegiatan (${result.duplicateCount} diperbarui). ${progSavedCount > 0 ? `${progSavedCount} data Program terkait otomatis tersimpan!` : ''}`);
     } else if (importCategory === 'subkegiatan') {
-      const result = importSubKegiatanBatch(parsedDataPreview as SubKegiatan[]);
-      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Sub Kegiatan baru (${result.duplicateCount} data duplikat diperbarui).`);
+      // Auto save parent Program & Kegiatan data if included in Excel file
+      const autoProgramsMap = new Map<string, Program>();
+      const autoKegiatanMap = new Map<string, Kegiatan>();
+
+      parsedDataPreview.forEach(r => {
+        if (r.kodeProgram && r.namaProgram) {
+          const keyP = `${r.kodeProgram}_${r.tahun}`;
+          if (!autoProgramsMap.has(keyP)) {
+            autoProgramsMap.set(keyP, {
+              kodeProgram: r.kodeProgram,
+              namaProgram: r.namaProgram,
+              tahun: r.tahun
+            });
+          }
+        }
+        if (r.kodeProgram && r.kodeKegiatan && r.namaKegiatan) {
+          const keyK = `${r.kodeKegiatan}_${r.tahun}`;
+          if (!autoKegiatanMap.has(keyK)) {
+            autoKegiatanMap.set(keyK, {
+              kodeProgram: r.kodeProgram,
+              kodeKegiatan: r.kodeKegiatan,
+              namaKegiatan: r.namaKegiatan,
+              tahun: r.tahun
+            });
+          }
+        }
+      });
+
+      if (autoProgramsMap.size > 0) {
+        importProgramsBatch(Array.from(autoProgramsMap.values()));
+      }
+      if (autoKegiatanMap.size > 0) {
+        importKegiatanBatch(Array.from(autoKegiatanMap.values()));
+      }
+
+      const subList: SubKegiatan[] = parsedDataPreview.map(r => ({
+        kodeProgram: r.kodeProgram,
+        kodeKegiatan: r.kodeKegiatan,
+        kodeSub: r.kodeSub,
+        namaSub: r.namaSub,
+        tahun: r.tahun
+      }));
+      const result = importSubKegiatanBatch(subList);
+      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Sub Kegiatan (${result.duplicateCount} diperbarui). Data Program & Kegiatan terkait otomatis tersimpan!`);
     } else if (importCategory === 'belanja') {
       const result = importBelanjaBatch(parsedDataPreview as Belanja[]);
       setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Belanja Rekening baru (${result.duplicateCount} data duplikat diperbarui).`);
@@ -504,20 +584,12 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             type="text"
             placeholder="Cari kata kunci di master data..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.g.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
           />
         </div>
 
-        {['master-program', 'master-kegiatan', 'master-subkegiatan', 'master-belanja'].includes(activeTab) && !isReadonly && (
-          <button
-            onClick={() => openImportModalForTab()}
-            className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-teal-500/40 px-3.5 py-2 text-xs font-bold text-teal-300 transition"
-          >
-            <FileSpreadsheet className="h-4 w-4 text-teal-400" />
-            <span>Import Excel {activeTab.replace('master-', '').toUpperCase()}</span>
-          </button>
-        )}
+
       </div>
 
       {/* TAB CONTENT: MASTER TAHUN */}
@@ -733,15 +805,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Program: {programs.filter(p => p.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
-            {!isReadonly && (
-              <button
-                onClick={() => openImportModalForTab('program')}
-                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-                <span>Import File Excel Program</span>
-              </button>
-            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -778,15 +841,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Kegiatan: {kegiatanList.filter(k => k.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
-            {!isReadonly && (
-              <button
-                onClick={() => openImportModalForTab('kegiatan')}
-                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-                <span>Import File Excel Kegiatan</span>
-              </button>
-            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -825,15 +879,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Sub Kegiatan: {subKegiatanList.filter(s => s.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
-            {!isReadonly && (
-              <button
-                onClick={() => openImportModalForTab('subkegiatan')}
-                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-                <span>Import File Excel Sub Kegiatan</span>
-              </button>
-            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -872,15 +917,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Belanja Rekening: {belanjaList.length} item
             </span>
-            {!isReadonly && (
-              <button
-                onClick={() => openImportModalForTab('belanja')}
-                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5" />
-                <span>Import File Excel Belanja</span>
-              </button>
-            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -1102,6 +1138,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                         {importCategory === 'kegiatan' && (
                           <>
                             <th className="px-3 py-2">Kode Prog</th>
+                            <th className="px-3 py-2">Nama Program</th>
                             <th className="px-3 py-2">Kode Kegiatan</th>
                             <th className="px-3 py-2">Nama Kegiatan</th>
                             <th className="px-3 py-2">Tahun</th>
@@ -1109,6 +1146,8 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                         )}
                         {importCategory === 'subkegiatan' && (
                           <>
+                            <th className="px-3 py-2">Kode Prog</th>
+                            <th className="px-3 py-2">Nama Program</th>
                             <th className="px-3 py-2">Kode Sub</th>
                             <th className="px-3 py-2">Nama Sub Kegiatan</th>
                             <th className="px-3 py-2">Tahun</th>
@@ -1138,6 +1177,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                           {importCategory === 'kegiatan' && (
                             <>
                               <td className="px-3 py-2 font-mono text-slate-400">{row.kodeProgram}</td>
+                              <td className="px-3 py-2 text-emerald-300 font-medium">{row.namaProgram || '-'}</td>
                               <td className="px-3 py-2 font-mono text-teal-400 font-bold">{row.kodeKegiatan}</td>
                               <td className="px-3 py-2 text-white">{row.namaKegiatan}</td>
                               <td className="px-3 py-2">{row.tahun}</td>
@@ -1145,6 +1185,8 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                           )}
                           {importCategory === 'subkegiatan' && (
                             <>
+                              <td className="px-3 py-2 font-mono text-slate-400">{row.kodeProgram}</td>
+                              <td className="px-3 py-2 text-emerald-300 font-medium">{row.namaProgram || '-'}</td>
                               <td className="px-3 py-2 font-mono text-amber-400 font-bold">{row.kodeSub}</td>
                               <td className="px-3 py-2 text-white">{row.namaSub}</td>
                               <td className="px-3 py-2">{row.tahun}</td>
