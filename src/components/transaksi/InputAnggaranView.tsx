@@ -612,10 +612,10 @@ export const InputAnggaranView: React.FC = () => {
           </h3>
           <input
             type="text"
-            placeholder="Cari kode/uraian belanja..."
+            placeholder="Cari kode, sub kegiatan, atau belanja..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white"
+            className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-white placeholder-slate-500 w-64"
           />
         </div>
 
@@ -623,6 +623,7 @@ export const InputAnggaranView: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
+                <th className="px-4 py-3">Sub Kegiatan</th>
                 <th className="px-4 py-3">Kode Belanja</th>
                 <th className="px-4 py-3">Uraian Belanja</th>
                 <th className="px-4 py-3 text-right">Pagu Murni</th>
@@ -636,49 +637,67 @@ export const InputAnggaranView: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
               {currentAnggaran
-                .filter(
-                  a =>
-                    a.kodeBelanja.includes(searchTerm) ||
-                    a.namaBelanja.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map(a => (
-                  <tr key={a.id} className="hover:bg-slate-800/50">
-                    <td className="px-4 py-3 font-mono font-bold text-emerald-400">{a.kodeBelanja}</td>
-                    <td className="px-4 py-3 font-semibold text-white max-w-xs">{a.namaBelanja}</td>
-                    <td className="px-4 py-3 text-right font-mono">Rp {a.pagu.toLocaleString('id-ID')}</td>
-                    <td className="px-4 py-3 text-right font-mono text-amber-400">
-                      {a.revisi >= 0 ? '+' : ''}Rp {a.revisi.toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-sky-300">
-                      Rp {(a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir).toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-300">
-                      Rp {a.paguAkhir.toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-slate-300">{a.sumberDana || 'DAU'}</td>
-                    <td className="px-4 py-3 text-slate-400">{a.operator}</td>
-                    {!isReadOnly && (
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleOpenEdit(a)}
-                            className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-amber-400 transition"
-                            title="Edit Pagu Anggaran"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeletingAnggaran(a)}
-                            className="rounded p-1 text-slate-400 hover:bg-rose-950 hover:text-rose-400 transition"
-                            title="Hapus Data"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
+                .filter(a => {
+                  const subObj = subKegiatanList.find(s => s.kodeSub === a.kodeSub);
+                  const subSearchText = subObj ? `${subObj.kodeSub} ${subObj.namaSub}` : a.kodeSub || '';
+                  const term = searchTerm.toLowerCase();
+                  return (
+                    a.kodeBelanja.toLowerCase().includes(term) ||
+                    a.namaBelanja.toLowerCase().includes(term) ||
+                    (a.kodeSub && a.kodeSub.toLowerCase().includes(term)) ||
+                    subSearchText.toLowerCase().includes(term)
+                  );
+                })
+                .map(a => {
+                  const subObj = subKegiatanList.find(s => s.kodeSub === a.kodeSub);
+                  const namaSub = subObj ? subObj.namaSub : '';
+                  return (
+                    <tr key={a.id} className="hover:bg-slate-800/50">
+                      <td className="px-4 py-3 max-w-xs">
+                        <div className="font-mono text-[11px] font-bold text-amber-400">{a.kodeSub || '-'}</div>
+                        {namaSub && (
+                          <div className="text-[11px] text-slate-400 truncate max-w-[220px]" title={namaSub}>
+                            {namaSub}
+                          </div>
+                        )}
                       </td>
-                    )}
-                  </tr>
-                ))}
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-400">{a.kodeBelanja}</td>
+                      <td className="px-4 py-3 font-semibold text-white max-w-xs">{a.namaBelanja}</td>
+                      <td className="px-4 py-3 text-right font-mono">Rp {a.pagu.toLocaleString('id-ID')}</td>
+                      <td className="px-4 py-3 text-right font-mono text-amber-400">
+                        {a.revisi >= 0 ? '+' : ''}Rp {a.revisi.toLocaleString('id-ID')}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-sky-300">
+                        Rp {(a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir).toLocaleString('id-ID')}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-emerald-300">
+                        Rp {a.paguAkhir.toLocaleString('id-ID')}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-slate-300">{a.sumberDana || 'DAU'}</td>
+                      <td className="px-4 py-3 text-slate-400">{a.operator}</td>
+                      {!isReadOnly && (
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleOpenEdit(a)}
+                              className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-amber-400 transition"
+                              title="Edit Pagu Anggaran"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingAnggaran(a)}
+                              className="rounded p-1 text-slate-400 hover:bg-rose-950 hover:text-rose-400 transition"
+                              title="Hapus Data"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
             </tbody>
           </table>
         </div>
