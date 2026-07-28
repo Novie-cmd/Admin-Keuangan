@@ -98,8 +98,87 @@ export const InputRealisasiView: React.FC = () => {
 
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
 
-  const filteredKegiatan = kegiatanList.filter(k => k.kodeProgram === kodeProgram);
-  const filteredSub = subKegiatanList.filter(s => s.kodeKegiatan === kodeKegiatan);
+  // Filtered master data based on selected year & cascading parents
+  const availablePrograms = programs.filter(p => !p.tahun || p.tahun === selectedTahun);
+  const finalPrograms = availablePrograms.length > 0 ? availablePrograms : programs;
+
+  const filteredKegiatan = kegiatanList.filter(
+    k => k.kodeProgram === kodeProgram && (!k.tahun || k.tahun === selectedTahun)
+  );
+  const finalKegiatan =
+    filteredKegiatan.length > 0
+      ? filteredKegiatan
+      : kegiatanList.filter(k => k.kodeProgram === kodeProgram);
+
+  const filteredSub = subKegiatanList.filter(
+    s => s.kodeKegiatan === kodeKegiatan && (!s.tahun || s.tahun === selectedTahun)
+  );
+  const finalSub =
+    filteredSub.length > 0
+      ? filteredSub
+      : subKegiatanList.filter(s => s.kodeKegiatan === kodeKegiatan);
+
+  // Cascade handler when Program changes
+  const handleProgramChange = (progCode: string) => {
+    setKodeProgram(progCode);
+    const matchingKegs = kegiatanList.filter(
+      k => k.kodeProgram === progCode && (!k.tahun || k.tahun === selectedTahun)
+    );
+    const kegs = matchingKegs.length > 0 ? matchingKegs : kegiatanList.filter(k => k.kodeProgram === progCode);
+
+    if (kegs.length > 0) {
+      const firstKeg = kegs[0].kodeKegiatan;
+      setKodeKegiatan(firstKeg);
+      const matchingSubs = subKegiatanList.filter(
+        s => s.kodeKegiatan === firstKeg && (!s.tahun || s.tahun === selectedTahun)
+      );
+      const subs = matchingSubs.length > 0 ? matchingSubs : subKegiatanList.filter(s => s.kodeKegiatan === firstKeg);
+      if (subs.length > 0) {
+        setKodeSub(subs[0].kodeSub);
+      } else {
+        setKodeSub('');
+      }
+    } else {
+      setKodeKegiatan('');
+      setKodeSub('');
+    }
+  };
+
+  // Cascade handler when Kegiatan changes
+  const handleKegiatanChange = (kegCode: string) => {
+    setKodeKegiatan(kegCode);
+    const matchingSubs = subKegiatanList.filter(
+      s => s.kodeKegiatan === kegCode && (!s.tahun || s.tahun === selectedTahun)
+    );
+    const subs = matchingSubs.length > 0 ? matchingSubs : subKegiatanList.filter(s => s.kodeKegiatan === kegCode);
+    if (subs.length > 0) {
+      setKodeSub(subs[0].kodeSub);
+    } else {
+      setKodeSub('');
+    }
+  };
+
+  React.useEffect(() => {
+    const isProgValid = finalPrograms.some(p => p.kodeProgram === kodeProgram);
+    if (!isProgValid && finalPrograms.length > 0) {
+      handleProgramChange(finalPrograms[0].kodeProgram);
+    } else if (isProgValid) {
+      const isKegValid = finalKegiatan.some(k => k.kodeKegiatan === kodeKegiatan);
+      if (!isKegValid && finalKegiatan.length > 0) {
+        handleKegiatanChange(finalKegiatan[0].kodeKegiatan);
+      } else if (!isKegValid) {
+        setKodeKegiatan('');
+        setKodeSub('');
+      } else {
+        const isSubValid = finalSub.some(s => s.kodeSub === kodeSub);
+        if (!isSubValid && finalSub.length > 0) {
+          setKodeSub(finalSub[0].kodeSub);
+        } else if (!isSubValid) {
+          setKodeSub('');
+        }
+      }
+    }
+  }, [selectedTahun, programs, kegiatanList, subKegiatanList]);
 
   const isReadOnly = currentUser.role === 'Auditor' || currentUser.role === 'Kepala Badan';
 
@@ -525,15 +604,11 @@ export const InputRealisasiView: React.FC = () => {
               <label className="text-xs font-bold text-slate-300">Program:</label>
               <select
                 value={kodeProgram}
-                onChange={e => {
-                  setKodeProgram(e.target.value);
-                  const kegs = kegiatanList.filter(k => k.kodeProgram === e.target.value);
-                  if (kegs.length > 0) setKodeKegiatan(kegs[0].kodeKegiatan);
-                }}
+                onChange={e => handleProgramChange(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
               >
-                {programs.filter(p => p.tahun === selectedTahun).map(p => (
-                  <option key={p.kodeProgram} value={p.kodeProgram}>
+                {finalPrograms.map(p => (
+                  <option key={`${p.tahun}_${p.kodeProgram}`} value={p.kodeProgram}>
                     {p.kodeProgram} - {p.namaProgram}
                   </option>
                 ))}
@@ -544,18 +619,19 @@ export const InputRealisasiView: React.FC = () => {
               <label className="text-xs font-bold text-slate-300">Kegiatan:</label>
               <select
                 value={kodeKegiatan}
-                onChange={e => {
-                  setKodeKegiatan(e.target.value);
-                  const subs = subKegiatanList.filter(s => s.kodeKegiatan === e.target.value);
-                  if (subs.length > 0) setKodeSub(subs[0].kodeSub);
-                }}
+                onChange={e => handleKegiatanChange(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                disabled={finalKegiatan.length === 0}
               >
-                {filteredKegiatan.map(k => (
-                  <option key={k.kodeKegiatan} value={k.kodeKegiatan}>
-                    {k.kodeKegiatan} - {k.namaKegiatan}
-                  </option>
-                ))}
+                {finalKegiatan.length === 0 ? (
+                  <option value="">-- Tidak Ada Kegiatan --</option>
+                ) : (
+                  finalKegiatan.map(k => (
+                    <option key={`${k.tahun}_${k.kodeKegiatan}`} value={k.kodeKegiatan}>
+                      {k.kodeKegiatan} - {k.namaKegiatan}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -565,12 +641,17 @@ export const InputRealisasiView: React.FC = () => {
                 value={kodeSub}
                 onChange={e => setKodeSub(e.target.value)}
                 className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                disabled={finalSub.length === 0}
               >
-                {filteredSub.map(s => (
-                  <option key={s.kodeSub} value={s.kodeSub}>
-                    {s.kodeSub} - {s.namaSub}
-                  </option>
-                ))}
+                {finalSub.length === 0 ? (
+                  <option value="">-- Tidak Ada Sub Kegiatan --</option>
+                ) : (
+                  finalSub.map(s => (
+                    <option key={`${s.tahun}_${s.kodeSub}`} value={s.kodeSub}>
+                      {s.kodeSub} - {s.namaSub}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
