@@ -1,0 +1,718 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  User,
+  UserRole,
+  TahunAnggaran,
+  OPD,
+  Program,
+  Kegiatan,
+  SubKegiatan,
+  Belanja,
+  SumberDana,
+  Rekanan,
+  Anggaran,
+  Realisasi,
+  ImportLog,
+  ActivityLog,
+  SystemNotification,
+  FilterState,
+  GoogleSheetConfig
+} from '../types';
+import {
+  INITIAL_USERS,
+  INITIAL_TAHUN,
+  INITIAL_OPD,
+  INITIAL_PROGRAMS,
+  INITIAL_KEGIATAN,
+  INITIAL_SUBKEGIATAN,
+  INITIAL_BELANJA,
+  INITIAL_SUMBER_DANA,
+  INITIAL_REKANAN,
+  INITIAL_ANGGARAN,
+  INITIAL_REALISASI,
+  INITIAL_IMPORT_LOGS,
+  INITIAL_ACTIVITY_LOGS,
+  INITIAL_SHEET_CONFIG
+} from '../data/initialData';
+
+interface AppContextType {
+  currentUser: User;
+  setCurrentUser: (user: User) => void;
+  switchRole: (role: UserRole) => void;
+  users: User[];
+  
+  selectedTahun: number;
+  setSelectedTahun: (tahun: number) => void;
+  tahunList: TahunAnggaran[];
+  
+  opd: OPD;
+  opdList: OPD[];
+  programs: Program[];
+  kegiatanList: Kegiatan[];
+  subKegiatanList: SubKegiatan[];
+  belanjaList: Belanja[];
+  sumberDanaList: SumberDana[];
+  rekananList: Rekanan[];
+  
+  anggaranList: Anggaran[];
+  realisasiList: Realisasi[];
+  importLogs: ImportLog[];
+  activityLogs: ActivityLog[];
+  notifications: SystemNotification[];
+  
+  filters: FilterState;
+  setFilters: React.Dispatch<React.SetStateAction<FilterState>>;
+  resetFilters: () => void;
+  
+  sheetConfig: GoogleSheetConfig;
+  setSheetConfig: React.Dispatch<React.SetStateAction<GoogleSheetConfig>>;
+  syncStatus: 'idle' | 'syncing' | 'success' | 'error';
+  syncWithSpreadsheet: () => Promise<void>;
+  
+  // Actions
+  addAnggaran: (anggaran: Omit<Anggaran, 'id' | 'paguAkhir' | 'tanggalInput'>) => void;
+  updateAnggaran: (id: string, updated: Partial<Anggaran>) => void;
+  deleteAnggaran: (id: string) => void;
+  
+  addRealisasi: (realisasi: Omit<Realisasi, 'id'>) => void;
+  updateRealisasi: (id: string, updated: Partial<Realisasi>) => void;
+  deleteRealisasi: (id: string) => void;
+  approveRealisasiPPK: (id: string, approved: boolean, catatan?: string) => void;
+  
+  batchImportExcel: (
+    importedRows: {
+      tahun: number;
+      kodeProgram: string;
+      kodeKegiatan: string;
+      kodeSub: string;
+      kodeBelanja: string;
+      namaBelanja: string;
+      sp2d: string;
+      spm?: string;
+      nilai: number;
+      uraian: string;
+      rekanan: string;
+      tanggal: string;
+    }[],
+    fileName: string
+  ) => { successCount: number; duplicateCount: number; errors: string[] };
+
+  // Master Data CRUD
+  addProgram: (prog: Program) => void;
+  addKegiatan: (keg: Kegiatan) => void;
+  addSubKegiatan: (sub: SubKegiatan) => void;
+  addBelanja: (bel: Belanja) => void;
+  addRekanan: (rek: Omit<Rekanan, 'id'>) => void;
+  addOpd: (newOpd: OPD) => void;
+  updateOpd: (idOrKode: string, updated: Partial<OPD>) => void;
+  deleteOpd: (idOrKode: string) => void;
+  importOpdLogo: (idOrKode: string, logoUrl: string) => void;
+  
+  // User Management
+  addUser: (user: Omit<User, 'id' | 'lastLogin'>) => void;
+  updateUserStatus: (id: string, status: 'Aktif' | 'Nonaktif') => void;
+
+  logActivity: (aktivitas: string) => void;
+  resetAllData: () => void;
+}
+
+const AppContext = createContext<AppContextType | undefined>(undefined);
+
+const STORAGE_KEY = 'BFMS_NTB_STORE_V1';
+
+export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Load initial or local stored data
+  const loadStoredData = () => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (err) {
+      console.error('Failed to load local storage:', err);
+    }
+    return null;
+  };
+
+  const storedData = loadStoredData();
+
+  const [currentUser, setCurrentUser] = useState<User>(
+    storedData?.currentUser || INITIAL_USERS[0]
+  );
+  const [users, setUsers] = useState<User[]>(
+    storedData?.users || INITIAL_USERS
+  );
+  const [selectedTahun, setSelectedTahun] = useState<number>(
+    storedData?.selectedTahun || 2025
+  );
+  const [tahunList, setTahunList] = useState<TahunAnggaran[]>(
+    storedData?.tahunList || INITIAL_TAHUN
+  );
+  const [opdList, setOpdList] = useState<OPD[]>(
+    storedData?.opdList || (storedData?.opd ? [storedData.opd] : [INITIAL_OPD])
+  );
+  const opd = opdList[0] || INITIAL_OPD;
+  const [programs, setPrograms] = useState<Program[]>(
+    storedData?.programs || INITIAL_PROGRAMS
+  );
+  const [kegiatanList, setKegiatanList] = useState<Kegiatan[]>(
+    storedData?.kegiatanList || INITIAL_KEGIATAN
+  );
+  const [subKegiatanList, setSubKegiatanList] = useState<SubKegiatan[]>(
+    storedData?.subKegiatanList || INITIAL_SUBKEGIATAN
+  );
+  const [belanjaList, setBelanjaList] = useState<Belanja[]>(
+    storedData?.belanjaList || INITIAL_BELANJA
+  );
+  const [sumberDanaList] = useState<SumberDana[]>(
+    storedData?.sumberDanaList || INITIAL_SUMBER_DANA
+  );
+  const [rekananList, setRekananList] = useState<Rekanan[]>(
+    storedData?.rekananList || INITIAL_REKANAN
+  );
+  const [anggaranList, setAnggaranList] = useState<Anggaran[]>(
+    storedData?.anggaranList || INITIAL_ANGGARAN
+  );
+  const [realisasiList, setRealisasiList] = useState<Realisasi[]>(
+    storedData?.realisasiList || INITIAL_REALISASI
+  );
+  const [importLogs, setImportLogs] = useState<ImportLog[]>(
+    storedData?.importLogs || INITIAL_IMPORT_LOGS
+  );
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(
+    storedData?.activityLogs || INITIAL_ACTIVITY_LOGS
+  );
+  const [sheetConfig, setSheetConfig] = useState<GoogleSheetConfig>(
+    storedData?.sheetConfig || INITIAL_SHEET_CONFIG
+  );
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+
+  // Filter State
+  const [filters, setFilters] = useState<FilterState>({
+    tahun: selectedTahun,
+    kodeProgram: 'all',
+    kodeKegiatan: 'all',
+    kodeSub: 'all',
+    kodeBelanja: 'all',
+    bulan: 'all',
+    triwulan: 'all',
+    semester: 'all',
+    searchQuery: ''
+  });
+
+  // Keep filter.tahun synced when selectedTahun changes
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, tahun: selectedTahun }));
+  }, [selectedTahun]);
+
+  // Save to localStorage on state changes
+  useEffect(() => {
+    const dataToStore = {
+      currentUser,
+      users,
+      selectedTahun,
+      tahunList,
+      opd,
+      opdList,
+      programs,
+      kegiatanList,
+      subKegiatanList,
+      belanjaList,
+      sumberDanaList,
+      rekananList,
+      anggaranList,
+      realisasiList,
+      importLogs,
+      activityLogs,
+      sheetConfig
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore));
+    } catch (e) {
+      console.error('Error writing to localStorage:', e);
+    }
+  }, [
+    currentUser,
+    users,
+    selectedTahun,
+    tahunList,
+    opd,
+    opdList,
+    programs,
+    kegiatanList,
+    subKegiatanList,
+    belanjaList,
+    sumberDanaList,
+    rekananList,
+    anggaranList,
+    realisasiList,
+    importLogs,
+    activityLogs,
+    sheetConfig
+  ]);
+
+  // Log activity helper
+  const logActivity = (aktivitas: string) => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().split(' ')[0];
+    const newLog: ActivityLog = {
+      id: `LOG-${Date.now()}`,
+      tanggal: dateStr,
+      jam: timeStr,
+      user: currentUser.username,
+      role: currentUser.role,
+      aktivitas,
+      ip: '180.251.12.89 (NTB Govt Net)',
+      browser: 'BFMS Web Portal v2.5'
+    };
+    setActivityLogs(prev => [newLog, ...prev]);
+  };
+
+  // Switch role function
+  const switchRole = (role: UserRole) => {
+    const targetUser = users.find(u => u.role === role) || {
+      id: `USR-${Date.now()}`,
+      nama: `User ${role}`,
+      username: role.toLowerCase().replace(/\s+/g, '_'),
+      role: role,
+      status: 'Aktif',
+      lastLogin: new Date().toISOString()
+    };
+    setCurrentUser(targetUser);
+    logActivity(`Beralih peran (Role Switch) ke: ${role}`);
+  };
+
+  // Compute Notifications dynamically based on actual budget & realisasi state
+  const notifications: SystemNotification[] = React.useMemo(() => {
+    const notifs: SystemNotification[] = [];
+
+    // Filter budget and realisasi for selected year
+    const currentAnggaran = anggaranList.filter(a => a.tahun === selectedTahun);
+    const currentRealisasi = realisasiList.filter(r => r.tahun === selectedTahun);
+
+    // 1. Check if any budget items have 0 realization
+    currentAnggaran.forEach(ang => {
+      const realForAng = currentRealisasi
+        .filter(r => r.kodeBelanja === ang.kodeBelanja && r.kodeSub === ang.kodeSub)
+        .reduce((sum, r) => sum + r.nilai, 0);
+
+      if (realForAng === 0) {
+        notifs.push({
+          id: `NOTIF-ZERO-${ang.id}`,
+          type: 'warning',
+          title: 'Belanja belum direalisasikan',
+          message: `Kode Belanja ${ang.kodeBelanja} (${ang.namaBelanja}) pagu Rp ${ang.paguAkhir.toLocaleString('id-ID')} belum ada realisasi.`,
+          timestamp: 'Hari ini'
+        });
+      } else if (realForAng > ang.paguAkhir) {
+        notifs.push({
+          id: `NOTIF-EXCEED-${ang.id}`,
+          type: 'error',
+          title: 'Belanja Melewati Pagu!',
+          message: `Realisasi ${ang.namaBelanja} (Rp ${realForAng.toLocaleString('id-ID')}) melebihi pagu akhir (Rp ${ang.paguAkhir.toLocaleString('id-ID')}).`,
+          timestamp: 'Hari ini'
+        });
+      }
+    });
+
+    // 2. Check for duplicate SP2D
+    const sp2dMap: { [key: string]: number } = {};
+    currentRealisasi.forEach(r => {
+      if (r.noSP2D) {
+        sp2dMap[r.noSP2D] = (sp2dMap[r.noSP2D] || 0) + 1;
+      }
+    });
+
+    Object.entries(sp2dMap).forEach(([sp2d, count]) => {
+      if (count > 1) {
+        notifs.push({
+          id: `NOTIF-DUP-${sp2d}`,
+          type: 'error',
+          title: 'Nomor SP2D Ganda Terdeteksi!',
+          message: `Nomor SP2D "${sp2d}" digunakan sebanyak ${count} kali. Periksa transaksi!`,
+          timestamp: 'Sistem Alert'
+        });
+      }
+    });
+
+    // 3. Draft Realisasi waiting for PPK approval
+    const pendingDrafts = currentRealisasi.filter(r => r.statusValidation === 'Draft');
+    if (pendingDrafts.length > 0) {
+      notifs.push({
+        id: 'NOTIF-PENDING-PPK',
+        type: 'info',
+        title: 'Terdapat SPJ / Realisasi Belum Di-Approve PPK',
+        message: `Ada ${pendingDrafts.length} transaksi realisasi membutuhkan persetujuan PPK.`,
+        timestamp: 'Pending Action'
+      });
+    }
+
+    return notifs;
+  }, [anggaranList, realisasiList, selectedTahun]);
+
+  // Actions
+  const addAnggaran = (newAng: Omit<Anggaran, 'id' | 'paguAkhir' | 'tanggalInput'>) => {
+    const id = `ANG-${selectedTahun}-${Date.now().toString().slice(-4)}`;
+    const paguAkhir = newAng.pagu + newAng.revisi;
+    const tanggalInput = new Date().toISOString().split('T')[0];
+    const fullAnggaran: Anggaran = {
+      ...newAng,
+      id,
+      paguAkhir,
+      tanggalInput
+    };
+
+    setAnggaranList(prev => [fullAnggaran, ...prev]);
+    logActivity(`Menambah Pagu Anggaran ${fullAnggaran.kodeBelanja}: Rp ${fullAnggaran.paguAkhir.toLocaleString('id-ID')}`);
+  };
+
+  const updateAnggaran = (id: string, updated: Partial<Anggaran>) => {
+    setAnggaranList(prev =>
+      prev.map(item => {
+        if (item.id === id) {
+          const pagu = updated.pagu !== undefined ? updated.pagu : item.pagu;
+          const revisi = updated.revisi !== undefined ? updated.revisi : item.revisi;
+          return {
+            ...item,
+            ...updated,
+            pagu,
+            revisi,
+            paguAkhir: pagu + revisi
+          };
+        }
+        return item;
+      })
+    );
+    logActivity(`Mengubah Anggaran ID ${id}`);
+  };
+
+  const deleteAnggaran = (id: string) => {
+    setAnggaranList(prev => prev.filter(a => a.id !== id));
+    logActivity(`Menghapus data Anggaran ID ${id}`);
+  };
+
+  const addRealisasi = (newReal: Omit<Realisasi, 'id'>) => {
+    const id = `REAL-${selectedTahun}-${Date.now().toString().slice(-4)}`;
+    const fullReal: Realisasi = {
+      ...newReal,
+      id,
+      statusValidation: currentUser.role === 'PPK' || currentUser.role === 'Administrator' ? 'Disetujui PPK' : 'Draft'
+    };
+    setRealisasiList(prev => [fullReal, ...prev]);
+    logActivity(`Menginput Realisasi Baru No SP2D: ${fullReal.noSP2D} Nilai: Rp ${fullReal.nilai.toLocaleString('id-ID')}`);
+  };
+
+  const updateRealisasi = (id: string, updated: Partial<Realisasi>) => {
+    setRealisasiList(prev =>
+      prev.map(item => (item.id === id ? { ...item, ...updated } : item))
+    );
+    logActivity(`Mengoreksi Transaksi Realisasi ID ${id}`);
+  };
+
+  const deleteRealisasi = (id: string) => {
+    setRealisasiList(prev => prev.filter(r => r.id !== id));
+    logActivity(`Menghapus Transaksi Realisasi ID ${id}`);
+  };
+
+  const approveRealisasiPPK = (id: string, approved: boolean, catatan?: string) => {
+    setRealisasiList(prev =>
+      prev.map(item =>
+        item.id === id
+          ? {
+              ...item,
+              statusValidation: approved ? 'Disetujui PPK' : 'Ditolak',
+              catatanValidation: catatan || (approved ? 'Disetujui oleh PPK' : 'Ditolak untuk revisi')
+            }
+          : item
+      )
+    );
+    logActivity(`PPK ${approved ? 'Menyetujui' : 'Menolak'} Realisasi ID ${id}`);
+  };
+
+  const batchImportExcel = (
+    importedRows: {
+      tahun: number;
+      kodeProgram: string;
+      kodeKegiatan: string;
+      kodeSub: string;
+      kodeBelanja: string;
+      namaBelanja: string;
+      sp2d: string;
+      spm?: string;
+      nilai: number;
+      uraian: string;
+      rekanan: string;
+      tanggal: string;
+    }[],
+    fileName: string
+  ) => {
+    let successCount = 0;
+    let duplicateCount = 0;
+    const errors: string[] = [];
+
+    const existingSP2Ds = new Set(realisasiList.map(r => r.noSP2D));
+    const newRealisasiItems: Realisasi[] = [];
+
+    importedRows.forEach((row, index) => {
+      if (!row.sp2d || !row.nilai || row.nilai <= 0) {
+        errors.push(`Baris ${index + 1}: Data Nilai atau Nomor SP2D tidak valid.`);
+        return;
+      }
+
+      if (existingSP2Ds.has(row.sp2d)) {
+        duplicateCount++;
+        errors.push(`Baris ${index + 1}: Nomor SP2D "${row.sp2d}" sudah ada dalam database (Duplikat).`);
+        return;
+      }
+
+      const dateObj = new Date(row.tanggal || Date.now());
+      const month = dateObj.getMonth() + 1;
+
+      newRealisasiItems.push({
+        id: `REAL-${row.tahun}-${Date.now()}-${index}`,
+        tanggal: row.tanggal || new Date().toISOString().split('T')[0],
+        bulan: month || 1,
+        tahun: row.tahun || selectedTahun,
+        kodeProgram: row.kodeProgram || '5.01.01',
+        kodeKegiatan: row.kodeKegiatan || '5.01.01.2.01',
+        kodeSub: row.kodeSub || '5.01.01.2.01.01',
+        kodeBelanja: row.kodeBelanja || '5.1.02.01.01.0024',
+        nilai: row.nilai,
+        noSP2D: row.sp2d,
+        noSPM: row.spm || row.sp2d.replace('SP2D', 'SPM'),
+        uraian: row.uraian || 'Import Excel Realisasi',
+        rekanan: row.rekanan || 'Rekanan Penyedia NTB',
+        operator: currentUser.nama,
+        statusValidation: 'Disetujui PPK'
+      });
+
+      existingSP2Ds.add(row.sp2d);
+      successCount++;
+    });
+
+    if (newRealisasiItems.length > 0) {
+      setRealisasiList(prev => [...newRealisasiItems, ...prev]);
+    }
+
+    const importLogEntry: ImportLog = {
+      id: `IMP-${Date.now()}`,
+      tanggal: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      namaFile: fileName,
+      jumlahData: successCount,
+      operator: currentUser.nama,
+      status: successCount > 0 ? (errors.length > 0 ? 'Sebagian' : 'Berhasil') : 'Gagal',
+      catatan: `Berhasil: ${successCount}, Duplikat: ${duplicateCount}, Error: ${errors.length}`
+    };
+
+    setImportLogs(prev => [importLogEntry, ...prev]);
+    logActivity(`Import Excel file "${fileName}": ${successCount} data berhasil diimpor.`);
+
+    return { successCount, duplicateCount, errors };
+  };
+
+  // Master Data CRUD
+  const addProgram = (prog: Program) => {
+    setPrograms(prev => [...prev, prog]);
+    logActivity(`Menambah Program Master: ${prog.kodeProgram} - ${prog.namaProgram}`);
+  };
+
+  const addKegiatan = (keg: Kegiatan) => {
+    setKegiatanList(prev => [...prev, keg]);
+    logActivity(`Menambah Kegiatan Master: ${keg.kodeKegiatan}`);
+  };
+
+  const addSubKegiatan = (sub: SubKegiatan) => {
+    setSubKegiatanList(prev => [...prev, sub]);
+    logActivity(`Menambah Sub Kegiatan Master: ${sub.kodeSub}`);
+  };
+
+  const addBelanja = (bel: Belanja) => {
+    setBelanjaList(prev => [...prev, bel]);
+    logActivity(`Menambah Belanja Master: ${bel.kodeBelanja}`);
+  };
+
+  const addRekanan = (rek: Omit<Rekanan, 'id'>) => {
+    const fullRek: Rekanan = { ...rek, id: `REK-${Date.now()}` };
+    setRekananList(prev => [...prev, fullRek]);
+    logActivity(`Menambah Rekanan Baru: ${fullRek.namaRekanan}`);
+  };
+
+  // OPD Management
+  const addOpd = (newOpd: OPD) => {
+    const fullOpd: OPD = {
+      ...newOpd,
+      id: newOpd.id || `OPD-${Date.now().toString().slice(-4)}`
+    };
+    setOpdList(prev => [...prev, fullOpd]);
+    logActivity(`Menambah Unit Kerja / OPD Baru: ${fullOpd.namaOPD}`);
+  };
+
+  const updateOpd = (idOrKode: string, updated: Partial<OPD>) => {
+    setOpdList(prev =>
+      prev.map(item =>
+        (item.id === idOrKode || item.kodeOPD === idOrKode)
+          ? { ...item, ...updated }
+          : item
+      )
+    );
+    logActivity(`Memperbarui Data OPD / Unit Kerja ID/Kode: ${idOrKode}`);
+  };
+
+  const deleteOpd = (idOrKode: string) => {
+    setOpdList(prev =>
+      prev.filter(item => item.id !== idOrKode && item.kodeOPD !== idOrKode)
+    );
+    logActivity(`Menghapus Data OPD / Unit Kerja ID/Kode: ${idOrKode}`);
+  };
+
+  const importOpdLogo = (idOrKode: string, logoUrl: string) => {
+    setOpdList(prev =>
+      prev.map(item =>
+        (item.id === idOrKode || item.kodeOPD === idOrKode)
+          ? { ...item, logoUrl }
+          : item
+      )
+    );
+    logActivity(`Mengimpor / Mengunggah Logo Provinsi NTB untuk OPD ID/Kode: ${idOrKode}`);
+  };
+
+  const addUser = (newUser: Omit<User, 'id' | 'lastLogin'>) => {
+    const fullUser: User = {
+      ...newUser,
+      id: `USR-${Date.now()}`,
+      lastLogin: '-'
+    };
+    setUsers(prev => [...prev, fullUser]);
+    logActivity(`Menambah Pengguna Sistem Baru: ${fullUser.username} (${fullUser.role})`);
+  };
+
+  const updateUserStatus = (id: string, status: 'Aktif' | 'Nonaktif') => {
+    setUsers(prev => prev.map(u => (u.id === id ? { ...u, status } : u)));
+    logActivity(`Mengubah Status User ID ${id} menjadi ${status}`);
+  };
+
+  // Google Spreadsheet Sync
+  const syncWithSpreadsheet = async () => {
+    setSyncStatus('syncing');
+    logActivity(`Memulai sinkronisasi data dengan Google Spreadsheet`);
+
+    try {
+      // Simulate Apps Script webhook fetch or push
+      await new Promise(resolve => setTimeout(resolve, 1200));
+
+      setSheetConfig(prev => ({
+        ...prev,
+        lastSyncedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        status: 'Connected'
+      }));
+      setSyncStatus('success');
+      logActivity(`Sinkronisasi Google Spreadsheet BERHASIL`);
+    } catch (err) {
+      setSyncStatus('error');
+      setSheetConfig(prev => ({ ...prev, status: 'Error' }));
+      logActivity(`Sinkronisasi Google Spreadsheet GAGAL`);
+    } finally {
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    }
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      tahun: selectedTahun,
+      kodeProgram: 'all',
+      kodeKegiatan: 'all',
+      kodeSub: 'all',
+      kodeBelanja: 'all',
+      bulan: 'all',
+      triwulan: 'all',
+      semester: 'all',
+      searchQuery: ''
+    });
+  };
+
+  const resetAllData = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setCurrentUser(INITIAL_USERS[0]);
+    setUsers(INITIAL_USERS);
+    setSelectedTahun(2025);
+    setTahunList(INITIAL_TAHUN);
+    setOpdList([INITIAL_OPD]);
+    setPrograms(INITIAL_PROGRAMS);
+    setKegiatanList(INITIAL_KEGIATAN);
+    setSubKegiatanList(INITIAL_SUBKEGIATAN);
+    setBelanjaList(INITIAL_BELANJA);
+    setRekananList(INITIAL_REKANAN);
+    setAnggaranList(INITIAL_ANGGARAN);
+    setRealisasiList(INITIAL_REALISASI);
+    setImportLogs(INITIAL_IMPORT_LOGS);
+    setActivityLogs(INITIAL_ACTIVITY_LOGS);
+    setSheetConfig(INITIAL_SHEET_CONFIG);
+    logActivity(`Reset seluruh data aplikasi ke default awal`);
+  };
+
+  return (
+    <AppContext.Provider
+      value={{
+        currentUser,
+        setCurrentUser,
+        switchRole,
+        users,
+        selectedTahun,
+        setSelectedTahun,
+        tahunList,
+        opd,
+        opdList,
+        programs,
+        kegiatanList,
+        subKegiatanList,
+        belanjaList,
+        sumberDanaList,
+        rekananList,
+        anggaranList,
+        realisasiList,
+        importLogs,
+        activityLogs,
+        notifications,
+        filters,
+        setFilters,
+        resetFilters,
+        sheetConfig,
+        setSheetConfig,
+        syncStatus,
+        syncWithSpreadsheet,
+        addAnggaran,
+        updateAnggaran,
+        deleteAnggaran,
+        addRealisasi,
+        updateRealisasi,
+        deleteRealisasi,
+        approveRealisasiPPK,
+        batchImportExcel,
+        addProgram,
+        addKegiatan,
+        addSubKegiatan,
+        addBelanja,
+        addRekanan,
+        addOpd,
+        updateOpd,
+        deleteOpd,
+        importOpdLogo,
+        addUser,
+        updateUserStatus,
+        logActivity,
+        resetAllData
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
+};
+
+export const useApp = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+};
