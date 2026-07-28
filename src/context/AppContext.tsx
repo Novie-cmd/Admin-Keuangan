@@ -73,6 +73,7 @@ interface AppContextType {
   addAnggaran: (anggaran: Omit<Anggaran, 'id' | 'paguAkhir' | 'tanggalInput'>) => void;
   updateAnggaran: (id: string, updated: Partial<Anggaran>) => void;
   deleteAnggaran: (id: string) => void;
+  clearAnggaranDatabase: (tahun?: number) => void;
   importAnggaranBatch: (
     items: {
       tahun: number;
@@ -92,6 +93,7 @@ interface AppContextType {
   addRealisasi: (realisasi: Omit<Realisasi, 'id'>) => void;
   updateRealisasi: (id: string, updated: Partial<Realisasi>) => void;
   deleteRealisasi: (id: string) => void;
+  clearRealisasiDatabase: (tahun?: number) => void;
   approveRealisasiPPK: (id: string, approved: boolean, catatan?: string) => void;
   
   batchImportExcel: (
@@ -436,6 +438,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menghapus data Anggaran ID ${id}`);
   };
 
+  const clearAnggaranDatabase = (tahun?: number) => {
+    if (tahun) {
+      setAnggaranList(prev => prev.filter(a => a.tahun !== tahun));
+      logActivity(`Kosongkan Database Pagu Anggaran TA ${tahun}`);
+    } else {
+      setAnggaranList([]);
+      logActivity('Kosongkan Seluruh Database Pagu Anggaran');
+    }
+  };
+
   const importAnggaranBatch = (
     items: {
       tahun: number;
@@ -554,6 +566,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteRealisasi = (id: string) => {
     setRealisasiList(prev => prev.filter(r => r.id !== id));
     logActivity(`Menghapus Transaksi Realisasi ID ${id}`);
+  };
+
+  const clearRealisasiDatabase = (tahun?: number) => {
+    if (tahun) {
+      setRealisasiList(prev => prev.filter(r => r.tahun !== tahun));
+      logActivity(`Kosongkan Database Realisasi SP2D TA ${tahun}`);
+    } else {
+      setRealisasiList([]);
+      logActivity('Kosongkan Seluruh Database Realisasi SP2D');
+    }
   };
 
   const approveRealisasiPPK = (id: string, approved: boolean, catatan?: string) => {
@@ -1024,10 +1046,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addAnggaran,
         updateAnggaran,
         deleteAnggaran,
+        clearAnggaranDatabase,
         importAnggaranBatch,
         addRealisasi,
         updateRealisasi,
         deleteRealisasi,
+        clearRealisasiDatabase,
         approveRealisasiPPK,
         batchImportExcel,
         addTahun,

@@ -52,12 +52,14 @@ export const InputAnggaranView: React.FC = () => {
     addAnggaran,
     updateAnggaran,
     deleteAnggaran,
+    clearAnggaranDatabase,
     importAnggaranBatch,
     currentUser
   } = useApp();
 
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showClearModal, setShowClearModal] = useState(false);
 
   // Edit and Delete Modal States
   const [editingAnggaran, setEditingAnggaran] = useState<Anggaran | null>(null);
@@ -324,7 +326,17 @@ export const InputAnggaranView: React.FC = () => {
         </div>
 
         {!isReadOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowClearModal(true)}
+              className="flex items-center gap-2 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3.5 py-2.5 text-xs font-bold text-rose-400 hover:bg-rose-900/60 hover:border-rose-700 transition"
+              id="btn-clear-db-anggaran"
+              title="Kosongkan Database Anggaran Pagu"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Hapus Database</span>
+            </button>
+
             <button
               onClick={() => {
                 setShowImportModal(true);
@@ -904,6 +916,65 @@ export const InputAnggaranView: React.FC = () => {
               >
                 <FileCheck className="h-4 w-4" />
                 <span>Proses Import {validPreviewCount} Data Pagu</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CLEAR DATABASE CONFIRMATION MODAL */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/60 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-3 rounded-2xl bg-rose-950 border border-rose-800/80">
+                <AlertCircle className="h-7 w-7 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Kosongkan Database Anggaran Pagu</h3>
+                <p className="text-xs text-slate-400">Pilih skop penghapusan data Pagu Anggaran.</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-rose-950/30 border border-rose-900/50 p-3 text-xs text-rose-200 leading-relaxed space-y-1">
+              <p className="font-bold text-rose-300">Peringatan Penting!</p>
+              <p>
+                Tindakan ini akan menghapus data rincian Pagu Murni, Pergeseran, dan Nilai SPD dari database.
+                Data yang terhapus tidak dapat dikembalikan.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => {
+                  clearAnggaranDatabase(selectedTahun);
+                  setShowClearModal(false);
+                }}
+                className="w-full rounded-xl bg-rose-600 hover:bg-rose-500 p-3 text-xs font-bold text-white transition flex items-center justify-between shadow-md"
+              >
+                <span>Hapus Data Tahun Anggaran {selectedTahun} Saja</span>
+                <Trash2 className="h-4 w-4" />
+              </button>
+
+              <button
+                onClick={() => {
+                  clearAnggaranDatabase();
+                  setShowClearModal(false);
+                }}
+                className="w-full rounded-xl bg-slate-800 hover:bg-rose-950 hover:text-rose-300 border border-slate-700 hover:border-rose-800 p-3 text-xs font-bold text-slate-300 transition flex items-center justify-between"
+              >
+                <span>Hapus Seluruh Data Pagu (Semua Tahun)</span>
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowClearModal(false)}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-300 transition"
+              >
+                Batal
               </button>
             </div>
           </div>
