@@ -47,7 +47,7 @@ const MainContent: React.FC = () => {
 
             {/* Tab 2: Master Data */}
             {activeTab.startsWith('master-') && (
-              <MasterDataView initialSubTab={activeTab} />
+              <MasterDataView key={activeTab} initialSubTab={activeTab} />
             )}
 
             {/* Tab 3: Transaksi */}
@@ -58,7 +58,7 @@ const MainContent: React.FC = () => {
 
             {/* Tab 4: Pelaporan */}
             {activeTab.startsWith('laporan-') && (
-              <PelaporanView initialReportType={activeTab} />
+              <PelaporanView key={activeTab} initialReportType={activeTab} />
             )}
 
             {/* Tab 5: Analisis */}

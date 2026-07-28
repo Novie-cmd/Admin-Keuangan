@@ -61,6 +61,13 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<string>(initialSubTab);
+
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setActiveTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal forms state

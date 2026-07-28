@@ -76,10 +76,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { currentUser, switchRole, resetAllData } = useApp();
 
   // Accordion state for sidebar sub-menus
-  const [openMaster, setOpenMaster] = useState(false);
+  const [openMaster, setOpenMaster] = useState(true);
   const [openTransaksi, setOpenTransaksi] = useState(true);
   const [openPelaporan, setOpenPelaporan] = useState(true);
   const [openAnalisis, setOpenAnalisis] = useState(false);
+
+  // Auto-expand accordion when activeTab belongs to that category
+  React.useEffect(() => {
+    if (activeTab.startsWith('master-')) setOpenMaster(true);
+    if (activeTab.startsWith('transaksi-')) setOpenTransaksi(true);
+    if (activeTab.startsWith('laporan-')) setOpenPelaporan(true);
+    if (activeTab.startsWith('analisis-')) setOpenAnalisis(true);
+  }, [activeTab]);
 
   // Role permissions filter helper
   const role = currentUser.role;
@@ -135,8 +143,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {canAccessMaster && (
           <div>
             <button
-              onClick={() => setOpenMaster(!openMaster)}
-              className="flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-900 hover:text-white"
+              onClick={() => {
+                setOpenMaster(prev => !prev);
+                if (!activeTab.startsWith('master-')) {
+                  setActiveTab('master-tahun');
+                }
+              }}
+              className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold transition ${
+                activeTab.startsWith('master-')
+                  ? 'bg-emerald-950/80 text-emerald-300 font-bold border border-emerald-700/50'
+                  : 'text-slate-300 hover:bg-slate-900 hover:text-white'
+              }`}
               id="accordion-master-data"
             >
               <span className="flex items-center gap-3">

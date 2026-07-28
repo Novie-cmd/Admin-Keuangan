@@ -29,10 +29,39 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     belanjaList,
     anggaranList,
     realisasiList,
-    opd
+    opd,
+    users
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<string>(initialReportType);
+
+  React.useEffect(() => {
+    if (initialReportType) {
+      setActiveTab(initialReportType);
+    }
+  }, [initialReportType]);
+
+  // Penandatangan Signatories State (Synced with Data Pengguna)
+  const [selectedPpkId, setSelectedPpkId] = useState<string>('');
+  const [selectedKabanId, setSelectedKabanId] = useState<string>('');
+
+  React.useEffect(() => {
+    if (users.length > 0) {
+      if (!selectedPpkId || !users.some(u => u.id === selectedPpkId)) {
+        const ppk = users.find(u => u.role === 'PPK');
+        if (ppk) setSelectedPpkId(ppk.id);
+        else if (users[0]) setSelectedPpkId(users[0].id);
+      }
+      if (!selectedKabanId || !users.some(u => u.id === selectedKabanId)) {
+        const kaban = users.find(u => u.role === 'Kepala Badan');
+        if (kaban) setSelectedKabanId(kaban.id);
+        else if (users[0]) setSelectedKabanId(users[0].id);
+      }
+    }
+  }, [users, selectedPpkId, selectedKabanId]);
+
+  const activePpkUser = users.find(u => u.id === selectedPpkId) || users.find(u => u.role === 'PPK');
+  const activeKabanUser = users.find(u => u.id === selectedKabanId) || users.find(u => u.role === 'Kepala Badan');
 
   // Filters
   const [filterProgram, setFilterProgram] = useState<string>('all');
@@ -203,7 +232,40 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Penandatangan Selectors (Synced with Data Pengguna) */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-900 border border-slate-800 p-1.5 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-bold text-[11px] pl-1">PPK:</span>
+              <select
+                value={selectedPpkId}
+                onChange={e => setSelectedPpkId(e.target.value)}
+                className="bg-slate-950 text-white rounded-lg px-2 py-1 border border-slate-700 text-xs font-semibold focus:outline-none focus:border-emerald-500"
+              >
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.nama} ({u.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400 font-bold text-[11px] pl-1">Kepala Badan:</span>
+              <select
+                value={selectedKabanId}
+                onChange={e => setSelectedKabanId(e.target.value)}
+                className="bg-slate-950 text-white rounded-lg px-2 py-1 border border-slate-700 text-xs font-semibold focus:outline-none focus:border-emerald-500"
+              >
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.nama} ({u.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <button
             onClick={exportToExcel}
             className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-bold text-emerald-400 hover:border-emerald-500 hover:bg-slate-800"
@@ -487,16 +549,26 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
             <p>Mengetahui,</p>
             <p className="font-bold">Pejabat Pembuat Komitmen (PPK)</p>
             <div className="h-16" />
-            <p className="font-bold underline">Drs. Supriadi, M.M</p>
-            <p className="text-[10px] font-mono">NIP. 197105151998031004</p>
+            <p className="font-bold underline">{activePpkUser?.nama || 'Drs. Supriadi, M.M'}</p>
+            <p className="text-[10px] font-mono">
+              {activePpkUser?.nip ? `NIP. ${activePpkUser.nip}` : 'NIP. -'}
+            </p>
           </div>
 
           <div>
-            <p>Mataram, {new Date().toLocaleDateString('id-ID')}</p>
+            <p>Mataram, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
             <p className="font-bold">Kepala Badan Kesbangpoldagri NTB</p>
             <div className="h-16" />
-            <p className="font-bold underline">{opd.kepalaBadan}</p>
-            <p className="text-[10px] font-mono">NIP. {opd.nipKepala}</p>
+            <p className="font-bold underline">
+              {activeKabanUser?.nama || opd.kepalaBadan || 'H. Lalu Gita Ariadi, M.Si'}
+            </p>
+            <p className="text-[10px] font-mono">
+              {activeKabanUser?.nip
+                ? `NIP. ${activeKabanUser.nip}`
+                : opd.nipKepala
+                ? `NIP. ${opd.nipKepala}`
+                : 'NIP. -'}
+            </p>
           </div>
         </div>
       </div>
