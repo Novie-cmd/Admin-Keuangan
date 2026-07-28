@@ -83,6 +83,7 @@ export interface Anggaran {
   namaBelanja: string;
   pagu: number;
   revisi: number;
+  nilaiSPD?: number;
   paguAkhir: number;
   tanggalInput: string;
   operator: string;

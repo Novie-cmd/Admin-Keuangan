@@ -83,6 +83,7 @@ interface AppContextType {
       namaBelanja?: string;
       pagu: number;
       revisi?: number;
+      nilaiSPD?: number;
       sumberDana?: string;
     }[],
     fileName?: string
@@ -394,10 +395,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addAnggaran = (newAng: Omit<Anggaran, 'id' | 'paguAkhir' | 'tanggalInput'>) => {
     const id = `ANG-${selectedTahun}-${Date.now().toString().slice(-4)}`;
     const paguAkhir = newAng.pagu + newAng.revisi;
+    const nilaiSPD = newAng.nilaiSPD !== undefined ? newAng.nilaiSPD : paguAkhir;
     const tanggalInput = new Date().toISOString().split('T')[0];
     const fullAnggaran: Anggaran = {
       ...newAng,
       id,
+      nilaiSPD,
       paguAkhir,
       tanggalInput
     };
@@ -412,11 +415,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (item.id === id) {
           const pagu = updated.pagu !== undefined ? updated.pagu : item.pagu;
           const revisi = updated.revisi !== undefined ? updated.revisi : item.revisi;
+          const nilaiSPD = updated.nilaiSPD !== undefined ? updated.nilaiSPD : (item.nilaiSPD !== undefined ? item.nilaiSPD : pagu + revisi);
           return {
             ...item,
             ...updated,
             pagu,
             revisi,
+            nilaiSPD,
             paguAkhir: pagu + revisi
           };
         }
@@ -441,6 +446,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       namaBelanja?: string;
       pagu: number;
       revisi?: number;
+      nilaiSPD?: number;
       sumberDana?: string;
     }[],
     fileName: string = 'Import_Anggaran_Pagu.xlsx'
@@ -464,6 +470,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const namaBelanja = row.namaBelanja || belObj?.namaBelanja || `Belanja ${row.kodeBelanja}`;
       const pagu = Number(row.pagu) || 0;
       const revisi = Number(row.revisi) || 0;
+      const nilaiSPD = row.nilaiSPD !== undefined ? Number(row.nilaiSPD) : (pagu + revisi);
 
       if (existingKeys.has(key)) {
         duplicateCount++;
@@ -474,6 +481,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 ...a,
                 pagu,
                 revisi,
+                nilaiSPD,
                 paguAkhir: pagu + revisi,
                 namaBelanja: namaBelanja || a.namaBelanja,
                 sumberDana: row.sumberDana || a.sumberDana
@@ -494,6 +502,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           namaBelanja,
           pagu,
           revisi,
+          nilaiSPD,
           paguAkhir: pagu + revisi,
           tanggalInput: new Date().toISOString().split('T')[0],
           operator: currentUser.nama,

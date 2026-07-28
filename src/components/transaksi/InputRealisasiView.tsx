@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { Realisasi } from '../../types';
 import * as XLSX from 'xlsx';
 import { safeDownloadExcel } from '../../utils/downloadHelper';
 import {
   FileText,
   Plus,
   Trash2,
+  Edit,
   Upload,
   CheckCircle2,
   AlertTriangle,
@@ -51,6 +53,7 @@ export const InputRealisasiView: React.FC = () => {
     realisasiList,
     anggaranList,
     addRealisasi,
+    updateRealisasi,
     deleteRealisasi,
     batchImportExcel,
     currentUser
@@ -58,6 +61,18 @@ export const InputRealisasiView: React.FC = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Edit and Delete Modal States
+  const [editingRealisasi, setEditingRealisasi] = useState<Realisasi | null>(null);
+  const [deletingRealisasi, setDeletingRealisasi] = useState<Realisasi | null>(null);
+
+  // Edit Form State
+  const [editNoSP2D, setEditNoSP2D] = useState('');
+  const [editNoSPM, setEditNoSPM] = useState('');
+  const [editNilai, setEditNilai] = useState<number>(0);
+  const [editUraian, setEditUraian] = useState('');
+  const [editRekanan, setEditRekanan] = useState('');
+  const [editTanggal, setEditTanggal] = useState('');
 
   // Excel Import States
   const [showImportModal, setShowImportModal] = useState(false);
@@ -85,6 +100,41 @@ export const InputRealisasiView: React.FC = () => {
   const filteredSub = subKegiatanList.filter(s => s.kodeKegiatan === kodeKegiatan);
 
   const isReadOnly = currentUser.role === 'Auditor' || currentUser.role === 'Kepala Badan';
+
+  // Open Edit Modal
+  const handleOpenEdit = (r: Realisasi) => {
+    setEditingRealisasi(r);
+    setEditNoSP2D(r.noSP2D);
+    setEditNoSPM(r.noSPM || '');
+    setEditNilai(r.nilai);
+    setEditUraian(r.uraian);
+    setEditRekanan(r.rekanan);
+    setEditTanggal(r.tanggal);
+  };
+
+  // Save Edit Realisasi
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRealisasi) return;
+
+    updateRealisasi(editingRealisasi.id, {
+      noSP2D: editNoSP2D,
+      noSPM: editNoSPM,
+      nilai: editNilai,
+      uraian: editUraian,
+      rekanan: editRekanan,
+      tanggal: editTanggal
+    });
+
+    setEditingRealisasi(null);
+  };
+
+  // Confirm Delete Realisasi
+  const handleConfirmDelete = () => {
+    if (!deletingRealisasi) return;
+    deleteRealisasi(deletingRealisasi.id);
+    setDeletingRealisasi(null);
+  };
 
   // Download Excel Template for Realisasi SP2D
   const handleDownloadTemplate = () => {
@@ -608,13 +658,22 @@ export const InputRealisasiView: React.FC = () => {
                     </td>
                     {!isReadOnly && (
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => deleteRealisasi(r.id)}
-                          className="rounded p-1 text-slate-400 hover:bg-rose-950 hover:text-rose-400"
-                          title="Hapus"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleOpenEdit(r)}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-amber-400 transition"
+                            title="Edit Transaksi SP2D"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingRealisasi(r)}
+                            className="rounded p-1 text-slate-400 hover:bg-rose-950 hover:text-rose-400 transition"
+                            title="Hapus Data"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -623,6 +682,161 @@ export const InputRealisasiView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* EDIT REALISASI MODAL */}
+      {editingRealisasi && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-white">Edit Transaksi Realisasi (SP2D)</h3>
+              </div>
+              <button
+                onClick={() => setEditingRealisasi(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
+              <div>
+                <span className="text-slate-400 block font-mono font-bold text-[11px]">{editingRealisasi.kodeBelanja}</span>
+                <span className="text-white font-semibold block mt-0.5">{editingRealisasi.namaBelanja}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">No SP2D:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editNoSP2D}
+                    onChange={e => setEditNoSP2D(e.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-teal-300 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">No SPM:</label>
+                  <input
+                    type="text"
+                    value={editNoSPM}
+                    onChange={e => setEditNoSPM(e.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-slate-200 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">Tanggal Transaksi:</label>
+                  <input
+                    type="date"
+                    required
+                    value={editTanggal}
+                    onChange={e => setEditTanggal(e.target.value)}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-slate-300 font-bold block mb-1">Nilai Realisasi (Rp):</label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={editNilai}
+                    onChange={e => setEditNilai(Number(e.target.value))}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs font-mono font-bold text-emerald-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-bold block mb-1">Penyedia / Rekanan:</label>
+                <select
+                  value={editRekanan}
+                  onChange={e => setEditRekanan(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                >
+                  {rekananList.map(r => (
+                    <option key={r.id} value={r.namaRekanan}>
+                      {r.namaRekanan} ({r.bank})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-bold block mb-1">Uraian Transaksi:</label>
+                <textarea
+                  required
+                  rows={2}
+                  value={editUraian}
+                  onChange={e => setEditUraian(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingRealisasi(null)}
+                  className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-300 hover:bg-slate-700 transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-teal-600 hover:bg-teal-500 px-5 py-2 font-bold text-white transition shadow-md"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletingRealisasi && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/50 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2 rounded-xl bg-rose-950 border border-rose-800/60">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Konfirmasi Hapus Realisasi SP2D</h3>
+                <p className="text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan.</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs space-y-1">
+              <div className="text-teal-300 font-mono font-bold">{deletingRealisasi.noSP2D}</div>
+              <div className="text-white font-semibold">{deletingRealisasi.uraian}</div>
+              <div className="text-emerald-400 font-mono font-bold">Nilai: Rp {deletingRealisasi.nilai.toLocaleString('id-ID')}</div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setDeletingRealisasi(null)}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="rounded-xl bg-rose-600 hover:bg-rose-500 px-5 py-2.5 text-xs font-bold text-white transition shadow-md"
+              >
+                Hapus Permanen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* IMPORT EXCEL MODAL */}
       {showImportModal && (

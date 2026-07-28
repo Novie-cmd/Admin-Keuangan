@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { Anggaran } from '../../types';
 import * as XLSX from 'xlsx';
 import { safeDownloadExcel } from '../../utils/downloadHelper';
 import {
@@ -18,7 +19,8 @@ import {
   XCircle,
   FileCheck,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 
 interface PreviewAnggaranRow {
@@ -31,6 +33,7 @@ interface PreviewAnggaranRow {
   namaBelanja: string;
   pagu: number;
   revisi: number;
+  nilaiSPD: number;
   sumberDana: string;
   isValid: boolean;
   status: string;
@@ -47,6 +50,7 @@ export const InputAnggaranView: React.FC = () => {
     sumberDanaList,
     anggaranList,
     addAnggaran,
+    updateAnggaran,
     deleteAnggaran,
     importAnggaranBatch,
     currentUser
@@ -54,6 +58,16 @@ export const InputAnggaranView: React.FC = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Edit and Delete Modal States
+  const [editingAnggaran, setEditingAnggaran] = useState<Anggaran | null>(null);
+  const [deletingAnggaran, setDeletingAnggaran] = useState<Anggaran | null>(null);
+
+  // Edit form state
+  const [editPagu, setEditPagu] = useState<number>(0);
+  const [editRevisi, setEditRevisi] = useState<number>(0);
+  const [editNilaiSPD, setEditNilaiSPD] = useState<number>(0);
+  const [editSumberDana, setEditSumberDana] = useState<string>('DAU');
 
   // Excel Import States
   const [showImportModal, setShowImportModal] = useState(false);
@@ -69,12 +83,44 @@ export const InputAnggaranView: React.FC = () => {
   const [kodeBelanja, setKodeBelanja] = useState(belanjaList[0]?.kodeBelanja || '5.1.02.01.01.0024');
   const [pagu, setPagu] = useState<number>(500000000);
   const [revisi, setRevisi] = useState<number>(0);
+  const [nilaiSPD, setNilaiSPD] = useState<number>(500000000);
   const [sumberDana, setSumberDana] = useState('DAU');
 
   const filteredKegiatan = kegiatanList.filter(k => k.kodeProgram === kodeProgram);
   const filteredSub = subKegiatanList.filter(s => s.kodeKegiatan === kodeKegiatan);
 
   const isReadOnly = currentUser.role === 'Auditor' || currentUser.role === 'Kepala Badan';
+
+  // Open Edit Modal
+  const handleOpenEdit = (a: Anggaran) => {
+    setEditingAnggaran(a);
+    setEditPagu(a.pagu);
+    setEditRevisi(a.revisi);
+    setEditNilaiSPD(a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir);
+    setEditSumberDana(a.sumberDana || 'DAU');
+  };
+
+  // Save Edit Anggaran
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAnggaran) return;
+
+    updateAnggaran(editingAnggaran.id, {
+      pagu: editPagu,
+      revisi: editRevisi,
+      nilaiSPD: editNilaiSPD,
+      sumberDana: editSumberDana
+    });
+
+    setEditingAnggaran(null);
+  };
+
+  // Confirm Delete Anggaran
+  const handleConfirmDelete = () => {
+    if (!deletingAnggaran) return;
+    deleteAnggaran(deletingAnggaran.id);
+    setDeletingAnggaran(null);
+  };
 
   // Download Excel Template for Anggaran Pagu
   const handleDownloadTemplate = () => {
@@ -88,6 +134,7 @@ export const InputAnggaranView: React.FC = () => {
         'Nama Belanja': 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor',
         'Pagu Murni': 150000000,
         'Revisi': 0,
+        'Nilai SPD': 150000000,
         'Sumber Dana': 'DAU'
       },
       {
@@ -99,6 +146,7 @@ export const InputAnggaranView: React.FC = () => {
         'Nama Belanja': 'Belanja Kertas dan Cover Cetakan Laporan',
         'Pagu Murni': 75000000,
         'Revisi': 5000000,
+        'Nilai SPD': 80000000,
         'Sumber Dana': 'DAU'
       }
     ];
@@ -159,6 +207,8 @@ export const InputAnggaranView: React.FC = () => {
           const namaBel = getVal('namabelanja', 'uraianbelanja', 'uraian', 'namarekening') || belObj?.namaBelanja || `Belanja ${bel}`;
           const paguVal = parseFloat(getVal('pagumurni', 'pagu', 'nilaipagu', 'nilai') || '0') || 0;
           const revVal = parseFloat(getVal('revisi', 'pergeseran', 'perubahan') || '0') || 0;
+          const spdValRaw = getVal('nilaispd', 'spd', 'paguspd', 'jumlahspd');
+          const spdVal = spdValRaw ? parseFloat(spdValRaw) || 0 : (paguVal + revVal);
           const sdVal = getVal('sumberdana', 'sumber', 'sd') || 'DAU';
 
           const key = `${thn}_${bel}`;
@@ -183,6 +233,7 @@ export const InputAnggaranView: React.FC = () => {
             namaBelanja: namaBel,
             pagu: paguVal,
             revisi: revVal,
+            nilaiSPD: spdVal,
             sumberDana: sdVal,
             isValid: !err,
             status: isExisting ? 'Akan Diperbarui' : 'Data Baru',
@@ -216,6 +267,7 @@ export const InputAnggaranView: React.FC = () => {
         namaBelanja: r.namaBelanja,
         pagu: r.pagu,
         revisi: r.revisi,
+        nilaiSPD: r.nilaiSPD,
         sumberDana: r.sumberDana
       })),
       importedFileName || 'Import_Pagu_Anggaran.xlsx'
@@ -239,17 +291,20 @@ export const InputAnggaranView: React.FC = () => {
       namaBelanja: belObj?.namaBelanja || 'Belanja Operasional',
       pagu,
       revisi,
+      nilaiSPD,
       operator: currentUser.nama,
       sumberDana
     });
     setShowForm(false);
     setPagu(100000000);
     setRevisi(0);
+    setNilaiSPD(100000000);
   };
 
   const currentAnggaran = anggaranList.filter(a => a.tahun === selectedTahun);
   const totalPaguMurni = currentAnggaran.reduce((s, a) => s + a.pagu, 0);
   const totalRevisi = currentAnggaran.reduce((s, a) => s + a.revisi, 0);
+  const totalNilaiSPD = currentAnggaran.reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
   const totalPaguAkhir = currentAnggaran.reduce((s, a) => s + a.paguAkhir, 0);
 
   const validPreviewCount = previewData.filter(r => r.isValid).length;
@@ -264,7 +319,7 @@ export const InputAnggaranView: React.FC = () => {
             <h1 className="text-xl font-bold text-white">Input Anggaran & Pagu Belanja</h1>
           </div>
           <p className="text-xs text-slate-400">
-            Penetapan Pagu Murni, Pergeseran / Revisi Anggaran Tahun Anggaran {selectedTahun}
+            Penetapan Pagu Murni, Pergeseran / Revisi Anggaran & Nilai SPD Tahun Anggaran {selectedTahun}
           </p>
         </div>
 
@@ -298,20 +353,24 @@ export const InputAnggaranView: React.FC = () => {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Pagu Murni</span>
-          <div className="mt-1 text-lg font-black text-white">Rp {totalPaguMurni.toLocaleString('id-ID')}</div>
+          <div className="mt-1 text-base font-black text-white">Rp {totalPaguMurni.toLocaleString('id-ID')}</div>
         </div>
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Revisi / Pergeseran</span>
-          <div className="mt-1 text-lg font-black text-amber-400">
+          <div className="mt-1 text-base font-black text-amber-400">
             {totalRevisi >= 0 ? '+' : ''}Rp {totalRevisi.toLocaleString('id-ID')}
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total Pagu Akhir</span>
-          <div className="mt-1 text-lg font-black text-emerald-400">Rp {totalPaguAkhir.toLocaleString('id-ID')}</div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 border-l-4 border-l-sky-500">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400">Total Nilai SPD</span>
+          <div className="mt-1 text-base font-black text-sky-300">Rp {totalNilaiSPD.toLocaleString('id-ID')}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 border-l-4 border-l-emerald-500">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Total Pagu Akhir</span>
+          <div className="mt-1 text-base font-black text-emerald-300">Rp {totalPaguAkhir.toLocaleString('id-ID')}</div>
         </div>
       </div>
 
@@ -398,7 +457,11 @@ export const InputAnggaranView: React.FC = () => {
                 required
                 min={0}
                 value={pagu}
-                onChange={e => setPagu(Number(e.target.value))}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setPagu(val);
+                  setNilaiSPD(val + revisi);
+                }}
                 className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs font-mono font-bold text-emerald-400"
               />
             </div>
@@ -408,9 +471,40 @@ export const InputAnggaranView: React.FC = () => {
               <input
                 type="number"
                 value={revisi}
-                onChange={e => setRevisi(Number(e.target.value))}
+                onChange={e => {
+                  const val = Number(e.target.value);
+                  setRevisi(val);
+                  setNilaiSPD(pagu + val);
+                }}
                 className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs font-mono font-bold text-amber-400"
               />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-300">Nilai SPD (Surat Penyediaan Dana) (Rp):</label>
+              <input
+                type="number"
+                required
+                min={0}
+                value={nilaiSPD}
+                onChange={e => setNilaiSPD(Number(e.target.value))}
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs font-mono font-bold text-sky-400"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-300">Sumber Dana:</label>
+              <select
+                value={sumberDana}
+                onChange={e => setSumberDana(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+              >
+                {sumberDanaList.map(sd => (
+                  <option key={sd.kodeSumber} value={sd.namaSumber || sd.kodeSumber}>
+                    {sd.namaSumber}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -455,7 +549,9 @@ export const InputAnggaranView: React.FC = () => {
                 <th className="px-4 py-3">Uraian Belanja</th>
                 <th className="px-4 py-3 text-right">Pagu Murni</th>
                 <th className="px-4 py-3 text-right">Revisi</th>
+                <th className="px-4 py-3 text-right text-sky-400">Nilai SPD</th>
                 <th className="px-4 py-3 text-right">Pagu Akhir</th>
+                <th className="px-4 py-3">Sumber Dana</th>
                 <th className="px-4 py-3">Operator</th>
                 {!isReadOnly && <th className="px-4 py-3 text-center">Aksi</th>}
               </tr>
@@ -475,19 +571,32 @@ export const InputAnggaranView: React.FC = () => {
                     <td className="px-4 py-3 text-right font-mono text-amber-400">
                       {a.revisi >= 0 ? '+' : ''}Rp {a.revisi.toLocaleString('id-ID')}
                     </td>
+                    <td className="px-4 py-3 text-right font-mono font-bold text-sky-300">
+                      Rp {(a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir).toLocaleString('id-ID')}
+                    </td>
                     <td className="px-4 py-3 text-right font-mono font-bold text-emerald-300">
                       Rp {a.paguAkhir.toLocaleString('id-ID')}
                     </td>
+                    <td className="px-4 py-3 font-mono text-slate-300">{a.sumberDana || 'DAU'}</td>
                     <td className="px-4 py-3 text-slate-400">{a.operator}</td>
                     {!isReadOnly && (
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => deleteAnggaran(a.id)}
-                          className="rounded p-1 text-slate-400 hover:bg-rose-950 hover:text-rose-400"
-                          title="Hapus"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleOpenEdit(a)}
+                            className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-amber-400 transition"
+                            title="Edit Pagu Anggaran"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingAnggaran(a)}
+                            className="rounded p-1 text-slate-400 hover:bg-rose-950 hover:text-rose-400 transition"
+                            title="Hapus Data"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -496,6 +605,143 @@ export const InputAnggaranView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* EDIT ANGGARAN MODAL */}
+      {editingAnggaran && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-white">Edit Pagu Anggaran</h3>
+              </div>
+              <button
+                onClick={() => setEditingAnggaran(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
+              <div>
+                <span className="text-slate-400 block font-mono font-bold text-[11px]">{editingAnggaran.kodeBelanja}</span>
+                <span className="text-white font-semibold block mt-0.5">{editingAnggaran.namaBelanja}</span>
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-bold block mb-1">Nilai Pagu Murni (Rp):</label>
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  value={editPagu}
+                  onChange={e => setEditPagu(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs font-mono font-bold text-emerald-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-bold block mb-1">Revisi / Pergeseran (Rp):</label>
+                <input
+                  type="number"
+                  value={editRevisi}
+                  onChange={e => setEditRevisi(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs font-mono font-bold text-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-bold block mb-1">Nilai SPD (Surat Penyediaan Dana) (Rp):</label>
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  value={editNilaiSPD}
+                  onChange={e => setEditNilaiSPD(Number(e.target.value))}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs font-mono font-bold text-sky-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-slate-300 font-bold block mb-1">Sumber Dana:</label>
+                <select
+                  value={editSumberDana}
+                  onChange={e => setEditSumberDana(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                >
+                  {sumberDanaList.map(sd => (
+                    <option key={sd.kodeSumber} value={sd.namaSumber || sd.kodeSumber}>
+                      {sd.namaSumber}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 flex justify-between font-bold">
+                <span>Estimasi Pagu Akhir:</span>
+                <span className="text-emerald-400 font-mono">Rp {(editPagu + editRevisi).toLocaleString('id-ID')}</span>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditingAnggaran(null)}
+                  className="rounded-xl bg-slate-800 px-4 py-2 font-bold text-slate-300 hover:bg-slate-700 transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2 font-bold text-white transition shadow-md"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletingAnggaran && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/50 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2 rounded-xl bg-rose-950 border border-rose-800/60">
+                <AlertCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Konfirmasi Hapus Data Pagu</h3>
+                <p className="text-xs text-slate-400">Tindakan ini tidak dapat dibatalkan.</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs space-y-1">
+              <div className="text-emerald-400 font-mono font-bold">{deletingAnggaran.kodeBelanja}</div>
+              <div className="text-white font-semibold">{deletingAnggaran.namaBelanja}</div>
+              <div className="text-slate-400">Pagu Akhir: Rp {deletingAnggaran.paguAkhir.toLocaleString('id-ID')}</div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setDeletingAnggaran(null)}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="rounded-xl bg-rose-600 hover:bg-rose-500 px-5 py-2.5 text-xs font-bold text-white transition shadow-md"
+              >
+                Hapus Permanen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* IMPORT EXCEL MODAL */}
       {showImportModal && (
@@ -550,7 +796,7 @@ export const InputAnggaranView: React.FC = () => {
                 <div>
                   <span className="text-xs font-bold text-slate-200 block">1. Unduh Format Template</span>
                   <p className="text-[11px] text-slate-400 mt-0.5">
-                    Gunakan template standar dengan kolom: Tahun, Kode Program, Kode Kegiatan, Kode Sub, Kode Belanja, Pagu Murni, Revisi, Sumber Dana.
+                    Gunakan template standar dengan kolom: Tahun, Kode Program, Kode Kegiatan, Kode Sub, Kode Belanja, Pagu Murni, Revisi, Nilai SPD, Sumber Dana.
                   </p>
                 </div>
                 <button
@@ -601,6 +847,7 @@ export const InputAnggaranView: React.FC = () => {
                         <th className="px-3 py-2">Uraian Belanja</th>
                         <th className="px-3 py-2 text-right">Pagu Murni</th>
                         <th className="px-3 py-2 text-right">Revisi</th>
+                        <th className="px-3 py-2 text-right text-sky-400">Nilai SPD</th>
                         <th className="px-3 py-2 text-center">Status</th>
                       </tr>
                     </thead>
@@ -612,6 +859,7 @@ export const InputAnggaranView: React.FC = () => {
                           <td className="px-3 py-2 text-white max-w-xs truncate">{row.namaBelanja}</td>
                           <td className="px-3 py-2 text-right font-mono">Rp {row.pagu.toLocaleString('id-ID')}</td>
                           <td className="px-3 py-2 text-right font-mono text-amber-400">Rp {row.revisi.toLocaleString('id-ID')}</td>
+                          <td className="px-3 py-2 text-right font-mono text-sky-300">Rp {row.nilaiSPD.toLocaleString('id-ID')}</td>
                           <td className="px-3 py-2 text-center">
                             {row.isValid ? (
                               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
