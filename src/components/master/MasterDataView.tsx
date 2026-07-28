@@ -4,6 +4,7 @@ import { NTBLogo } from '../common/NTBLogo';
 import { OPD, Program, Kegiatan, SubKegiatan, Belanja } from '../../types';
 import { INITIAL_OPD } from '../../data/initialData';
 import * as XLSX from 'xlsx';
+import { safeDownloadExcel } from '../../utils/downloadHelper';
 import {
   Database,
   Plus,
@@ -285,7 +286,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     const ws = XLSX.utils.json_to_sheet(sampleData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Master_Data');
-    XLSX.writeFile(wb, filename);
+    safeDownloadExcel(wb, filename);
   };
 
   const handleFileUploadExcel = (e: React.ChangeEvent<HTMLInputElement>) => {

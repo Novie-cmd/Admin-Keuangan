@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { NTBLogo } from '../common/NTBLogo';
 import * as XLSX from 'xlsx';
+import { safeDownloadExcel } from '../../utils/downloadHelper';
 import {
   FileText,
   Printer,
@@ -211,7 +212,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     const ws = XLSX.utils.json_to_sheet(exportRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Laporan_Keuangan');
-    XLSX.writeFile(wb, `${titleName}.xlsx`);
+    safeDownloadExcel(wb, `${titleName}.xlsx`);
   };
 
   const handlePrint = () => {
