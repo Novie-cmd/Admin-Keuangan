@@ -73,6 +73,20 @@ interface AppContextType {
   addAnggaran: (anggaran: Omit<Anggaran, 'id' | 'paguAkhir' | 'tanggalInput'>) => void;
   updateAnggaran: (id: string, updated: Partial<Anggaran>) => void;
   deleteAnggaran: (id: string) => void;
+  importAnggaranBatch: (
+    items: {
+      tahun: number;
+      kodeProgram: string;
+      kodeKegiatan: string;
+      kodeSub: string;
+      kodeBelanja: string;
+      namaBelanja?: string;
+      pagu: number;
+      revisi?: number;
+      sumberDana?: string;
+    }[],
+    fileName?: string
+  ) => { successCount: number; duplicateCount: number; errors: string[] };
   
   addRealisasi: (realisasi: Omit<Realisasi, 'id'>) => void;
   updateRealisasi: (id: string, updated: Partial<Realisasi>) => void;
@@ -417,6 +431,99 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menghapus data Anggaran ID ${id}`);
   };
 
+  const importAnggaranBatch = (
+    items: {
+      tahun: number;
+      kodeProgram: string;
+      kodeKegiatan: string;
+      kodeSub: string;
+      kodeBelanja: string;
+      namaBelanja?: string;
+      pagu: number;
+      revisi?: number;
+      sumberDana?: string;
+    }[],
+    fileName: string = 'Import_Anggaran_Pagu.xlsx'
+  ) => {
+    let successCount = 0;
+    let duplicateCount = 0;
+    const errors: string[] = [];
+
+    const existingKeys = new Set(anggaranList.map(a => `${a.tahun}_${a.kodeBelanja}`));
+    const newAnggaranItems: Anggaran[] = [];
+
+    items.forEach((row, index) => {
+      if (!row.kodeBelanja) {
+        errors.push(`Baris ${index + 1}: Kode Belanja/Rekening tidak boleh kosong.`);
+        return;
+      }
+
+      const rowTahun = row.tahun || selectedTahun;
+      const key = `${rowTahun}_${row.kodeBelanja}`;
+      const belObj = belanjaList.find(b => b.kodeBelanja === row.kodeBelanja);
+      const namaBelanja = row.namaBelanja || belObj?.namaBelanja || `Belanja ${row.kodeBelanja}`;
+      const pagu = Number(row.pagu) || 0;
+      const revisi = Number(row.revisi) || 0;
+
+      if (existingKeys.has(key)) {
+        duplicateCount++;
+        setAnggaranList(prev =>
+          prev.map(a => {
+            if (a.tahun === rowTahun && a.kodeBelanja === row.kodeBelanja) {
+              return {
+                ...a,
+                pagu,
+                revisi,
+                paguAkhir: pagu + revisi,
+                namaBelanja: namaBelanja || a.namaBelanja,
+                sumberDana: row.sumberDana || a.sumberDana
+              };
+            }
+            return a;
+          })
+        );
+        successCount++;
+      } else {
+        newAnggaranItems.push({
+          id: `ANG-${rowTahun}-${Date.now()}-${index}`,
+          tahun: rowTahun,
+          kodeProgram: row.kodeProgram || '5.01.01',
+          kodeKegiatan: row.kodeKegiatan || '5.01.01.2.01',
+          kodeSub: row.kodeSub || '5.01.01.2.01.01',
+          kodeBelanja: row.kodeBelanja,
+          namaBelanja,
+          pagu,
+          revisi,
+          paguAkhir: pagu + revisi,
+          tanggalInput: new Date().toISOString().split('T')[0],
+          operator: currentUser.nama,
+          sumberDana: row.sumberDana || 'DAU'
+        });
+        existingKeys.add(key);
+        successCount++;
+      }
+    });
+
+    if (newAnggaranItems.length > 0) {
+      setAnggaranList(prev => [...newAnggaranItems, ...prev]);
+    }
+
+    const importLogEntry: ImportLog = {
+      id: `IMP-${Date.now()}`,
+      tanggal: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      namaFile: fileName,
+      jumlahData: successCount,
+      operator: currentUser.nama,
+      status: successCount > 0 ? (errors.length > 0 ? 'Sebagian' : 'Berhasil') : 'Gagal',
+      catatan: `Import Anggaran: Berhasil ${successCount} data (${duplicateCount} diperbarui)`
+    };
+
+    setImportLogs(prev => [importLogEntry, ...prev]);
+    logActivity(`Import Excel Anggaran Pagu "${fileName}": ${successCount} data berhasil diimpor.`);
+
+    return { successCount, duplicateCount, errors };
+  };
+
   const addRealisasi = (newReal: Omit<Realisasi, 'id'>) => {
     const id = `REAL-${selectedTahun}-${Date.now().toString().slice(-4)}`;
     const fullReal: Realisasi = {
@@ -715,7 +822,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addSumberDana = (sd: Omit<SumberDana, 'id'>) => {
     const fullSd: SumberDana = { ...sd, id: `SD-${Date.now()}` };
     setSumberDanaList(prev => [...prev, fullSd]);
-    logActivity(`Menambah Sumber Dana: ${fullSd.nama}`);
+    logActivity(`Menambah Sumber Dana: ${fullSd.namaSumber}`);
   };
 
   const updateSumberDana = (id: string, updated: Partial<SumberDana>) => {
@@ -908,6 +1015,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addAnggaran,
         updateAnggaran,
         deleteAnggaran,
+        importAnggaranBatch,
         addRealisasi,
         updateRealisasi,
         deleteRealisasi,

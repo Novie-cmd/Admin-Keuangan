@@ -57,6 +57,7 @@ export interface Belanja {
 }
 
 export interface SumberDana {
+  id?: string;
   kodeSumber: string;
   namaSumber: string;
   keterangan: string;

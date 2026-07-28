@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { NTBLogo } from '../common/NTBLogo';
-import { OPD, Program, Kegiatan, SubKegiatan, Belanja } from '../../types';
+import { OPD, Program, Kegiatan, SubKegiatan, Belanja, TahunAnggaran, SumberDana, Rekanan } from '../../types';
 import { INITIAL_OPD } from '../../data/initialData';
 import * as XLSX from 'xlsx';
 import { safeDownloadExcel } from '../../utils/downloadHelper';

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import * as XLSX from 'xlsx';
+import { safeDownloadExcel } from '../../utils/downloadHelper';
 import {
   FileText,
   Plus,
@@ -10,8 +12,33 @@ import {
   Clock,
   Search,
   Check,
-  X
+  X,
+  FileSpreadsheet,
+  Download,
+  XCircle,
+  FileCheck,
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
+
+interface PreviewRealisasiRow {
+  rowNum: number;
+  tahun: number;
+  kodeProgram: string;
+  kodeKegiatan: string;
+  kodeSub: string;
+  kodeBelanja: string;
+  namaBelanja: string;
+  noSP2D: string;
+  noSPM: string;
+  nilai: number;
+  uraian: string;
+  rekanan: string;
+  tanggal: string;
+  isValid: boolean;
+  status: string;
+  validationError?: string;
+}
 
 export const InputRealisasiView: React.FC = () => {
   const {
@@ -25,11 +52,19 @@ export const InputRealisasiView: React.FC = () => {
     anggaranList,
     addRealisasi,
     deleteRealisasi,
+    batchImportExcel,
     currentUser
   } = useApp();
 
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Excel Import States
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importedFileName, setImportedFileName] = useState('');
+  const [previewData, setPreviewData] = useState<PreviewRealisasiRow[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
 
   // Form State
   const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
@@ -50,6 +85,175 @@ export const InputRealisasiView: React.FC = () => {
   const filteredSub = subKegiatanList.filter(s => s.kodeKegiatan === kodeKegiatan);
 
   const isReadOnly = currentUser.role === 'Auditor' || currentUser.role === 'Kepala Badan';
+
+  // Download Excel Template for Realisasi SP2D
+  const handleDownloadTemplate = () => {
+    const sampleData = [
+      {
+        'Tahun': selectedTahun,
+        'Kode Program': '5.01.01',
+        'Kode Kegiatan': '5.01.01.2.01',
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Kode Belanja': '5.1.02.01.01.0024',
+        'Nama Belanja': 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor',
+        'No SP2D': `900/1021/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/1021/SPM-LS/KESBANG/${selectedTahun}`,
+        'Nilai Realisasi': 25000000,
+        'Uraian': 'Pembayaran Pengadaan ATK Bulan Januari BAKESBANGPOL',
+        'Penyedia/Rekanan': 'CV Cahaya Gemilang',
+        'Tanggal': `${selectedTahun}-01-15`
+      },
+      {
+        'Tahun': selectedTahun,
+        'Kode Program': '5.01.01',
+        'Kode Kegiatan': '5.01.01.2.01',
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Kode Belanja': '5.1.02.01.01.0025',
+        'Nama Belanja': 'Belanja Kertas dan Cover Cetakan Laporan',
+        'No SP2D': `900/1022/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/1022/SPM-LS/KESBANG/${selectedTahun}`,
+        'Nilai Realisasi': 12500000,
+        'Uraian': 'Cetak Laporan Kinerja Instansi Pemerintah (LKjIP)',
+        'Penyedia/Rekanan': 'PT Bank NTB Syariah',
+        'Tanggal': `${selectedTahun}-01-20`
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Realisasi_SP2D');
+    safeDownloadExcel(wb, `Template_Import_Realisasi_SP2D_${selectedTahun}.xlsx`);
+  };
+
+  // Upload Excel Handler for Realisasi
+  const handleFileUploadExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportedFileName(file.name);
+    setImportSuccessMsg(null);
+    setImportErrors([]);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const buffer = event.target?.result;
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[firstSheetName];
+        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (!rawJson || rawJson.length === 0) {
+          setImportErrors(['File Excel kosong atau format tidak valid.']);
+          setPreviewData([]);
+          return;
+        }
+
+        const existingSp2dSet = new Set(realisasiList.map(r => r.noSP2D.trim().toLowerCase()));
+        const parsedRows: PreviewRealisasiRow[] = [];
+        const errs: string[] = [];
+
+        rawJson.forEach((row, idx) => {
+          const getVal = (...keys: string[]) => {
+            for (const key of keys) {
+              const matchedKey = Object.keys(row).find(
+                k => k.trim().toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, '')
+              );
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+                return String(row[matchedKey]).trim();
+              }
+            }
+            return '';
+          };
+
+          const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran') || String(selectedTahun), 10) || selectedTahun;
+          const prog = getVal('kodeprogram', 'kodeprog', 'program') || '5.01.01';
+          const keg = getVal('kodekegiatan', 'kodekeg', 'kegiatan') || '5.01.01.2.01';
+          const sub = getVal('kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub') || '5.01.01.2.01.01';
+          const bel = getVal('kodebelanja', 'koderekening', 'kode', 'rekening') || '5.1.02.01.01.0024';
+          const belObj = belanjaList.find(b => b.kodeBelanja === bel);
+          const namaBel = getVal('namabelanja', 'uraianbelanja', 'namarekening') || belObj?.namaBelanja || `Belanja ${bel}`;
+
+          const sp2dVal = getVal('nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls');
+          const spmVal = getVal('nospm', 'spm', 'nomorspm') || sp2dVal.replace('SP2D', 'SPM');
+          const nilaiVal = parseFloat(getVal('nilairealisasi', 'nilai', 'realisasi', 'jumlah') || '0') || 0;
+          const uraianVal = getVal('uraian', 'keterangan', 'uraianrealisasi', 'rincian') || 'Realisasi Keuangan';
+          const rekananVal = getVal('penyedia', 'rekanan', 'penerima', 'namarekanan') || 'PT Bank NTB Syariah';
+          const tglVal = getVal('tanggal', 'tgl', 'tanggalsp2d') || new Date().toISOString().split('T')[0];
+
+          let err = '';
+          const isDup = existingSp2dSet.has(sp2dVal.toLowerCase());
+
+          if (!sp2dVal) {
+            err = 'Nomor SP2D tidak boleh kosong.';
+            errs.push(`Baris ${idx + 2}: Nomor SP2D kosong.`);
+          } else if (nilaiVal <= 0) {
+            err = 'Nilai realisasi harus lebih dari 0.';
+            errs.push(`Baris ${idx + 2}: Nilai realisasi <= 0.`);
+          } else if (isDup) {
+            err = 'Nomor SP2D sudah terdaftar di sistem.';
+            errs.push(`Baris ${idx + 2}: SP2D "${sp2dVal}" duplikat.`);
+          }
+
+          parsedRows.push({
+            rowNum: idx + 1,
+            tahun: thn,
+            kodeProgram: prog,
+            kodeKegiatan: keg,
+            kodeSub: sub,
+            kodeBelanja: bel,
+            namaBelanja: namaBel,
+            noSP2D: sp2dVal,
+            noSPM: spmVal,
+            nilai: nilaiVal,
+            uraian: uraianVal,
+            rekanan: rekananVal,
+            tanggal: tglVal,
+            isValid: !err,
+            status: isDup ? 'Duplikat (Dilewati)' : 'Data Baru',
+            validationError: err
+          });
+        });
+
+        setPreviewData(parsedRows);
+        setImportErrors(errs);
+      } catch (err: any) {
+        console.error('Failed to parse Excel:', err);
+        setImportErrors([`Gagal membaca file Excel: ${err?.message || 'Format tidak didukung'}`]);
+        setPreviewData([]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Process Realisasi Batch Import
+  const handleProcessImportExcel = () => {
+    const validRows = previewData.filter(r => r.isValid);
+    if (validRows.length === 0) return;
+
+    const res = batchImportExcel(
+      validRows.map(r => ({
+        tahun: r.tahun,
+        kodeProgram: r.kodeProgram,
+        kodeKegiatan: r.kodeKegiatan,
+        kodeSub: r.kodeSub,
+        kodeBelanja: r.kodeBelanja,
+        namaBelanja: r.namaBelanja,
+        sp2d: r.noSP2D,
+        spm: r.noSPM,
+        nilai: r.nilai,
+        uraian: r.uraian,
+        rekanan: r.rekanan,
+        tanggal: r.tanggal
+      })),
+      importedFileName || 'Import_Realisasi_SP2D.xlsx'
+    );
+
+    setImportSuccessMsg(
+      `Berhasil mengimpor ${res.successCount} transaksi SP2D baru (${res.duplicateCount} duplikat dilewati).`
+    );
+    setPreviewData([]);
+  };
 
   const handleSimpan = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,14 +327,31 @@ export const InputRealisasiView: React.FC = () => {
         </div>
 
         {!isReadOnly && (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-500 shadow-lg shadow-teal-950/50"
-            id="btn-toggle-add-realisasi"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Input Transaksi Realisasi</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowImportModal(true);
+                setImportSuccessMsg(null);
+                setImportErrors([]);
+                setPreviewData([]);
+                setImportedFileName('');
+              }}
+              className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-bold text-teal-400 hover:border-teal-500 hover:bg-slate-800 transition"
+              id="btn-import-excel-realisasi"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Import File Excel</span>
+            </button>
+
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-500 shadow-lg shadow-teal-950/50"
+              id="btn-toggle-add-realisasi"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Input Transaksi Realisasi</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -402,6 +623,169 @@ export const InputRealisasiView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* IMPORT EXCEL MODAL */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-3xl rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                  <FileSpreadsheet className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Import Transaksi Realisasi (SP2D) dari Excel</h3>
+                  <p className="text-xs text-slate-400">
+                    Upload file spreadsheet (.xlsx/.xls) berisi transaksi SP2D TA {selectedTahun}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Success Banner */}
+            {importSuccessMsg && (
+              <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/40 p-4 text-xs font-semibold text-emerald-300 flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                <span>{importSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Error Banner */}
+            {importErrors.length > 0 && (
+              <div className="rounded-2xl border border-rose-500/40 bg-rose-950/40 p-3.5 text-xs text-rose-300 space-y-1">
+                <div className="font-bold flex items-center gap-2 text-rose-400">
+                  <AlertCircle className="h-4 w-4" /> Ada kesalahan pada data Excel:
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-300/90 max-h-24 overflow-y-auto">
+                  {importErrors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Template Download & Upload Dropzone */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-2 flex flex-col justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-200 block">1. Unduh Format Template</span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Gunakan template standar dengan kolom: Tahun, Kode Program, Kode Kegiatan, Kode Sub, Kode Belanja, No SP2D, No SPM, Nilai Realisasi, Uraian, Penyedia/Rekanan, Tanggal.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-teal-300 border border-slate-700 py-2.5 transition"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download Template Excel</span>
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-teal-600/50 bg-teal-950/20 hover:bg-teal-950/30 p-4 flex flex-col items-center justify-center text-center transition">
+                <Upload className="h-8 w-8 text-teal-400 mb-2" />
+                <span className="text-xs font-bold text-slate-200">2. Upload File Excel Realisasi</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">Pilih file .xlsx atau .xls dari komputer Anda</p>
+                <label className="mt-3 cursor-pointer rounded-xl bg-teal-600 hover:bg-teal-500 px-4 py-2 text-xs font-bold text-white shadow-md transition inline-flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span>Pilih File Excel</span>
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    onChange={handleFileUploadExcel}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Preview Data Table */}
+            {previewData.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-teal-300 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4" /> Pratinjau Data Parsed ({previewData.length} baris)
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {previewData.filter(r => r.isValid).length} data valid siap diimpor
+                  </span>
+                </div>
+
+                <div className="max-h-56 overflow-y-auto border border-slate-800 rounded-2xl bg-slate-950 text-xs scrollbar-none">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-900 text-slate-300 font-bold sticky top-0 border-b border-slate-800">
+                      <tr>
+                        <th className="px-3 py-2">No</th>
+                        <th className="px-3 py-2">No SP2D</th>
+                        <th className="px-3 py-2">Uraian Transaksi</th>
+                        <th className="px-3 py-2 text-right">Nilai SP2D</th>
+                        <th className="px-3 py-2">Rekanan</th>
+                        <th className="px-3 py-2 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {previewData.slice(0, 15).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-900/50">
+                          <td className="px-3 py-2 font-mono text-slate-500">{row.rowNum}</td>
+                          <td className="px-3 py-2 font-mono text-teal-300 font-bold">{row.noSP2D || '-'}</td>
+                          <td className="px-3 py-2 text-white max-w-xs truncate">{row.uraian}</td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-emerald-400">Rp {row.nilai.toLocaleString('id-ID')}</td>
+                          <td className="px-3 py-2 text-slate-300 truncate max-w-[120px]">{row.rekanan}</td>
+                          <td className="px-3 py-2 text-center">
+                            {row.isValid ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-950 text-teal-300 border border-teal-800">
+                                {row.status}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800" title={row.validationError}>
+                                {row.status}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {previewData.length > 15 && (
+                    <div className="p-2 text-center text-[11px] text-slate-400 border-t border-slate-800 bg-slate-900">
+                      ... dan {previewData.length - 15} baris data lainnya
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 transition"
+              >
+                Tutup
+              </button>
+
+              <button
+                type="button"
+                disabled={previewData.filter(r => r.isValid).length === 0}
+                onClick={handleProcessImportExcel}
+                className="flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-teal-950/50 transition"
+              >
+                <FileCheck className="h-4 w-4" />
+                <span>Proses Import {previewData.filter(r => r.isValid).length} Data Realisasi</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

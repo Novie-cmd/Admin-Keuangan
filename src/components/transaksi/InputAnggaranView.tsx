@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import * as XLSX from 'xlsx';
+import { safeDownloadExcel } from '../../utils/downloadHelper';
 import {
   DollarSign,
   Plus,
@@ -9,8 +11,31 @@ import {
   Layers,
   Search,
   Filter,
-  CheckCircle2
+  CheckCircle2,
+  FileSpreadsheet,
+  Upload,
+  Download,
+  XCircle,
+  FileCheck,
+  Sparkles,
+  AlertCircle
 } from 'lucide-react';
+
+interface PreviewAnggaranRow {
+  rowNum: number;
+  tahun: number;
+  kodeProgram: string;
+  kodeKegiatan: string;
+  kodeSub: string;
+  kodeBelanja: string;
+  namaBelanja: string;
+  pagu: number;
+  revisi: number;
+  sumberDana: string;
+  isValid: boolean;
+  status: string;
+  validationError?: string;
+}
 
 export const InputAnggaranView: React.FC = () => {
   const {
@@ -23,11 +48,19 @@ export const InputAnggaranView: React.FC = () => {
     anggaranList,
     addAnggaran,
     deleteAnggaran,
+    importAnggaranBatch,
     currentUser
   } = useApp();
 
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Excel Import States
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importedFileName, setImportedFileName] = useState('');
+  const [previewData, setPreviewData] = useState<PreviewAnggaranRow[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
 
   // Form State
   const [kodeProgram, setKodeProgram] = useState(programs[0]?.kodeProgram || '5.01.01');
@@ -42,6 +75,157 @@ export const InputAnggaranView: React.FC = () => {
   const filteredSub = subKegiatanList.filter(s => s.kodeKegiatan === kodeKegiatan);
 
   const isReadOnly = currentUser.role === 'Auditor' || currentUser.role === 'Kepala Badan';
+
+  // Download Excel Template for Anggaran Pagu
+  const handleDownloadTemplate = () => {
+    const sampleData = [
+      {
+        'Tahun': selectedTahun,
+        'Kode Program': '5.01.01',
+        'Kode Kegiatan': '5.01.01.2.01',
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Kode Belanja': '5.1.02.01.01.0024',
+        'Nama Belanja': 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor',
+        'Pagu Murni': 150000000,
+        'Revisi': 0,
+        'Sumber Dana': 'DAU'
+      },
+      {
+        'Tahun': selectedTahun,
+        'Kode Program': '5.01.01',
+        'Kode Kegiatan': '5.01.01.2.01',
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Kode Belanja': '5.1.02.01.01.0025',
+        'Nama Belanja': 'Belanja Kertas dan Cover Cetakan Laporan',
+        'Pagu Murni': 75000000,
+        'Revisi': 5000000,
+        'Sumber Dana': 'DAU'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pagu_Anggaran');
+    safeDownloadExcel(wb, `Template_Import_Pagu_Anggaran_NTB_${selectedTahun}.xlsx`);
+  };
+
+  // Handle Upload Excel File
+  const handleFileUploadExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportedFileName(file.name);
+    setImportSuccessMsg(null);
+    setImportErrors([]);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const buffer = event.target?.result;
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[firstSheetName];
+        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (!rawJson || rawJson.length === 0) {
+          setImportErrors(['File Excel kosong atau format tidak valid.']);
+          setPreviewData([]);
+          return;
+        }
+
+        const existingKeys = new Set(anggaranList.map(a => `${a.tahun}_${a.kodeBelanja}`));
+        const parsedRows: PreviewAnggaranRow[] = [];
+        const errs: string[] = [];
+
+        rawJson.forEach((row, idx) => {
+          const getVal = (...keys: string[]) => {
+            for (const key of keys) {
+              const matchedKey = Object.keys(row).find(
+                k => k.trim().toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, '')
+              );
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+                return String(row[matchedKey]).trim();
+              }
+            }
+            return '';
+          };
+
+          const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran') || String(selectedTahun), 10) || selectedTahun;
+          const prog = getVal('kodeprogram', 'kodeprog', 'program') || '5.01.01';
+          const keg = getVal('kodekegiatan', 'kodekeg', 'kegiatan') || '5.01.01.2.01';
+          const sub = getVal('kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub') || '5.01.01.2.01.01';
+          const bel = getVal('kodebelanja', 'koderekening', 'kode', 'rekening');
+          const belObj = belanjaList.find(b => b.kodeBelanja === bel);
+          const namaBel = getVal('namabelanja', 'uraianbelanja', 'uraian', 'namarekening') || belObj?.namaBelanja || `Belanja ${bel}`;
+          const paguVal = parseFloat(getVal('pagumurni', 'pagu', 'nilaipagu', 'nilai') || '0') || 0;
+          const revVal = parseFloat(getVal('revisi', 'pergeseran', 'perubahan') || '0') || 0;
+          const sdVal = getVal('sumberdana', 'sumber', 'sd') || 'DAU';
+
+          const key = `${thn}_${bel}`;
+          const isExisting = existingKeys.has(key);
+
+          let err = '';
+          if (!bel) {
+            err = 'Kode Belanja/Rekening kosong.';
+            errs.push(`Baris ${idx + 2}: Kode Belanja kosong.`);
+          } else if (paguVal < 0) {
+            err = 'Nilai pagu murni tidak boleh negatif.';
+            errs.push(`Baris ${idx + 2}: Nilai pagu murni negatif.`);
+          }
+
+          parsedRows.push({
+            rowNum: idx + 1,
+            tahun: thn,
+            kodeProgram: prog,
+            kodeKegiatan: keg,
+            kodeSub: sub,
+            kodeBelanja: bel,
+            namaBelanja: namaBel,
+            pagu: paguVal,
+            revisi: revVal,
+            sumberDana: sdVal,
+            isValid: !err,
+            status: isExisting ? 'Akan Diperbarui' : 'Data Baru',
+            validationError: err
+          });
+        });
+
+        setPreviewData(parsedRows);
+        setImportErrors(errs);
+      } catch (err: any) {
+        console.error('Failed to parse Excel:', err);
+        setImportErrors([`Gagal membaca file Excel: ${err?.message || 'Format tidak didukung'}`]);
+        setPreviewData([]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Execute Import
+  const handleProcessImportExcel = () => {
+    const validRows = previewData.filter(r => r.isValid);
+    if (validRows.length === 0) return;
+
+    const res = importAnggaranBatch(
+      validRows.map(r => ({
+        tahun: r.tahun,
+        kodeProgram: r.kodeProgram,
+        kodeKegiatan: r.kodeKegiatan,
+        kodeSub: r.kodeSub,
+        kodeBelanja: r.kodeBelanja,
+        namaBelanja: r.namaBelanja,
+        pagu: r.pagu,
+        revisi: r.revisi,
+        sumberDana: r.sumberDana
+      })),
+      importedFileName || 'Import_Pagu_Anggaran.xlsx'
+    );
+
+    setImportSuccessMsg(
+      `Berhasil mengimpor ${res.successCount} data Pagu Anggaran (${res.duplicateCount} data diperbarui secara otomatis).`
+    );
+    setPreviewData([]);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +252,8 @@ export const InputAnggaranView: React.FC = () => {
   const totalRevisi = currentAnggaran.reduce((s, a) => s + a.revisi, 0);
   const totalPaguAkhir = currentAnggaran.reduce((s, a) => s + a.paguAkhir, 0);
 
+  const validPreviewCount = previewData.filter(r => r.isValid).length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -83,14 +269,31 @@ export const InputAnggaranView: React.FC = () => {
         </div>
 
         {!isReadOnly && (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50"
-            id="btn-toggle-add-anggaran"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Tambah Pagu Anggaran</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setShowImportModal(true);
+                setImportSuccessMsg(null);
+                setImportErrors([]);
+                setPreviewData([]);
+                setImportedFileName('');
+              }}
+              className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-bold text-emerald-400 hover:border-emerald-500 hover:bg-slate-800 transition"
+              id="btn-import-excel-anggaran"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Import File Excel</span>
+            </button>
+
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50"
+              id="btn-toggle-add-anggaran"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Tambah Pagu Anggaran</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -293,6 +496,171 @@ export const InputAnggaranView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* IMPORT EXCEL MODAL */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-3xl rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <FileSpreadsheet className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Import Pagu Anggaran dari Excel</h3>
+                  <p className="text-xs text-slate-400">
+                    Upload file spreadsheet (.xlsx/.xls) untuk memperbarui atau menambah Pagu Anggaran TA {selectedTahun}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Success Banner */}
+            {importSuccessMsg && (
+              <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/40 p-4 text-xs font-semibold text-emerald-300 flex items-center gap-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+                <span>{importSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Error Banner */}
+            {importErrors.length > 0 && (
+              <div className="rounded-2xl border border-rose-500/40 bg-rose-950/40 p-3.5 text-xs text-rose-300 space-y-1">
+                <div className="font-bold flex items-center gap-2 text-rose-400">
+                  <AlertCircle className="h-4 w-4" /> Ada kesalahan pada data Excel:
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-rose-300/90 max-h-24 overflow-y-auto">
+                  {importErrors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Template Download & Upload Dropzone */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 space-y-2 flex flex-col justify-between">
+                <div>
+                  <span className="text-xs font-bold text-slate-200 block">1. Unduh Format Template</span>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Gunakan template standar dengan kolom: Tahun, Kode Program, Kode Kegiatan, Kode Sub, Kode Belanja, Pagu Murni, Revisi, Sumber Dana.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="flex items-center justify-center gap-2 w-full rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-300 border border-slate-700 py-2.5 transition"
+                >
+                  <Download className="h-4 w-4" />
+                  <span>Download Template Excel</span>
+                </button>
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-emerald-600/50 bg-emerald-950/20 hover:bg-emerald-950/30 p-4 flex flex-col items-center justify-center text-center transition">
+                <Upload className="h-8 w-8 text-emerald-400 mb-2" />
+                <span className="text-xs font-bold text-slate-200">2. Upload File Excel Data Pagu</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">Pilih file .xlsx atau .xls dari komputer Anda</p>
+                <label className="mt-3 cursor-pointer rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-md transition inline-flex items-center gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  <span>Pilih File Excel</span>
+                  <input
+                    type="file"
+                    accept=".xlsx, .xls, .csv"
+                    onChange={handleFileUploadExcel}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Preview Data Table */}
+            {previewData.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4" /> Pratinjau Data Parsed ({previewData.length} baris)
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    {validPreviewCount} data valid siap diimpor
+                  </span>
+                </div>
+
+                <div className="max-h-56 overflow-y-auto border border-slate-800 rounded-2xl bg-slate-950 text-xs scrollbar-none">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-900 text-slate-300 font-bold sticky top-0 border-b border-slate-800">
+                      <tr>
+                        <th className="px-3 py-2">No</th>
+                        <th className="px-3 py-2">Kode Belanja</th>
+                        <th className="px-3 py-2">Uraian Belanja</th>
+                        <th className="px-3 py-2 text-right">Pagu Murni</th>
+                        <th className="px-3 py-2 text-right">Revisi</th>
+                        <th className="px-3 py-2 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {previewData.slice(0, 15).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-900/50">
+                          <td className="px-3 py-2 font-mono text-slate-500">{row.rowNum}</td>
+                          <td className="px-3 py-2 font-mono text-emerald-400 font-bold">{row.kodeBelanja || '-'}</td>
+                          <td className="px-3 py-2 text-white max-w-xs truncate">{row.namaBelanja}</td>
+                          <td className="px-3 py-2 text-right font-mono">Rp {row.pagu.toLocaleString('id-ID')}</td>
+                          <td className="px-3 py-2 text-right font-mono text-amber-400">Rp {row.revisi.toLocaleString('id-ID')}</td>
+                          <td className="px-3 py-2 text-center">
+                            {row.isValid ? (
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                row.status === 'Akan Diperbarui' ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-emerald-950 text-emerald-300 border border-emerald-800'
+                              }`}>
+                                {row.status}
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-950 text-rose-300 border border-rose-800" title={row.validationError}>
+                                Error
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {previewData.length > 15 && (
+                    <div className="p-2 text-center text-[11px] text-slate-400 border-t border-slate-800 bg-slate-900">
+                      ... dan {previewData.length - 15} baris data lainnya
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowImportModal(false)}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 transition"
+              >
+                Tutup
+              </button>
+
+              <button
+                type="button"
+                disabled={validPreviewCount === 0}
+                onClick={handleProcessImportExcel}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-950/50 transition"
+              >
+                <FileCheck className="h-4 w-4" />
+                <span>Proses Import {validPreviewCount} Data Pagu</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
