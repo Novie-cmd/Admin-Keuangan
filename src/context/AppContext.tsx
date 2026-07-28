@@ -102,6 +102,10 @@ interface AppContextType {
   addKegiatan: (keg: Kegiatan) => void;
   addSubKegiatan: (sub: SubKegiatan) => void;
   addBelanja: (bel: Belanja) => void;
+  importProgramsBatch: (items: Program[]) => { successCount: number; duplicateCount: number };
+  importKegiatanBatch: (items: Kegiatan[]) => { successCount: number; duplicateCount: number };
+  importSubKegiatanBatch: (items: SubKegiatan[]) => { successCount: number; duplicateCount: number };
+  importBelanjaBatch: (items: Belanja[]) => { successCount: number; duplicateCount: number };
   addRekanan: (rek: Omit<Rekanan, 'id'>) => void;
   addOpd: (newOpd: OPD) => void;
   updateOpd: (idOrKode: string, updated: Partial<OPD>) => void;
@@ -111,8 +115,13 @@ interface AppContextType {
   // User Management
   addUser: (user: Omit<User, 'id' | 'lastLogin'>) => void;
   updateUserStatus: (id: string, status: 'Aktif' | 'Nonaktif') => void;
+  updateUser: (id: string, updated: Partial<User>) => void;
+  deleteUser: (id: string) => void;
 
+  // Audit Logs
   logActivity: (aktivitas: string) => void;
+  deleteActivityLog: (id: string) => void;
+  clearAllActivityLogs: () => void;
   resetAllData: () => void;
 }
 
@@ -532,6 +541,106 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menambah Belanja Master: ${bel.kodeBelanja}`);
   };
 
+  const importProgramsBatch = (items: Program[]) => {
+    let successCount = 0;
+    let duplicateCount = 0;
+
+    setPrograms(prev => {
+      const updated = [...prev];
+      items.forEach(newItem => {
+        const index = updated.findIndex(
+          p => p.kodeProgram === newItem.kodeProgram && p.tahun === newItem.tahun
+        );
+        if (index >= 0) {
+          updated[index] = newItem;
+          duplicateCount++;
+        } else {
+          updated.push(newItem);
+          successCount++;
+        }
+      });
+      return updated;
+    });
+
+    logActivity(`Import Excel Program Master: ${successCount} baru, ${duplicateCount} diperbarui.`);
+    return { successCount, duplicateCount };
+  };
+
+  const importKegiatanBatch = (items: Kegiatan[]) => {
+    let successCount = 0;
+    let duplicateCount = 0;
+
+    setKegiatanList(prev => {
+      const updated = [...prev];
+      items.forEach(newItem => {
+        const index = updated.findIndex(
+          k => k.kodeKegiatan === newItem.kodeKegiatan && k.tahun === newItem.tahun
+        );
+        if (index >= 0) {
+          updated[index] = newItem;
+          duplicateCount++;
+        } else {
+          updated.push(newItem);
+          successCount++;
+        }
+      });
+      return updated;
+    });
+
+    logActivity(`Import Excel Kegiatan Master: ${successCount} baru, ${duplicateCount} diperbarui.`);
+    return { successCount, duplicateCount };
+  };
+
+  const importSubKegiatanBatch = (items: SubKegiatan[]) => {
+    let successCount = 0;
+    let duplicateCount = 0;
+
+    setSubKegiatanList(prev => {
+      const updated = [...prev];
+      items.forEach(newItem => {
+        const index = updated.findIndex(
+          s => s.kodeSub === newItem.kodeSub && s.tahun === newItem.tahun
+        );
+        if (index >= 0) {
+          updated[index] = newItem;
+          duplicateCount++;
+        } else {
+          updated.push(newItem);
+          successCount++;
+        }
+      });
+      return updated;
+    });
+
+    logActivity(`Import Excel Sub Kegiatan Master: ${successCount} baru, ${duplicateCount} diperbarui.`);
+    return { successCount, duplicateCount };
+  };
+
+  const importBelanjaBatch = (items: Belanja[]) => {
+    let successCount = 0;
+    let duplicateCount = 0;
+
+    setBelanjaList(prev => {
+      const updated = [...prev];
+      items.forEach(newItem => {
+        const index = updated.findIndex(
+          b => b.kodeBelanja === newItem.kodeBelanja && b.tahun === newItem.tahun
+        );
+        if (index >= 0) {
+          updated[index] = newItem;
+          duplicateCount++;
+        } else {
+          updated.push(newItem);
+          successCount++;
+        }
+      });
+      return updated;
+    });
+
+    logActivity(`Import Excel Belanja Master: ${successCount} baru, ${duplicateCount} diperbarui.`);
+    return { successCount, duplicateCount };
+  };
+
   const addRekanan = (rek: Omit<Rekanan, 'id'>) => {
     const fullRek: Rekanan = { ...rek, id: `REK-${Date.now()}` };
     setRekananList(prev => [...prev, fullRek]);
@@ -590,6 +699,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateUserStatus = (id: string, status: 'Aktif' | 'Nonaktif') => {
     setUsers(prev => prev.map(u => (u.id === id ? { ...u, status } : u)));
     logActivity(`Mengubah Status User ID ${id} menjadi ${status}`);
+  };
+
+  const updateUser = (id: string, updated: Partial<User>) => {
+    setUsers(prev => prev.map(u => (u.id === id ? { ...u, ...updated } : u)));
+    logActivity(`Memperbarui Data User ID ${id}: ${updated.nama || updated.username || ''}`);
+  };
+
+  const deleteUser = (id: string) => {
+    setUsers(prev => prev.filter(u => u.id !== id));
+    logActivity(`Menghapus User Sistem ID ${id}`);
+  };
+
+  const deleteActivityLog = (id: string) => {
+    setActivityLogs(prev => prev.filter(log => log.id !== id));
+  };
+
+  const clearAllActivityLogs = () => {
+    setActivityLogs([]);
   };
 
   // Google Spreadsheet Sync
@@ -693,6 +820,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addKegiatan,
         addSubKegiatan,
         addBelanja,
+        importProgramsBatch,
+        importKegiatanBatch,
+        importSubKegiatanBatch,
+        importBelanjaBatch,
         addRekanan,
         addOpd,
         updateOpd,
@@ -700,7 +831,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         importOpdLogo,
         addUser,
         updateUserStatus,
+        updateUser,
+        deleteUser,
         logActivity,
+        deleteActivityLog,
+        clearAllActivityLogs,
         resetAllData
       }}
     >

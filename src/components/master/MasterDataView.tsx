@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { NTBLogo } from '../common/NTBLogo';
-import { OPD } from '../../types';
+import { OPD, Program, Kegiatan, SubKegiatan, Belanja } from '../../types';
 import { INITIAL_OPD } from '../../data/initialData';
+import * as XLSX from 'xlsx';
 import {
   Database,
   Plus,
@@ -20,7 +21,12 @@ import {
   Upload,
   RotateCcw,
   AlertTriangle,
-  Image as ImageIcon
+  FileSpreadsheet,
+  Download,
+  FileCheck,
+  AlertCircle,
+  Sparkles,
+  Info
 } from 'lucide-react';
 
 interface MasterDataViewProps {
@@ -42,6 +48,10 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     addKegiatan,
     addSubKegiatan,
     addBelanja,
+    importProgramsBatch,
+    importKegiatanBatch,
+    importSubKegiatanBatch,
+    importBelanjaBatch,
     addRekanan,
     addOpd,
     updateOpd,
@@ -59,6 +69,14 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   // OPD Edit & Delete Modal States
   const [editingOpd, setEditingOpd] = useState<OPD | null>(null);
   const [deletingOpd, setDeletingOpd] = useState<OPD | null>(null);
+
+  // Excel Import States
+  const [showImportExcelModal, setShowImportExcelModal] = useState(false);
+  const [importCategory, setImportCategory] = useState<'program' | 'kegiatan' | 'subkegiatan' | 'belanja'>('program');
+  const [importedFileName, setImportedFileName] = useState('');
+  const [parsedDataPreview, setParsedDataPreview] = useState<any[]>([]);
+  const [importErrors, setImportErrors] = useState<string[]>([]);
+  const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
 
   // Form states
   const [formProgram, setFormProgram] = useState({ kodeProgram: '', namaProgram: '' });
@@ -205,6 +223,205 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     setShowAddModal(false);
   };
 
+  // EXCEL IMPORT FUNCTIONS
+  const openImportModalForTab = (cat?: 'program' | 'kegiatan' | 'subkegiatan' | 'belanja') => {
+    if (cat) {
+      setImportCategory(cat);
+    } else {
+      if (activeTab === 'master-program') setImportCategory('program');
+      else if (activeTab === 'master-kegiatan') setImportCategory('kegiatan');
+      else if (activeTab === 'master-subkegiatan') setImportCategory('subkegiatan');
+      else if (activeTab === 'master-belanja') setImportCategory('belanja');
+      else setImportCategory('program');
+    }
+    setImportedFileName('');
+    setParsedDataPreview([]);
+    setImportErrors([]);
+    setImportSuccessMsg(null);
+    setShowImportExcelModal(true);
+  };
+
+  const handleDownloadTemplate = (cat: 'program' | 'kegiatan' | 'subkegiatan' | 'belanja') => {
+    let sampleData: any[] = [];
+    let filename = '';
+
+    if (cat === 'program') {
+      filename = 'Template_Master_Program_NTB.xlsx';
+      sampleData = [
+        { 'Kode Program': '5.01.01', 'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.02', 'Nama Program': 'PROGRAM BINA IDEOLOGI DAN WAWASAN KEBANGSAAN', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.03', 'Nama Program': 'PROGRAM PENYELENGGARAAN POLITIK DAN PEMERINTAHAN UMUM', 'Tahun': selectedTahun }
+      ];
+    } else if (cat === 'kegiatan') {
+      filename = 'Template_Master_Kegiatan_NTB.xlsx';
+      sampleData = [
+        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.01', 'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.02', 'Nama Kegiatan': 'Administrasi Keuangan Perangkat Daerah', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.02', 'Kode Kegiatan': '5.01.02.2.01', 'Nama Kegiatan': 'Perumusan Kebijakan Teknis Kebangsaan', 'Tahun': selectedTahun }
+      ];
+    } else if (cat === 'subkegiatan') {
+      filename = 'Template_Master_Sub_Kegiatan_NTB.xlsx';
+      sampleData = [
+        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.01', 'Kode Sub Kegiatan': '5.01.01.2.01.0001', 'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan Perangkat Daerah', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.02', 'Kode Sub Kegiatan': '5.01.01.2.02.0001', 'Nama Sub Kegiatan': 'Penyediaan Gaji dan Tunjangan ASN', 'Tahun': selectedTahun },
+        { 'Kode Program': '5.01.01', 'Kode Kegiatan': '5.01.01.2.02', 'Kode Sub Kegiatan': '5.01.01.2.02.0005', 'Nama Sub Kegiatan': 'Koordinasi dan Penyusunan Laporan Keuangan Sub-Sistem', 'Tahun': selectedTahun }
+      ];
+    } else if (cat === 'belanja') {
+      filename = 'Template_Master_Belanja_Rekening_NTB.xlsx';
+      sampleData = [
+        { 'Kode Rekening': '5.1.01.01.01.0001', 'Uraian Belanja': 'Belanja Gaji Pokok ASN', 'Jenis Belanja': 'Belanja Pegawai', 'Tahun': selectedTahun },
+        { 'Kode Rekening': '5.1.02.01.01.0024', 'Uraian Belanja': 'Belanja Alat Tulis Kantor (ATK)', 'Jenis Belanja': 'Belanja Barang dan Jasa', 'Tahun': selectedTahun },
+        { 'Kode Rekening': '5.2.02.05.01.0001', 'Uraian Belanja': 'Belanja Modal Peralatan Komputer dan Server', 'Jenis Belanja': 'Belanja Modal', 'Tahun': selectedTahun }
+      ];
+    }
+
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Master_Data');
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleFileUploadExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportedFileName(file.name);
+    setImportSuccessMsg(null);
+    setImportErrors([]);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const buffer = event.target?.result;
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[firstSheetName];
+        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        if (!rawJson || rawJson.length === 0) {
+          setImportErrors(['File Excel kosong atau format tabel tidak dapat dibaca.']);
+          setParsedDataPreview([]);
+          return;
+        }
+
+        const normalizedRows: any[] = [];
+        const errs: string[] = [];
+
+        rawJson.forEach((row, idx) => {
+          // Normalize key names (trim, lowercase check)
+          const getVal = (...keys: string[]) => {
+            for (const key of keys) {
+              const matchedKey = Object.keys(row).find(
+                k => k.trim().toLowerCase().replace(/[\s_-]/g, '') === key.toLowerCase().replace(/[\s_-]/g, '')
+              );
+              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== '') {
+                return String(row[matchedKey]).trim();
+              }
+            }
+            return '';
+          };
+
+          const rowTahun = parseInt(getVal('tahun', 'tahunanggaran', 'thn') || String(selectedTahun), 10) || selectedTahun;
+
+          if (importCategory === 'program') {
+            const kodeProgram = getVal('kodeprogram', 'kodeprog', 'kode');
+            const namaProgram = getVal('namaprogram', 'namaprog', 'uraian', 'program');
+
+            if (!kodeProgram || !namaProgram) {
+              errs.push(`Baris ${idx + 2}: Kode atau Nama Program kosong.`);
+            } else {
+              normalizedRows.push({
+                kodeProgram,
+                namaProgram,
+                tahun: rowTahun,
+                status: 'Valid'
+              });
+            }
+          } else if (importCategory === 'kegiatan') {
+            const kodeProgram = getVal('kodeprogram', 'kodeprog') || (kodeProgram => kodeProgram ? kodeProgram : (programs[0]?.kodeProgram || '5.01.01'));
+            const kodeKegiatan = getVal('kodekegiatan', 'kodekeg', 'kode');
+            const namaKegiatan = getVal('namakegiatan', 'namakeg', 'uraian', 'kegiatan');
+
+            if (!kodeKegiatan || !namaKegiatan) {
+              errs.push(`Baris ${idx + 2}: Kode atau Nama Kegiatan kosong.`);
+            } else {
+              normalizedRows.push({
+                kodeProgram: typeof kodeProgram === 'string' ? kodeProgram : '5.01.01',
+                kodeKegiatan,
+                namaKegiatan,
+                tahun: rowTahun,
+                status: 'Valid'
+              });
+            }
+          } else if (importCategory === 'subkegiatan') {
+            const kodeProgram = getVal('kodeprogram', 'kodeprog') || '5.01.01';
+            const kodeKegiatan = getVal('kodekegiatan', 'kodekeg') || '5.01.01.2.01';
+            const kodeSub = getVal('kodesubkegiatan', 'kodesub', 'kodesubkeg', 'kode');
+            const namaSub = getVal('namasubkegiatan', 'namasub', 'namasubkeg', 'uraian');
+
+            if (!kodeSub || !namaSub) {
+              errs.push(`Baris ${idx + 2}: Kode atau Nama Sub Kegiatan kosong.`);
+            } else {
+              normalizedRows.push({
+                kodeProgram,
+                kodeKegiatan,
+                kodeSub,
+                namaSub,
+                tahun: rowTahun,
+                status: 'Valid'
+              });
+            }
+          } else if (importCategory === 'belanja') {
+            const kodeBelanja = getVal('koderekening', 'kodebelanja', 'kode', 'rekening');
+            const namaBelanja = getVal('uraianbelanja', 'namabelanja', 'uraian', 'namarekening');
+            const jenisBelanja = getVal('jenisbelanja', 'jenis') || 'Belanja Barang dan Jasa';
+
+            if (!kodeBelanja || !namaBelanja) {
+              errs.push(`Baris ${idx + 2}: Kode Rekening atau Uraian Belanja kosong.`);
+            } else {
+              normalizedRows.push({
+                kodeBelanja,
+                namaBelanja,
+                jenisBelanja,
+                tahun: rowTahun,
+                status: 'Valid'
+              });
+            }
+          }
+        });
+
+        setParsedDataPreview(normalizedRows);
+        setImportErrors(errs);
+      } catch (err: any) {
+        console.error('Failed to parse Excel:', err);
+        setImportErrors([`Gagal membaca file Excel: ${err?.message || 'Format file salah'}`]);
+        setParsedDataPreview([]);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleProcessImportExcel = () => {
+    if (parsedDataPreview.length === 0) return;
+
+    if (importCategory === 'program') {
+      const result = importProgramsBatch(parsedDataPreview as Program[]);
+      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Program baru (${result.duplicateCount} data duplikat diperbarui).`);
+    } else if (importCategory === 'kegiatan') {
+      const result = importKegiatanBatch(parsedDataPreview as Kegiatan[]);
+      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Kegiatan baru (${result.duplicateCount} data duplikat diperbarui).`);
+    } else if (importCategory === 'subkegiatan') {
+      const result = importSubKegiatanBatch(parsedDataPreview as SubKegiatan[]);
+      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Sub Kegiatan baru (${result.duplicateCount} data duplikat diperbarui).`);
+    } else if (importCategory === 'belanja') {
+      const result = importBelanjaBatch(parsedDataPreview as Belanja[]);
+      setImportSuccessMsg(`Berhasil mengimpor ${result.successCount} data Belanja Rekening baru (${result.duplicateCount} data duplikat diperbarui).`);
+    }
+
+    setParsedDataPreview([]);
+    setImportedFileName('');
+  };
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -220,14 +437,25 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
         </div>
 
         {!isReadonly && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50"
-            id="btn-add-master"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Tambah Data Master</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => openImportModalForTab()}
+              className="flex items-center gap-2 rounded-xl bg-teal-600/90 hover:bg-teal-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-teal-950/50 transition"
+              id="btn-import-master-excel"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              <span>Import File Excel</span>
+            </button>
+
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50"
+              id="btn-add-master"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Tambah Data Manual</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -260,16 +488,28 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
         ))}
       </div>
 
-      {/* Search Bar */}
-      <div className="flex items-center rounded-xl border border-slate-800 bg-slate-900 px-3 py-2">
-        <Search className="h-4 w-4 text-slate-400 mr-2" />
-        <input
-          type="text"
-          placeholder="Cari kata kunci di master data..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
-        />
+      {/* Search Bar & Quick Import Helper Banner */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex-1 flex items-center rounded-xl border border-slate-800 bg-slate-900 px-3 py-2">
+          <Search className="h-4 w-4 text-slate-400 mr-2" />
+          <input
+            type="text"
+            placeholder="Cari kata kunci di master data..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.g.target.value)}
+            className="w-full bg-transparent text-xs text-white placeholder-slate-500 focus:outline-none"
+          />
+        </div>
+
+        {['master-program', 'master-kegiatan', 'master-subkegiatan', 'master-belanja'].includes(activeTab) && !isReadonly && (
+          <button
+            onClick={() => openImportModalForTab()}
+            className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-teal-500/40 px-3.5 py-2 text-xs font-bold text-teal-300 transition"
+          >
+            <FileSpreadsheet className="h-4 w-4 text-teal-400" />
+            <span>Import Excel {activeTab.replace('master-', '').toUpperCase()}</span>
+          </button>
+        )}
       </div>
 
       {/* TAB CONTENT: MASTER TAHUN */}
@@ -309,7 +549,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
       {/* TAB CONTENT: OPD / UNIT KERJA */}
       {activeTab === 'master-opd' && (
         <div className="space-y-6">
-          {/* Header Banner for OPD */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">
             <div className="flex items-center gap-3">
               <Building className="h-7 w-7 text-emerald-400" />
@@ -331,7 +570,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             )}
           </div>
 
-          {/* OPD Cards List */}
           {opdList.length === 0 ? (
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center space-y-3">
               <Building className="h-10 w-10 text-slate-500 mx-auto" />
@@ -357,10 +595,8 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     key={item.id || item.kodeOPD}
                     className="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-5 shadow-xl hover:border-emerald-500/40 transition"
                   >
-                    {/* Header: Logo + Title */}
                     <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
                       <div className="flex items-center gap-4">
-                        {/* Logo Container with Upload Trigger */}
                         <div className="relative group flex-shrink-0">
                           {item.logoUrl ? (
                             <img
@@ -405,7 +641,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                       </div>
                     </div>
 
-                    {/* Detail Info Grid */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div className="rounded-xl bg-slate-950 p-3 border border-slate-800">
                         <span className="text-slate-400 text-[11px]">Kepala Badan / SKPD:</span>
@@ -429,7 +664,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                       </div>
                     </div>
 
-                    {/* Action Buttons: Import Logo, Edit, Delete */}
                     {!isReadonly && (
                       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-4">
                         <div className="flex items-center gap-2">
@@ -487,8 +721,22 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
       {/* TAB CONTENT: PROGRAM */}
       {activeTab === 'master-program' && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800">
+            <span className="text-xs font-bold text-slate-300">
+              Total Program: {programs.filter(p => p.tahun === selectedTahun).length} item (Tahun {selectedTahun})
+            </span>
+            {!isReadonly && (
+              <button
+                onClick={() => openImportModalForTab('program')}
+                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>Import File Excel Program</span>
+              </button>
+            )}
+          </div>
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
+            <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
                 <th className="px-4 py-3">Kode Program</th>
                 <th className="px-4 py-3">Nama Program</th>
@@ -518,8 +766,22 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
       {/* TAB CONTENT: KEGIATAN */}
       {activeTab === 'master-kegiatan' && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800">
+            <span className="text-xs font-bold text-slate-300">
+              Total Kegiatan: {kegiatanList.filter(k => k.tahun === selectedTahun).length} item (Tahun {selectedTahun})
+            </span>
+            {!isReadonly && (
+              <button
+                onClick={() => openImportModalForTab('kegiatan')}
+                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>Import File Excel Kegiatan</span>
+              </button>
+            )}
+          </div>
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
+            <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
                 <th className="px-4 py-3">Kode Program</th>
                 <th className="px-4 py-3">Kode Kegiatan</th>
@@ -551,8 +813,22 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
       {/* TAB CONTENT: SUB KEGIATAN */}
       {activeTab === 'master-subkegiatan' && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800">
+            <span className="text-xs font-bold text-slate-300">
+              Total Sub Kegiatan: {subKegiatanList.filter(s => s.tahun === selectedTahun).length} item (Tahun {selectedTahun})
+            </span>
+            {!isReadonly && (
+              <button
+                onClick={() => openImportModalForTab('subkegiatan')}
+                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>Import File Excel Sub Kegiatan</span>
+              </button>
+            )}
+          </div>
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
+            <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
                 <th className="px-4 py-3">Kode Kegiatan</th>
                 <th className="px-4 py-3">Kode Sub Kegiatan</th>
@@ -584,8 +860,22 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
       {/* TAB CONTENT: BELANJA */}
       {activeTab === 'master-belanja' && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800">
+            <span className="text-xs font-bold text-slate-300">
+              Total Belanja Rekening: {belanjaList.length} item
+            </span>
+            {!isReadonly && (
+              <button
+                onClick={() => openImportModalForTab('belanja')}
+                className="flex items-center gap-1.5 rounded-lg bg-teal-950 hover:bg-teal-900 border border-teal-600/50 px-3 py-1.5 text-xs font-semibold text-teal-300 transition"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                <span>Import File Excel Belanja</span>
+              </button>
+            )}
+          </div>
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
+            <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
                 <th className="px-4 py-3">Kode Rekening</th>
                 <th className="px-4 py-3">Nama Uraian Belanja</th>
@@ -648,6 +938,252 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* MODAL IMPORT EXCEL MASTER DATA */}
+      {showImportExcelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-3xl border border-teal-700/60 bg-slate-900 p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto scrollbar-none">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <FileSpreadsheet className="h-6 w-6 text-teal-400" />
+                <div>
+                  <h3 className="text-base font-bold text-white">Import Master Data via File Excel</h3>
+                  <p className="text-xs text-slate-400">
+                    Unggah file Excel (.xlsx / .xls) untuk memperbarui data Program, Kegiatan, Sub Kegiatan & Belanja
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowImportExcelModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Category Switcher Tabs */}
+            <div className="flex flex-wrap gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
+              {[
+                { id: 'program', label: 'Program' },
+                { id: 'kegiatan', label: 'Kegiatan' },
+                { id: 'subkegiatan', label: 'Sub Kegiatan' },
+                { id: 'belanja', label: 'Belanja Rekening' }
+              ].map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setImportCategory(cat.id as any);
+                    setParsedDataPreview([]);
+                    setImportedFileName('');
+                    setImportErrors([]);
+                    setImportSuccessMsg(null);
+                  }}
+                  className={`flex-1 min-w-[120px] py-2 px-3 text-xs font-bold rounded-xl transition ${
+                    importCategory === cat.id
+                      ? 'bg-teal-600 text-white shadow'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-900'
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Download Template Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl bg-teal-950/50 border border-teal-800/50 p-4 text-xs">
+              <div className="flex items-start gap-2.5">
+                <Info className="h-5 w-5 text-teal-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-teal-200">
+                    Gunakan Format Kolom Baku Master {importCategory.toUpperCase()}
+                  </p>
+                  <p className="text-[11px] text-teal-300/80 mt-0.5">
+                    {importCategory === 'program' && 'Kolom wajib: Kode Program, Nama Program, Tahun'}
+                    {importCategory === 'kegiatan' && 'Kolom wajib: Kode Program, Kode Kegiatan, Nama Kegiatan, Tahun'}
+                    {importCategory === 'subkegiatan' && 'Kolom wajib: Kode Program, Kode Kegiatan, Kode Sub Kegiatan, Nama Sub Kegiatan, Tahun'}
+                    {importCategory === 'belanja' && 'Kolom wajib: Kode Rekening, Uraian Belanja, Jenis Belanja, Tahun'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleDownloadTemplate(importCategory)}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-800 hover:bg-teal-700 text-white px-3.5 py-2 font-bold shadow text-xs transition flex-shrink-0"
+              >
+                <Download className="h-4 w-4" />
+                <span>Unduh Template Excel</span>
+              </button>
+            </div>
+
+            {/* Success Alert */}
+            {importSuccessMsg && (
+              <div className="rounded-2xl border border-emerald-600/60 bg-emerald-950/60 p-4 flex items-start gap-3 text-emerald-200 text-xs">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">{importSuccessMsg}</p>
+                  <p className="text-[11px] text-emerald-300/80 mt-0.5">Data master berhasil masuk ke dalam sistem dan terkomit di memori lokal.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Error Messages */}
+            {importErrors.length > 0 && (
+              <div className="rounded-2xl border border-rose-600/60 bg-rose-950/60 p-4 space-y-1 text-rose-200 text-xs">
+                <div className="flex items-center gap-2 font-bold text-rose-300">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>Peringatan / Catatan Parsing Excel:</span>
+                </div>
+                <ul className="list-disc list-inside text-[11px] space-y-0.5 text-rose-200/90 max-h-24 overflow-y-auto">
+                  {importErrors.map((err, i) => (
+                    <li key={i}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* File Upload Drop Zone */}
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1">
+                Pilih File Excel (.xlsx / .xls / .csv):
+              </label>
+              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-teal-600/40 hover:border-teal-400 bg-slate-950 p-6 rounded-2xl cursor-pointer transition text-center">
+                <Upload className="h-8 w-8 text-teal-400" />
+                <div>
+                  <p className="text-xs font-bold text-white">
+                    {importedFileName ? `File Terpilih: ${importedFileName}` : 'Klik atau Drag & Drop File Excel di sini'}
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Mendukung format .xlsx, .xls, .csv buatan Microsoft Excel atau Google Spreadsheet
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleFileUploadExcel}
+                  className="hidden"
+                />
+              </label>
+            </div>
+
+            {/* Data Preview Table */}
+            {parsedDataPreview.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-300 flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4" /> Pratinjau Data Parsed ({parsedDataPreview.length} baris)
+                  </span>
+                  <span className="text-[11px] text-slate-400">Siap diimpor ke Master {importCategory.toUpperCase()}</span>
+                </div>
+
+                <div className="max-h-60 overflow-y-auto border border-slate-800 rounded-2xl bg-slate-950 text-xs scrollbar-none">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-900 text-slate-300 font-bold sticky top-0 border-b border-slate-800">
+                      <tr>
+                        <th className="px-3 py-2">No</th>
+                        {importCategory === 'program' && (
+                          <>
+                            <th className="px-3 py-2">Kode Program</th>
+                            <th className="px-3 py-2">Nama Program</th>
+                            <th className="px-3 py-2">Tahun</th>
+                          </>
+                        )}
+                        {importCategory === 'kegiatan' && (
+                          <>
+                            <th className="px-3 py-2">Kode Prog</th>
+                            <th className="px-3 py-2">Kode Kegiatan</th>
+                            <th className="px-3 py-2">Nama Kegiatan</th>
+                            <th className="px-3 py-2">Tahun</th>
+                          </>
+                        )}
+                        {importCategory === 'subkegiatan' && (
+                          <>
+                            <th className="px-3 py-2">Kode Sub</th>
+                            <th className="px-3 py-2">Nama Sub Kegiatan</th>
+                            <th className="px-3 py-2">Tahun</th>
+                          </>
+                        )}
+                        {importCategory === 'belanja' && (
+                          <>
+                            <th className="px-3 py-2">Kode Rekening</th>
+                            <th className="px-3 py-2">Uraian Belanja</th>
+                            <th className="px-3 py-2">Jenis Belanja</th>
+                            <th className="px-3 py-2">Tahun</th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800 text-slate-300">
+                      {parsedDataPreview.slice(0, 15).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-900/50">
+                          <td className="px-3 py-2 font-mono text-slate-500">{idx + 1}</td>
+                          {importCategory === 'program' && (
+                            <>
+                              <td className="px-3 py-2 font-mono text-emerald-400 font-bold">{row.kodeProgram}</td>
+                              <td className="px-3 py-2 text-white">{row.namaProgram}</td>
+                              <td className="px-3 py-2">{row.tahun}</td>
+                            </>
+                          )}
+                          {importCategory === 'kegiatan' && (
+                            <>
+                              <td className="px-3 py-2 font-mono text-slate-400">{row.kodeProgram}</td>
+                              <td className="px-3 py-2 font-mono text-teal-400 font-bold">{row.kodeKegiatan}</td>
+                              <td className="px-3 py-2 text-white">{row.namaKegiatan}</td>
+                              <td className="px-3 py-2">{row.tahun}</td>
+                            </>
+                          )}
+                          {importCategory === 'subkegiatan' && (
+                            <>
+                              <td className="px-3 py-2 font-mono text-amber-400 font-bold">{row.kodeSub}</td>
+                              <td className="px-3 py-2 text-white">{row.namaSub}</td>
+                              <td className="px-3 py-2">{row.tahun}</td>
+                            </>
+                          )}
+                          {importCategory === 'belanja' && (
+                            <>
+                              <td className="px-3 py-2 font-mono text-emerald-400 font-bold">{row.kodeBelanja}</td>
+                              <td className="px-3 py-2 text-white">{row.namaBelanja}</td>
+                              <td className="px-3 py-2 text-slate-300">{row.jenisBelanja}</td>
+                              <td className="px-3 py-2">{row.tahun}</td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {parsedDataPreview.length > 15 && (
+                    <div className="p-2 text-center text-[11px] text-slate-400 border-t border-slate-800 bg-slate-900">
+                      ... dan {parsedDataPreview.length - 15} baris data lainnya
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 border-t border-slate-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowImportExcelModal(false)}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-300 transition"
+              >
+                Tutup
+              </button>
+
+              <button
+                type="button"
+                disabled={parsedDataPreview.length === 0}
+                onClick={handleProcessImportExcel}
+                className="flex items-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 disabled:cursor-not-allowed px-5 py-2.5 text-xs font-bold text-white shadow-lg shadow-teal-950/50 transition"
+              >
+                <FileCheck className="h-4 w-4" />
+                <span>Proses Import {parsedDataPreview.length} Data {importCategory.toUpperCase()}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -722,7 +1258,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 />
               </div>
 
-              {/* Logo Preview & File Import Input inside Edit Modal */}
               <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 space-y-2">
                 <label className="font-bold text-slate-300 block">Logo Resmi Provinsi NTB:</label>
                 <div className="flex items-center gap-3">
@@ -833,7 +1368,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white">Form Master Data</h3>
+              <h3 className="text-base font-bold text-white">Form Manual Master Data</h3>
               <button
                 onClick={() => setShowAddModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -842,7 +1377,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               </button>
             </div>
 
-            {/* Modal Input for OPD */}
             {activeTab === 'master-opd' && (
               <form onSubmit={handleSaveAddOpd} className="mt-4 space-y-3 text-xs">
                 <div>
@@ -903,7 +1437,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                   />
                 </div>
 
-                {/* Logo Uploader */}
                 <div>
                   <label className="font-bold text-slate-300 block mb-1">Logo Provinsi NTB (Opsional):</label>
                   <label className="flex items-center justify-center gap-2 cursor-pointer rounded-xl border border-dashed border-emerald-600/50 bg-slate-950 p-3 text-emerald-300 hover:bg-emerald-950/40 transition">
@@ -936,7 +1469,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               </form>
             )}
 
-            {/* Modal Input for Program */}
             {activeTab === 'master-program' && (
               <form onSubmit={handleSaveProgram} className="mt-4 space-y-4">
                 <div>
@@ -970,7 +1502,6 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               </form>
             )}
 
-            {/* Modal Input for Rekanan */}
             {activeTab === 'master-rekanan' && (
               <form onSubmit={handleSaveRekanan} className="mt-4 space-y-3">
                 <div>
