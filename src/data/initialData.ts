@@ -19,6 +19,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'USR-001',
     nama: 'Dr. H. Ruslan, M.Si',
+    nip: '19710312 199603 1 002',
     username: 'admin',
     role: 'Administrator',
     status: 'Aktif',
@@ -27,6 +28,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'USR-002',
     nama: 'Ahmad Subadri, S.STP',
+    nip: '19850614 200802 1 001',
     username: 'operator',
     role: 'Operator Program',
     status: 'Aktif',
@@ -35,6 +37,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'USR-003',
     nama: 'Drs. Supriadi, M.M',
+    nip: '19680920 199403 1 005',
     username: 'ppk',
     role: 'PPK',
     status: 'Aktif',
@@ -43,6 +46,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'USR-004',
     nama: 'H. Lalu Gita Ariadi, M.Si',
+    nip: '19651001 199003 1 008',
     username: 'kaban',
     role: 'Kepala Badan',
     status: 'Aktif',
@@ -51,6 +55,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'USR-005',
     nama: 'Siti Rahmah, S.E., Ak.',
+    nip: '19821125 200604 2 011',
     username: 'auditor',
     role: 'Auditor',
     status: 'Aktif',

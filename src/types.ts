@@ -3,6 +3,7 @@ export type UserRole = 'Administrator' | 'Operator Program' | 'PPK' | 'Kepala Ba
 export interface User {
   id: string;
   nama: string;
+  nip?: string;
   username: string;
   password?: string;
   role: UserRole;

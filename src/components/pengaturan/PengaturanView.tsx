@@ -49,6 +49,7 @@ export const PengaturanView: React.FC = () => {
   // New User Form State
   const [showAddUser, setShowAddUser] = useState(false);
   const [newNama, setNewNama] = useState('');
+  const [newNip, setNewNip] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [newRole, setNewRole] = useState<UserRole>('Operator Program');
 
@@ -66,11 +67,13 @@ export const PengaturanView: React.FC = () => {
     if (!newNama || !newUsername) return;
     addUser({
       nama: newNama,
+      nip: newNip,
       username: newUsername,
       role: newRole,
       status: 'Aktif'
     });
     setNewNama('');
+    setNewNip('');
     setNewUsername('');
     setShowAddUser(false);
   };
@@ -182,7 +185,7 @@ export const PengaturanView: React.FC = () => {
           {showAddUser && !isReadonly && (
             <form onSubmit={handleAddUserSubmit} className="rounded-2xl border border-emerald-600/40 bg-slate-900 p-5 space-y-3 shadow-xl">
               <h3 className="text-xs font-bold text-emerald-300">Form Tambah User Baru</h3>
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <div>
                   <label className="text-xs font-bold text-slate-300">Nama Lengkap & Gelar:</label>
                   <input
@@ -192,6 +195,16 @@ export const PengaturanView: React.FC = () => {
                     value={newNama}
                     onChange={e => setNewNama(e.target.value)}
                     className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-300">NIP (Nomor Induk Pegawai):</label>
+                  <input
+                    type="text"
+                    placeholder="19800101 200501 1 001"
+                    value={newNip}
+                    onChange={e => setNewNip(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white font-mono"
                   />
                 </div>
                 <div>
@@ -243,7 +256,7 @@ export const PengaturanView: React.FC = () => {
               <thead className="bg-slate-950 text-slate-300 font-bold uppercase border-b border-slate-800">
                 <tr>
                   <th className="px-4 py-3">ID User</th>
-                  <th className="px-4 py-3">Nama Pengguna</th>
+                  <th className="px-4 py-3">Nama Pengguna & NIP</th>
                   <th className="px-4 py-3">Username</th>
                   <th className="px-4 py-3">Role / Hak Akses</th>
                   <th className="px-4 py-3">Status</th>
@@ -255,13 +268,21 @@ export const PengaturanView: React.FC = () => {
                   .filter(
                     u =>
                       u.nama.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      (u.nip && u.nip.toLowerCase().includes(searchTerm.toLowerCase())) ||
                       u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       u.role.toLowerCase().includes(searchTerm.toLowerCase())
                   )
                   .map(u => (
                     <tr key={u.id} className="hover:bg-slate-800/50">
                       <td className="px-4 py-3 font-mono text-emerald-400 font-bold">{u.id}</td>
-                      <td className="px-4 py-3 font-semibold text-white">{u.nama}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-semibold text-white">{u.nama}</div>
+                        {u.nip ? (
+                          <div className="text-[10px] text-slate-400 font-mono">NIP. {u.nip}</div>
+                        ) : (
+                          <div className="text-[10px] text-slate-600 italic">NIP belum diisi</div>
+                        )}
+                      </td>
                       <td className="px-4 py-3 font-mono text-slate-300">{u.username}</td>
                       <td className="px-4 py-3 font-bold text-amber-300">{u.role}</td>
                       <td className="px-4 py-3">
@@ -508,13 +529,24 @@ export const PengaturanView: React.FC = () => {
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-slate-300">Nama Pengguna:</label>
+                <label className="text-xs font-bold text-slate-300">Nama Pengguna & Gelar:</label>
                 <input
                   type="text"
                   required
                   value={editingUser.nama}
                   onChange={e => setEditingUser({ ...editingUser, nama: e.target.value })}
                   className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300">NIP (Nomor Induk Pegawai):</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: 19800101 200501 1 001"
+                  value={editingUser.nip || ''}
+                  onChange={e => setEditingUser({ ...editingUser, nip: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-xs text-white font-mono"
                 />
               </div>
 
