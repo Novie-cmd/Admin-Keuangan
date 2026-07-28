@@ -98,15 +98,31 @@ interface AppContextType {
   ) => { successCount: number; duplicateCount: number; errors: string[] };
 
   // Master Data CRUD
+  addTahun: (t: TahunAnggaran) => void;
+  updateTahun: (id: string, updated: Partial<TahunAnggaran>) => void;
+  deleteTahun: (id: string) => void;
   addProgram: (prog: Program) => void;
+  updateProgram: (oldKode: string, oldTahun: number, updated: Partial<Program>) => void;
+  deleteProgram: (kodeProgram: string, tahun: number) => void;
   addKegiatan: (keg: Kegiatan) => void;
+  updateKegiatan: (oldKode: string, oldTahun: number, updated: Partial<Kegiatan>) => void;
+  deleteKegiatan: (kodeKegiatan: string, tahun: number) => void;
   addSubKegiatan: (sub: SubKegiatan) => void;
+  updateSubKegiatan: (oldKode: string, oldTahun: number, updated: Partial<SubKegiatan>) => void;
+  deleteSubKegiatan: (kodeSub: string, tahun: number) => void;
   addBelanja: (bel: Belanja) => void;
+  updateBelanja: (oldKode: string, oldTahun: number, updated: Partial<Belanja>) => void;
+  deleteBelanja: (kodeBelanja: string, tahun?: number) => void;
   importProgramsBatch: (items: Program[]) => { successCount: number; duplicateCount: number };
   importKegiatanBatch: (items: Kegiatan[]) => { successCount: number; duplicateCount: number };
   importSubKegiatanBatch: (items: SubKegiatan[]) => { successCount: number; duplicateCount: number };
   importBelanjaBatch: (items: Belanja[]) => { successCount: number; duplicateCount: number };
+  addSumberDana: (sd: Omit<SumberDana, 'id'>) => void;
+  updateSumberDana: (id: string, updated: Partial<SumberDana>) => void;
+  deleteSumberDana: (id: string) => void;
   addRekanan: (rek: Omit<Rekanan, 'id'>) => void;
+  updateRekanan: (id: string, updated: Partial<Rekanan>) => void;
+  deleteRekanan: (id: string) => void;
   addOpd: (newOpd: OPD) => void;
   updateOpd: (idOrKode: string, updated: Partial<OPD>) => void;
   deleteOpd: (idOrKode: string) => void;
@@ -173,7 +189,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [belanjaList, setBelanjaList] = useState<Belanja[]>(
     storedData?.belanjaList || INITIAL_BELANJA
   );
-  const [sumberDanaList] = useState<SumberDana[]>(
+  const [sumberDanaList, setSumberDanaList] = useState<SumberDana[]>(
     storedData?.sumberDanaList || INITIAL_SUMBER_DANA
   );
   const [rekananList, setRekananList] = useState<Rekanan[]>(
@@ -521,9 +537,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Master Data CRUD
+  const addTahun = (t: TahunAnggaran) => {
+    setTahunList(prev => [...prev, t]);
+    logActivity(`Menambah Master Tahun Anggaran: ${t.tahun}`);
+  };
+
+  const updateTahun = (id: string, updated: Partial<TahunAnggaran>) => {
+    setTahunList(prev => prev.map(t => (t.id === id ? { ...t, ...updated } : t)));
+    logActivity(`Memperbarui Master Tahun Anggaran ID: ${id}`);
+  };
+
+  const deleteTahun = (id: string) => {
+    setTahunList(prev => prev.filter(t => t.id !== id));
+    logActivity(`Menghapus Master Tahun Anggaran ID: ${id}`);
+  };
+
   const addProgram = (prog: Program) => {
     setPrograms(prev => [...prev, prog]);
     logActivity(`Menambah Program Master: ${prog.kodeProgram} - ${prog.namaProgram}`);
+  };
+
+  const updateProgram = (oldKode: string, oldTahun: number, updated: Partial<Program>) => {
+    setPrograms(prev => prev.map(p => (p.kodeProgram === oldKode && p.tahun === oldTahun ? { ...p, ...updated } : p)));
+    logActivity(`Memperbarui Program Master: ${oldKode}`);
+  };
+
+  const deleteProgram = (kodeProgram: string, tahun: number) => {
+    setPrograms(prev => prev.filter(p => !(p.kodeProgram === kodeProgram && p.tahun === tahun)));
+    logActivity(`Menghapus Program Master: ${kodeProgram}`);
   };
 
   const addKegiatan = (keg: Kegiatan) => {
@@ -531,14 +572,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menambah Kegiatan Master: ${keg.kodeKegiatan}`);
   };
 
+  const updateKegiatan = (oldKode: string, oldTahun: number, updated: Partial<Kegiatan>) => {
+    setKegiatanList(prev => prev.map(k => (k.kodeKegiatan === oldKode && k.tahun === oldTahun ? { ...k, ...updated } : k)));
+    logActivity(`Memperbarui Kegiatan Master: ${oldKode}`);
+  };
+
+  const deleteKegiatan = (kodeKegiatan: string, tahun: number) => {
+    setKegiatanList(prev => prev.filter(k => !(k.kodeKegiatan === kodeKegiatan && k.tahun === tahun)));
+    logActivity(`Menghapus Kegiatan Master: ${kodeKegiatan}`);
+  };
+
   const addSubKegiatan = (sub: SubKegiatan) => {
     setSubKegiatanList(prev => [...prev, sub]);
     logActivity(`Menambah Sub Kegiatan Master: ${sub.kodeSub}`);
   };
 
+  const updateSubKegiatan = (oldKode: string, oldTahun: number, updated: Partial<SubKegiatan>) => {
+    setSubKegiatanList(prev => prev.map(s => (s.kodeSub === oldKode && s.tahun === oldTahun ? { ...s, ...updated } : s)));
+    logActivity(`Memperbarui Sub Kegiatan Master: ${oldKode}`);
+  };
+
+  const deleteSubKegiatan = (kodeSub: string, tahun: number) => {
+    setSubKegiatanList(prev => prev.filter(s => !(s.kodeSub === kodeSub && s.tahun === tahun)));
+    logActivity(`Menghapus Sub Kegiatan Master: ${kodeSub}`);
+  };
+
   const addBelanja = (bel: Belanja) => {
     setBelanjaList(prev => [...prev, bel]);
     logActivity(`Menambah Belanja Master: ${bel.kodeBelanja}`);
+  };
+
+  const updateBelanja = (oldKode: string, oldTahun: number, updated: Partial<Belanja>) => {
+    setBelanjaList(prev => prev.map(b => (b.kodeBelanja === oldKode && (b.tahun === oldTahun || !b.tahun) ? { ...b, ...updated } : b)));
+    logActivity(`Memperbarui Belanja Master: ${oldKode}`);
+  };
+
+  const deleteBelanja = (kodeBelanja: string, tahun?: number) => {
+    setBelanjaList(prev => prev.filter(b => !(b.kodeBelanja === kodeBelanja && (tahun ? b.tahun === tahun : true))));
+    logActivity(`Menghapus Belanja Master: ${kodeBelanja}`);
   };
 
   const importProgramsBatch = (items: Program[]) => {
@@ -641,10 +712,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { successCount, duplicateCount };
   };
 
+  const addSumberDana = (sd: Omit<SumberDana, 'id'>) => {
+    const fullSd: SumberDana = { ...sd, id: `SD-${Date.now()}` };
+    setSumberDanaList(prev => [...prev, fullSd]);
+    logActivity(`Menambah Sumber Dana: ${fullSd.nama}`);
+  };
+
+  const updateSumberDana = (id: string, updated: Partial<SumberDana>) => {
+    setSumberDanaList(prev => prev.map(sd => (sd.id === id ? { ...sd, ...updated } : sd)));
+    logActivity(`Memperbarui Sumber Dana ID: ${id}`);
+  };
+
+  const deleteSumberDana = (id: string) => {
+    setSumberDanaList(prev => prev.filter(sd => sd.id !== id));
+    logActivity(`Menghapus Sumber Dana ID: ${id}`);
+  };
+
   const addRekanan = (rek: Omit<Rekanan, 'id'>) => {
     const fullRek: Rekanan = { ...rek, id: `REK-${Date.now()}` };
     setRekananList(prev => [...prev, fullRek]);
     logActivity(`Menambah Rekanan Baru: ${fullRek.namaRekanan}`);
+  };
+
+  const updateRekanan = (id: string, updated: Partial<Rekanan>) => {
+    setRekananList(prev => prev.map(r => (r.id === id ? { ...r, ...updated } : r)));
+    logActivity(`Memperbarui Rekanan ID: ${id}`);
+  };
+
+  const deleteRekanan = (id: string) => {
+    setRekananList(prev => prev.filter(r => r.id !== id));
+    logActivity(`Menghapus Rekanan ID: ${id}`);
   };
 
   // OPD Management
@@ -816,15 +913,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteRealisasi,
         approveRealisasiPPK,
         batchImportExcel,
+        addTahun,
+        updateTahun,
+        deleteTahun,
         addProgram,
+        updateProgram,
+        deleteProgram,
         addKegiatan,
+        updateKegiatan,
+        deleteKegiatan,
         addSubKegiatan,
+        updateSubKegiatan,
+        deleteSubKegiatan,
         addBelanja,
+        updateBelanja,
+        deleteBelanja,
         importProgramsBatch,
         importKegiatanBatch,
         importSubKegiatanBatch,
         importBelanjaBatch,
+        addSumberDana,
+        updateSumberDana,
+        deleteSumberDana,
         addRekanan,
+        updateRekanan,
+        deleteRekanan,
         addOpd,
         updateOpd,
         deleteOpd,

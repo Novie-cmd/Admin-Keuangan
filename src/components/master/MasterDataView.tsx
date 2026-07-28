@@ -44,16 +44,33 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     kegiatanList,
     subKegiatanList,
     belanjaList,
+    sumberDanaList,
     rekananList,
+    addTahun,
+    updateTahun,
+    deleteTahun,
     addProgram,
+    updateProgram,
+    deleteProgram,
     addKegiatan,
+    updateKegiatan,
+    deleteKegiatan,
     addSubKegiatan,
+    updateSubKegiatan,
+    deleteSubKegiatan,
     addBelanja,
+    updateBelanja,
+    deleteBelanja,
+    addSumberDana,
+    updateSumberDana,
+    deleteSumberDana,
     importProgramsBatch,
     importKegiatanBatch,
     importSubKegiatanBatch,
     importBelanjaBatch,
     addRekanan,
+    updateRekanan,
+    deleteRekanan,
     addOpd,
     updateOpd,
     deleteOpd,
@@ -74,9 +91,30 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   // Modal forms state
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // OPD Edit & Delete Modal States
+  // Edit & Delete Modal States for all master data sub-menus
+  const [editingTahun, setEditingTahun] = useState<TahunAnggaran | null>(null);
+  const [deletingTahun, setDeletingTahun] = useState<TahunAnggaran | null>(null);
+
   const [editingOpd, setEditingOpd] = useState<OPD | null>(null);
   const [deletingOpd, setDeletingOpd] = useState<OPD | null>(null);
+
+  const [editingProgram, setEditingProgram] = useState<Program | null>(null);
+  const [deletingProgram, setDeletingProgram] = useState<Program | null>(null);
+
+  const [editingKegiatan, setEditingKegiatan] = useState<Kegiatan | null>(null);
+  const [deletingKegiatan, setDeletingKegiatan] = useState<Kegiatan | null>(null);
+
+  const [editingSub, setEditingSub] = useState<SubKegiatan | null>(null);
+  const [deletingSub, setDeletingSub] = useState<SubKegiatan | null>(null);
+
+  const [editingBelanja, setEditingBelanja] = useState<Belanja | null>(null);
+  const [deletingBelanja, setDeletingBelanja] = useState<Belanja | null>(null);
+
+  const [editingSumberDana, setEditingSumberDana] = useState<SumberDana | null>(null);
+  const [deletingSumberDana, setDeletingSumberDana] = useState<SumberDana | null>(null);
+
+  const [editingRekanan, setEditingRekanan] = useState<Rekanan | null>(null);
+  const [deletingRekanan, setDeletingRekanan] = useState<Rekanan | null>(null);
 
   // Excel Import States
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
@@ -86,11 +124,13 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
 
-  // Form states
+  // Form states for manual additions
+  const [formTahun, setFormTahun] = useState({ id: '', tahun: selectedTahun, keterangan: 'Tahun Anggaran Murni' });
   const [formProgram, setFormProgram] = useState({ kodeProgram: '', namaProgram: '' });
   const [formKegiatan, setFormKegiatan] = useState({ kodeProgram: '', kodeKegiatan: '', namaKegiatan: '' });
   const [formSub, setFormSub] = useState({ kodeProgram: '', kodeKegiatan: '', kodeSub: '', namaSub: '' });
   const [formBelanja, setFormBelanja] = useState({ kodeBelanja: '', namaBelanja: '', jenisBelanja: 'Belanja Barang dan Jasa' });
+  const [formSumberDana, setFormSumberDana] = useState({ kodeSumber: '', namaSumber: '', keterangan: '' });
   const [formRekanan, setFormRekanan] = useState({
     namaRekanan: '',
     npwp: '',
@@ -143,6 +183,120 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     if (!deletingOpd) return;
     deleteOpd(deletingOpd.id || deletingOpd.kodeOPD);
     setDeletingOpd(null);
+  };
+
+  // Tahun Anggaran handlers
+  const handleSaveEditTahun = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTahun) return;
+    updateTahun(editingTahun.id, editingTahun);
+    setEditingTahun(null);
+  };
+  const handleConfirmDeleteTahun = () => {
+    if (!deletingTahun) return;
+    deleteTahun(deletingTahun.id);
+    setDeletingTahun(null);
+  };
+  const handleSaveAddTahun = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formTahun.tahun) return;
+    addTahun({
+      id: formTahun.id || `TAHUN-${formTahun.tahun}`,
+      tahun: Number(formTahun.tahun),
+      statusAktif: formTahun.tahun === selectedTahun,
+      keterangan: formTahun.keterangan
+    });
+    setFormTahun({ id: '', tahun: selectedTahun, keterangan: 'Tahun Anggaran Murni' });
+    setShowAddModal(false);
+  };
+
+  // Program handlers
+  const handleSaveEditProgram = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProgram) return;
+    updateProgram(editingProgram.kodeProgram, editingProgram.tahun, editingProgram);
+    setEditingProgram(null);
+  };
+  const handleConfirmDeleteProgram = () => {
+    if (!deletingProgram) return;
+    deleteProgram(deletingProgram.kodeProgram, deletingProgram.tahun);
+    setDeletingProgram(null);
+  };
+
+  // Kegiatan handlers
+  const handleSaveEditKegiatan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingKegiatan) return;
+    updateKegiatan(editingKegiatan.kodeKegiatan, editingKegiatan.tahun, editingKegiatan);
+    setEditingKegiatan(null);
+  };
+  const handleConfirmDeleteKegiatan = () => {
+    if (!deletingKegiatan) return;
+    deleteKegiatan(deletingKegiatan.kodeKegiatan, deletingKegiatan.tahun);
+    setDeletingKegiatan(null);
+  };
+
+  // Sub Kegiatan handlers
+  const handleSaveEditSub = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSub) return;
+    updateSubKegiatan(editingSub.kodeSub, editingSub.tahun, editingSub);
+    setEditingSub(null);
+  };
+  const handleConfirmDeleteSub = () => {
+    if (!deletingSub) return;
+    deleteSubKegiatan(deletingSub.kodeSub, deletingSub.tahun);
+    setDeletingSub(null);
+  };
+
+  // Belanja handlers
+  const handleSaveEditBelanja = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBelanja) return;
+    updateBelanja(editingBelanja.kodeBelanja, editingBelanja.tahun, editingBelanja);
+    setEditingBelanja(null);
+  };
+  const handleConfirmDeleteBelanja = () => {
+    if (!deletingBelanja) return;
+    deleteBelanja(deletingBelanja.kodeBelanja, deletingBelanja.tahun);
+    setDeletingBelanja(null);
+  };
+
+  // Sumber Dana handlers
+  const handleSaveEditSumberDana = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSumberDana || !editingSumberDana.id) return;
+    updateSumberDana(editingSumberDana.id, editingSumberDana);
+    setEditingSumberDana(null);
+  };
+  const handleConfirmDeleteSumberDana = () => {
+    if (!deletingSumberDana || !deletingSumberDana.id) return;
+    deleteSumberDana(deletingSumberDana.id);
+    setDeletingSumberDana(null);
+  };
+  const handleSaveAddSumberDana = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formSumberDana.namaSumber) return;
+    addSumberDana({
+      kodeSumber: formSumberDana.kodeSumber || `SD-${Date.now().toString().slice(-4)}`,
+      namaSumber: formSumberDana.namaSumber,
+      keterangan: formSumberDana.keterangan
+    });
+    setFormSumberDana({ kodeSumber: '', namaSumber: '', keterangan: '' });
+    setShowAddModal(false);
+  };
+
+  // Rekanan handlers
+  const handleSaveEditRekanan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRekanan) return;
+    updateRekanan(editingRekanan.id, editingRekanan);
+    setEditingRekanan(null);
+  };
+  const handleConfirmDeleteRekanan = () => {
+    if (!deletingRekanan) return;
+    deleteRekanan(deletingRekanan.id);
+    setDeletingRekanan(null);
   };
 
   // Save new OPD
@@ -602,6 +756,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 <th className="px-4 py-3">Tahun Anggaran</th>
                 <th className="px-4 py-3">Status Sistem</th>
                 <th className="px-4 py-3">Keterangan</th>
+                {!isReadonly && <th className="px-4 py-3 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
@@ -619,6 +774,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-400">{t.keterangan}</td>
+                  {!isReadonly && (
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => setEditingTahun(t)}
+                          className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
+                          title="Edit Tahun"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingTahun(t)}
+                          className="rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 p-1.5 text-rose-300 transition"
+                          title="Hapus Tahun"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -805,6 +980,15 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Program: {programs.filter(p => p.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
+            {!isReadonly && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tambah Program</span>
+              </button>
+            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -812,6 +996,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 <th className="px-4 py-3">Kode Program</th>
                 <th className="px-4 py-3">Nama Program</th>
                 <th className="px-4 py-3">Tahun</th>
+                {!isReadonly && <th className="px-4 py-3 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
@@ -827,6 +1012,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     <td className="px-4 py-3 font-mono font-bold text-emerald-400">{p.kodeProgram}</td>
                     <td className="px-4 py-3 font-semibold text-white">{p.namaProgram}</td>
                     <td className="px-4 py-3">{p.tahun}</td>
+                    {!isReadonly && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingProgram(p)}
+                            className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
+                            title="Edit Program"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingProgram(p)}
+                            className="rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 p-1.5 text-rose-300 transition"
+                            title="Hapus Program"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
@@ -841,6 +1046,15 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Kegiatan: {kegiatanList.filter(k => k.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
+            {!isReadonly && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tambah Kegiatan</span>
+              </button>
+            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -849,6 +1063,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 <th className="px-4 py-3">Kode Kegiatan</th>
                 <th className="px-4 py-3">Nama Kegiatan</th>
                 <th className="px-4 py-3">Tahun</th>
+                {!isReadonly && <th className="px-4 py-3 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
@@ -865,6 +1080,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     <td className="px-4 py-3 font-mono font-bold text-teal-400">{k.kodeKegiatan}</td>
                     <td className="px-4 py-3 font-semibold text-white">{k.namaKegiatan}</td>
                     <td className="px-4 py-3">{k.tahun}</td>
+                    {!isReadonly && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingKegiatan(k)}
+                            className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
+                            title="Edit Kegiatan"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingKegiatan(k)}
+                            className="rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 p-1.5 text-rose-300 transition"
+                            title="Hapus Kegiatan"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
@@ -879,6 +1114,15 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Sub Kegiatan: {subKegiatanList.filter(s => s.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
+            {!isReadonly && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tambah Sub Kegiatan</span>
+              </button>
+            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -887,6 +1131,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 <th className="px-4 py-3">Kode Sub Kegiatan</th>
                 <th className="px-4 py-3">Nama Sub Kegiatan</th>
                 <th className="px-4 py-3">Tahun</th>
+                {!isReadonly && <th className="px-4 py-3 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
@@ -903,6 +1148,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     <td className="px-4 py-3 font-mono font-bold text-amber-400">{s.kodeSub}</td>
                     <td className="px-4 py-3 font-semibold text-white">{s.namaSub}</td>
                     <td className="px-4 py-3">{s.tahun}</td>
+                    {!isReadonly && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingSub(s)}
+                            className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
+                            title="Edit Sub Kegiatan"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingSub(s)}
+                            className="rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 p-1.5 text-rose-300 transition"
+                            title="Hapus Sub Kegiatan"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
@@ -917,6 +1182,15 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
             <span className="text-xs font-bold text-slate-300">
               Total Belanja Rekening: {belanjaList.length} item
             </span>
+            {!isReadonly && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tambah Belanja</span>
+              </button>
+            )}
           </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
@@ -924,6 +1198,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 <th className="px-4 py-3">Kode Rekening</th>
                 <th className="px-4 py-3">Nama Uraian Belanja</th>
                 <th className="px-4 py-3">Jenis Belanja</th>
+                {!isReadonly && <th className="px-4 py-3 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
@@ -942,6 +1217,91 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                         {b.jenisBelanja}
                       </span>
                     </td>
+                    {!isReadonly && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingBelanja(b)}
+                            className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
+                            title="Edit Belanja"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingBelanja(b)}
+                            className="rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 p-1.5 text-rose-300 transition"
+                            title="Hapus Belanja"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* TAB CONTENT: SUMBER DANA */}
+      {activeTab === 'master-sumberdana' && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800">
+            <span className="text-xs font-bold text-slate-300">
+              Total Sumber Dana: {sumberDanaList.length} item
+            </span>
+            {!isReadonly && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tambah Sumber Dana</span>
+              </button>
+            )}
+          </div>
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
+              <tr>
+                <th className="px-4 py-3">Kode / ID</th>
+                <th className="px-4 py-3">Nama Sumber Dana</th>
+                <th className="px-4 py-3">Keterangan</th>
+                {!isReadonly && <th className="px-4 py-3 text-right">Aksi</th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800 text-slate-300">
+              {sumberDanaList
+                .filter(
+                  sd =>
+                    (sd.namaSumber || sd.nama || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (sd.kodeSumber || sd.id || '').toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map(sd => (
+                  <tr key={sd.id || sd.kodeSumber} className="hover:bg-slate-800/50">
+                    <td className="px-4 py-3 font-mono font-bold text-emerald-400">{sd.kodeSumber || sd.id}</td>
+                    <td className="px-4 py-3 font-bold text-white">{sd.namaSumber || sd.nama}</td>
+                    <td className="px-4 py-3 text-slate-400">{sd.keterangan || '-'}</td>
+                    {!isReadonly && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingSumberDana(sd)}
+                            className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
+                            title="Edit Sumber Dana"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingSumberDana(sd)}
+                            className="rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 p-1.5 text-rose-300 transition"
+                            title="Hapus Sumber Dana"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
@@ -952,6 +1312,20 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
       {/* TAB CONTENT: REKANAN */}
       {activeTab === 'master-rekanan' && (
         <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800">
+            <span className="text-xs font-bold text-slate-300">
+              Total Rekanan: {rekananList.length} item
+            </span>
+            {!isReadonly && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Tambah Rekanan</span>
+              </button>
+            )}
+          </div>
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
@@ -960,6 +1334,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 <th className="px-4 py-3">Bank & No Rekening</th>
                 <th className="px-4 py-3">Alamat</th>
                 <th className="px-4 py-3">Kontak</th>
+                {!isReadonly && <th className="px-4 py-3 text-right">Aksi</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
@@ -978,6 +1353,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     </td>
                     <td className="px-4 py-3 text-slate-400">{r.alamat}</td>
                     <td className="px-4 py-3 text-slate-300">{r.kontak}</td>
+                    {!isReadonly && (
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setEditingRekanan(r)}
+                            className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
+                            title="Edit Rekanan"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeletingRekanan(r)}
+                            className="rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-600/40 p-1.5 text-rose-300 transition"
+                            title="Hapus Rekanan"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
             </tbody>
@@ -1413,6 +1808,564 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
         </div>
       )}
 
+      {/* EDIT TAHUN MODAL */}
+      {editingTahun && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Tahun Anggaran</h3>
+              </div>
+              <button onClick={() => setEditingTahun(null)} className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditTahun} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-300">Tahun Anggaran:</label>
+                <input
+                  type="number"
+                  required
+                  value={editingTahun.tahun}
+                  onChange={e => setEditingTahun({ ...editingTahun, tahun: Number(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Keterangan:</label>
+                <input
+                  type="text"
+                  value={editingTahun.keterangan || ''}
+                  onChange={e => setEditingTahun({ ...editingTahun, keterangan: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingTahun(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 font-bold text-slate-300 hover:bg-slate-700">
+                  Batal
+                </button>
+                <button type="submit" className="w-1/2 rounded-xl bg-amber-600 py-2.5 font-bold text-white hover:bg-amber-500 shadow">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE TAHUN MODAL */}
+      {deletingTahun && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/80 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-base font-bold text-white">Konfirmasi Hapus Tahun</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus Master Tahun Anggaran <span className="font-bold text-white">"{deletingTahun.tahun}"</span>?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setDeletingTahun(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+                Batal
+              </button>
+              <button type="button" onClick={handleConfirmDeleteTahun} className="w-1/2 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-500 shadow">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PROGRAM MODAL */}
+      {editingProgram && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Program Master</h3>
+              </div>
+              <button onClick={() => setEditingProgram(null)} className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditProgram} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-300">Kode Program:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProgram.kodeProgram}
+                  onChange={e => setEditingProgram({ ...editingProgram, kodeProgram: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Nama Program:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProgram.namaProgram}
+                  onChange={e => setEditingProgram({ ...editingProgram, namaProgram: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingProgram(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 font-bold text-slate-300 hover:bg-slate-700">
+                  Batal
+                </button>
+                <button type="submit" className="w-1/2 rounded-xl bg-amber-600 py-2.5 font-bold text-white hover:bg-amber-500 shadow">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE PROGRAM MODAL */}
+      {deletingProgram && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/80 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-base font-bold text-white">Konfirmasi Hapus Program</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus Program <span className="font-bold text-white">"{deletingProgram.kodeProgram} - {deletingProgram.namaProgram}"</span>?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setDeletingProgram(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+                Batal
+              </button>
+              <button type="button" onClick={handleConfirmDeleteProgram} className="w-1/2 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-500 shadow">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT KEGIATAN MODAL */}
+      {editingKegiatan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Kegiatan Master</h3>
+              </div>
+              <button onClick={() => setEditingKegiatan(null)} className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditKegiatan} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-300">Kode Program:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingKegiatan.kodeProgram}
+                  onChange={e => setEditingKegiatan({ ...editingKegiatan, kodeProgram: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Kode Kegiatan:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingKegiatan.kodeKegiatan}
+                  onChange={e => setEditingKegiatan({ ...editingKegiatan, kodeKegiatan: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Nama Kegiatan:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingKegiatan.namaKegiatan}
+                  onChange={e => setEditingKegiatan({ ...editingKegiatan, namaKegiatan: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingKegiatan(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 font-bold text-slate-300 hover:bg-slate-700">
+                  Batal
+                </button>
+                <button type="submit" className="w-1/2 rounded-xl bg-amber-600 py-2.5 font-bold text-white hover:bg-amber-500 shadow">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE KEGIATAN MODAL */}
+      {deletingKegiatan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/80 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-base font-bold text-white">Konfirmasi Hapus Kegiatan</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus Kegiatan <span className="font-bold text-white">"{deletingKegiatan.kodeKegiatan} - {deletingKegiatan.namaKegiatan}"</span>?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setDeletingKegiatan(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+                Batal
+              </button>
+              <button type="button" onClick={handleConfirmDeleteKegiatan} className="w-1/2 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-500 shadow">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT SUB KEGIATAN MODAL */}
+      {editingSub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Sub Kegiatan Master</h3>
+              </div>
+              <button onClick={() => setEditingSub(null)} className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditSub} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-300">Kode Kegiatan:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSub.kodeKegiatan}
+                  onChange={e => setEditingSub({ ...editingSub, kodeKegiatan: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Kode Sub Kegiatan:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSub.kodeSub}
+                  onChange={e => setEditingSub({ ...editingSub, kodeSub: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Nama Sub Kegiatan:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSub.namaSub}
+                  onChange={e => setEditingSub({ ...editingSub, namaSub: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingSub(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 font-bold text-slate-300 hover:bg-slate-700">
+                  Batal
+                </button>
+                <button type="submit" className="w-1/2 rounded-xl bg-amber-600 py-2.5 font-bold text-white hover:bg-amber-500 shadow">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE SUB KEGIATAN MODAL */}
+      {deletingSub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/80 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-base font-bold text-white">Konfirmasi Hapus Sub Kegiatan</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus Sub Kegiatan <span className="font-bold text-white">"{deletingSub.kodeSub} - {deletingSub.namaSub}"</span>?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setDeletingSub(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+                Batal
+              </button>
+              <button type="button" onClick={handleConfirmDeleteSub} className="w-1/2 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-500 shadow">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT BELANJA MODAL */}
+      {editingBelanja && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Uraian Belanja</h3>
+              </div>
+              <button onClick={() => setEditingBelanja(null)} className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditBelanja} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-300">Kode Rekening Belanja:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingBelanja.kodeBelanja}
+                  onChange={e => setEditingBelanja({ ...editingBelanja, kodeBelanja: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Nama Uraian Belanja:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingBelanja.namaBelanja}
+                  onChange={e => setEditingBelanja({ ...editingBelanja, namaBelanja: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Jenis Belanja:</label>
+                <select
+                  value={editingBelanja.jenisBelanja}
+                  onChange={e => setEditingBelanja({ ...editingBelanja, jenisBelanja: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                >
+                  <option value="Belanja Pegawai">Belanja Pegawai</option>
+                  <option value="Belanja Barang dan Jasa">Belanja Barang dan Jasa</option>
+                  <option value="Belanja Modal">Belanja Modal</option>
+                  <option value="Belanja Hibah">Belanja Hibah</option>
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingBelanja(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 font-bold text-slate-300 hover:bg-slate-700">
+                  Batal
+                </button>
+                <button type="submit" className="w-1/2 rounded-xl bg-amber-600 py-2.5 font-bold text-white hover:bg-amber-500 shadow">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE BELANJA MODAL */}
+      {deletingBelanja && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/80 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-base font-bold text-white">Konfirmasi Hapus Belanja</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus Rekening Belanja <span className="font-bold text-white">"{deletingBelanja.kodeBelanja} - {deletingBelanja.namaBelanja}"</span>?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setDeletingBelanja(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+                Batal
+              </button>
+              <button type="button" onClick={handleConfirmDeleteBelanja} className="w-1/2 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-500 shadow">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT SUMBER DANA MODAL */}
+      {editingSumberDana && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Sumber Dana</h3>
+              </div>
+              <button onClick={() => setEditingSumberDana(null)} className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditSumberDana} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-300">Nama Sumber Dana:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingSumberDana.namaSumber || editingSumberDana.nama || ''}
+                  onChange={e => setEditingSumberDana({ ...editingSumberDana, namaSumber: e.target.value, nama: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Keterangan / Singkatan:</label>
+                <input
+                  type="text"
+                  value={editingSumberDana.keterangan || ''}
+                  onChange={e => setEditingSumberDana({ ...editingSumberDana, keterangan: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingSumberDana(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 font-bold text-slate-300 hover:bg-slate-700">
+                  Batal
+                </button>
+                <button type="submit" className="w-1/2 rounded-xl bg-amber-600 py-2.5 font-bold text-white hover:bg-amber-500 shadow">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE SUMBER DANA MODAL */}
+      {deletingSumberDana && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/80 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-base font-bold text-white">Konfirmasi Hapus Sumber Dana</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus Sumber Dana <span className="font-bold text-white">"{deletingSumberDana.namaSumber || deletingSumberDana.nama}"</span>?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setDeletingSumberDana(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+                Batal
+              </button>
+              <button type="button" onClick={handleConfirmDeleteSumberDana} className="w-1/2 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-500 shadow">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT REKANAN MODAL */}
+      {editingRekanan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit className="h-5 w-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">Edit Data Rekanan / Penyedia</h3>
+              </div>
+              <button onClick={() => setEditingRekanan(null)} className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEditRekanan} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-300">Nama Rekanan / Penyedia:</label>
+                <input
+                  type="text"
+                  required
+                  value={editingRekanan.namaRekanan}
+                  onChange={e => setEditingRekanan({ ...editingRekanan, namaRekanan: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-amber-500 focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-slate-300">NPWP:</label>
+                  <input
+                    type="text"
+                    value={editingRekanan.npwp}
+                    onChange={e => setEditingRekanan({ ...editingRekanan, npwp: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Nama Bank:</label>
+                  <input
+                    type="text"
+                    value={editingRekanan.bank}
+                    onChange={e => setEditingRekanan({ ...editingRekanan, bank: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-white"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Nomor Rekening Bank:</label>
+                <input
+                  type="text"
+                  value={editingRekanan.noRekening}
+                  onChange={e => setEditingRekanan({ ...editingRekanan, noRekening: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-white font-mono"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Alamat Lengkap:</label>
+                <input
+                  type="text"
+                  value={editingRekanan.alamat}
+                  onChange={e => setEditingRekanan({ ...editingRekanan, alamat: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="font-bold text-slate-300">Kontak HP / Telepon:</label>
+                <input
+                  type="text"
+                  value={editingRekanan.kontak}
+                  onChange={e => setEditingRekanan({ ...editingRekanan, kontak: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-white font-mono"
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setEditingRekanan(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 font-bold text-slate-300 hover:bg-slate-700">
+                  Batal
+                </button>
+                <button type="submit" className="w-1/2 rounded-xl bg-amber-600 py-2.5 font-bold text-white hover:bg-amber-500 shadow">
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE REKANAN MODAL */}
+      {deletingRekanan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-800/80 bg-slate-900 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-slate-800 pb-3">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-base font-bold text-white">Konfirmasi Hapus Rekanan</h3>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Apakah Anda yakin ingin menghapus Rekanan <span className="font-bold text-white">"{deletingRekanan.namaRekanan}"</span>?
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => setDeletingRekanan(null)} className="w-1/2 rounded-xl bg-slate-800 py-2.5 text-xs font-bold text-slate-300 hover:bg-slate-700">
+                Batal
+              </button>
+              <button type="button" onClick={handleConfirmDeleteRekanan} className="w-1/2 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white hover:bg-rose-500 shadow">
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ADD MASTER DATA MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
@@ -1426,6 +2379,38 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 <XCircle className="h-5 w-5" />
               </button>
             </div>
+
+            {activeTab === 'master-tahun' && (
+              <form onSubmit={handleSaveAddTahun} className="mt-4 space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-300">Tahun Anggaran:</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="Contoh: 2026"
+                    value={formTahun.tahun}
+                    onChange={e => setFormTahun({ ...formTahun, tahun: Number(e.target.value) })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Keterangan:</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Tahun Anggaran Murni / Perubahan"
+                    value={formTahun.keterangan}
+                    onChange={e => setFormTahun({ ...formTahun, keterangan: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow mt-2"
+                >
+                  Simpan Tahun Anggaran Baru
+                </button>
+              </form>
+            )}
 
             {activeTab === 'master-opd' && (
               <form onSubmit={handleSaveAddOpd} className="mt-4 space-y-3 text-xs">
@@ -1552,6 +2537,182 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               </form>
             )}
 
+            {activeTab === 'master-kegiatan' && (
+              <form onSubmit={handleSaveKegiatan} className="mt-4 space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-300">Kode Program Parent:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: 5.01.05"
+                    value={formKegiatan.kodeProgram}
+                    onChange={e => setFormKegiatan({ ...formKegiatan, kodeProgram: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Kode Kegiatan Baru:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: 5.01.05.2.01"
+                    value={formKegiatan.kodeKegiatan}
+                    onChange={e => setFormKegiatan({ ...formKegiatan, kodeKegiatan: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Nama Kegiatan:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nama Uraian Kegiatan"
+                    value={formKegiatan.namaKegiatan}
+                    onChange={e => setFormKegiatan({ ...formKegiatan, namaKegiatan: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow mt-2"
+                >
+                  Simpan Kegiatan Baru
+                </button>
+              </form>
+            )}
+
+            {activeTab === 'master-subkegiatan' && (
+              <form onSubmit={handleSaveSubKegiatan} className="mt-4 space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-300">Kode Kegiatan Parent:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: 5.01.05.2.01"
+                    value={formSub.kodeKegiatan}
+                    onChange={e => setFormSub({ ...formSub, kodeKegiatan: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Kode Sub Kegiatan Baru:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: 5.01.05.2.01.0001"
+                    value={formSub.kodeSub}
+                    onChange={e => setFormSub({ ...formSub, kodeSub: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Nama Sub Kegiatan:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nama Uraian Sub Kegiatan"
+                    value={formSub.namaSub}
+                    onChange={e => setFormSub({ ...formSub, namaSub: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow mt-2"
+                >
+                  Simpan Sub Kegiatan Baru
+                </button>
+              </form>
+            )}
+
+            {activeTab === 'master-belanja' && (
+              <form onSubmit={handleSaveBelanja} className="mt-4 space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-300">Kode Rekening Belanja:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: 5.1.02.01.01.0001"
+                    value={formBelanja.kodeBelanja}
+                    onChange={e => setFormBelanja({ ...formBelanja, kodeBelanja: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Nama Uraian Belanja:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nama Rekening Belanja"
+                    value={formBelanja.namaBelanja}
+                    onChange={e => setFormBelanja({ ...formBelanja, namaBelanja: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Jenis Belanja:</label>
+                  <select
+                    value={formBelanja.jenisBelanja}
+                    onChange={e => setFormBelanja({ ...formBelanja, jenisBelanja: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                  >
+                    <option value="Belanja Pegawai">Belanja Pegawai</option>
+                    <option value="Belanja Barang dan Jasa">Belanja Barang dan Jasa</option>
+                    <option value="Belanja Modal">Belanja Modal</option>
+                    <option value="Belanja Hibah">Belanja Hibah</option>
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow mt-2"
+                >
+                  Simpan Belanja Rekening Baru
+                </button>
+              </form>
+            )}
+
+            {activeTab === 'master-sumberdana' && (
+              <form onSubmit={handleSaveAddSumberDana} className="mt-4 space-y-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-300">Kode Sumber Dana:</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: DAU / DAK / DBH"
+                    value={formSumberDana.kodeSumber}
+                    onChange={e => setFormSumberDana({ ...formSumberDana, kodeSumber: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Nama Sumber Dana:</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Dana Alokasi Umum (DAU)"
+                    value={formSumberDana.namaSumber}
+                    onChange={e => setFormSumberDana({ ...formSumberDana, namaSumber: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                  />
+                </div>
+                <div>
+                  <label className="font-bold text-slate-300">Keterangan:</label>
+                  <input
+                    type="text"
+                    placeholder="Keterangan opsional"
+                    value={formSumberDana.keterangan}
+                    onChange={e => setFormSumberDana({ ...formSumberDana, keterangan: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow mt-2"
+                >
+                  Simpan Sumber Dana Baru
+                </button>
+              </form>
+            )}
+
             {activeTab === 'master-rekanan' && (
               <form onSubmit={handleSaveRekanan} className="mt-4 space-y-3">
                 <div>
@@ -1573,7 +2734,7 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                       placeholder="00.000.000.0-000.000"
                       value={formRekanan.npwp}
                       onChange={e => setFormRekanan({ ...formRekanan, npwp: e.target.value })}
-                      className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white"
+                      className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white font-mono"
                     />
                   </div>
                   <div>
@@ -1592,22 +2753,34 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     type="text"
                     value={formRekanan.noRekening}
                     onChange={e => setFormRekanan({ ...formRekanan, noRekening: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-300">Alamat Lengkap:</label>
+                  <input
+                    type="text"
+                    value={formRekanan.alamat}
+                    onChange={e => setFormRekanan({ ...formRekanan, alamat: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-300">Kontak Telepon / HP:</label>
+                  <input
+                    type="text"
+                    value={formRekanan.kontak}
+                    onChange={e => setFormRekanan({ ...formRekanan, kontak: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 p-2 text-xs text-white font-mono"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500"
+                  className="w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow mt-2"
                 >
                   Simpan Data Rekanan
                 </button>
               </form>
-            )}
-
-            {activeTab !== 'master-program' && activeTab !== 'master-rekanan' && activeTab !== 'master-opd' && (
-              <div className="py-6 text-center text-xs text-slate-400">
-                Data master {activeTab} secara otomatis disinkronkan dengan Struktur Tabel Google Spreadsheet BAKESBANGPOLDAGRI NTB.
-              </div>
             )}
           </div>
         </div>
