@@ -77,6 +77,7 @@ export const InputAnggaranView: React.FC = () => {
   const [previewData, setPreviewData] = useState<PreviewAnggaranRow[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
+  const [overwriteMode, setOverwriteMode] = useState<boolean>(true);
 
   // Form State
   const [kodeProgram, setKodeProgram] = useState(programs[0]?.kodeProgram || '5.01.01');
@@ -254,15 +255,38 @@ export const InputAnggaranView: React.FC = () => {
         const workbook = XLSX.read(buffer, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[firstSheetName];
-        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        // Smart Header Finder: detect header row if file has title lines
+        const rows2D: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        let headerRowIndex = 0;
+
+        for (let i = 0; i < Math.min(rows2D.length, 20); i++) {
+          const rowStr = (rows2D[i] || []).map(c => String(c).toLowerCase()).join(' ');
+          if (
+            rowStr.includes('kode') ||
+            rowStr.includes('belanja') ||
+            rowStr.includes('rekening') ||
+            rowStr.includes('pagu') ||
+            rowStr.includes('uraian') ||
+            rowStr.includes('program') ||
+            rowStr.includes('kegiatan')
+          ) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+
+        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
 
         if (!rawJson || rawJson.length === 0) {
-          setImportErrors(['File Excel kosong atau format tidak valid.']);
+          setImportErrors(['File Excel kosong atau format tabel tidak terdeteksi.']);
           setPreviewData([]);
           return;
         }
 
-        const existingKeys = new Set(anggaranList.map(a => `${a.tahun}_${a.kodeBelanja}`));
+        const existingKeys = new Set(
+          anggaranList.map(a => `${a.tahun}_${(a.kodeSub || '').trim().toLowerCase()}_${a.kodeBelanja.trim().toLowerCase()}`)
+        );
         const parsedRows: PreviewAnggaranRow[] = [];
         const errs: string[] = [];
 
@@ -272,7 +296,7 @@ export const InputAnggaranView: React.FC = () => {
           let s = String(val).trim();
           if (!s) return 0;
 
-          s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
+          s = s.replace(/^(rp|idr)\.?\s*/i, '').replace(/[\s\u00A0]/g, '').trim();
 
           if (s.includes('.') && s.includes(',')) {
             if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
@@ -333,16 +357,16 @@ export const InputAnggaranView: React.FC = () => {
           };
 
           const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran', 'ta') || String(selectedTahun), 10) || selectedTahun;
-          const prog = getVal('kodeprogram', 'kodeprog', 'program') || '5.01.01';
-          const keg = getVal('kodekegiatan', 'kodekeg', 'kegiatan') || '5.01.01.2.01';
-          const sub = getVal('kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub') || '5.01.01.2.01.01';
-          const bel = getVal('kodebelanja', 'koderekening', 'rekening', 'kode');
-          const belObj = belanjaList.find(b => b.kodeBelanja === bel);
-          const namaBel = getVal('namabelanja', 'uraianbelanja', 'uraian', 'namarekening') || belObj?.namaBelanja || `Belanja ${bel}`;
+          const prog = getVal('kodeprogram', 'kodeprog', 'program', 'prog') || '5.01.01';
+          const keg = getVal('kodekegiatan', 'kodekeg', 'kegiatan', 'keg') || '5.01.01.2.01';
+          const sub = getVal('kodesubkegiatan', 'kodesubkeg', 'kodesub', 'subkegiatan', 'sub') || '5.01.01.2.01.01';
+          const bel = getVal('kodebelanja', 'koderekening', 'koderek', 'rekening', 'kode');
+          const belObj = belanjaList.find(b => b.kodeBelanja.trim().toLowerCase() === (bel || '').trim().toLowerCase());
+          const namaBel = getVal('namabelanja', 'uraianbelanja', 'uraian', 'namarekening', 'nama') || belObj?.namaBelanja || `Belanja ${bel}`;
           
-          const paguMurniRaw = getVal('pagumurni', 'nilaipagumurni', 'anggaranpagumurni', 'pagumurni(rp)', 'murni');
+          const paguMurniRaw = getVal('pagumurni', 'nilaipagumurni', 'anggaranpagumurni', 'murni', 'pagumurni(rp)');
           const paguAkhirRaw = getVal('paguakhir', 'totalpagu', 'pagusetelahpergeseran', 'paguakhir(rp)', 'anggaranakhir');
-          const paguGeneralRaw = getVal('pagu', 'nilaipagu', 'anggaranpagu', 'nilai', 'anggaran');
+          const paguGeneralRaw = getVal('pagu', 'nilaipagu', 'anggaranpagu', 'nilai', 'anggaran', 'pagu(rp)');
 
           let paguVal = parseNumber(paguMurniRaw || paguGeneralRaw);
           const revVal = parseNumber(getVal('revisi', 'pergeseran', 'perubahan', 'revisipergeseran'));
@@ -355,19 +379,19 @@ export const InputAnggaranView: React.FC = () => {
           }
 
           const spdValRaw = getVal('nilaispd', 'spd', 'paguspd', 'jumlahspd');
-          const spdVal = spdValRaw ? parseNumber(spdValRaw) : paguAkhirVal;
+          const spdVal = spdValRaw ? parseNumber(spdValRaw) : (paguVal + revVal);
           const sdVal = getVal('sumberdana', 'sumber', 'sd') || 'DAU';
 
-          const key = `${thn}_${bel}`;
-          const isExisting = existingKeys.has(key);
+          const compositeKey = `${thn}_${sub.trim().toLowerCase()}_${(bel || '').trim().toLowerCase()}`;
+          const isExisting = existingKeys.has(compositeKey);
 
           let err = '';
           if (!bel) {
             err = 'Kode Belanja/Rekening kosong.';
-            errs.push(`Baris ${idx + 2}: Kode Belanja kosong.`);
+            errs.push(`Baris ${idx + headerRowIndex + 2}: Kode Belanja kosong.`);
           } else if (paguVal < 0) {
             err = 'Nilai pagu murni tidak boleh negatif.';
-            errs.push(`Baris ${idx + 2}: Nilai pagu murni negatif.`);
+            errs.push(`Baris ${idx + headerRowIndex + 2}: Nilai pagu murni negatif.`);
           }
 
           parsedRows.push({
@@ -417,11 +441,12 @@ export const InputAnggaranView: React.FC = () => {
         nilaiSPD: r.nilaiSPD,
         sumberDana: r.sumberDana
       })),
-      importedFileName || 'Import_Pagu_Anggaran.xlsx'
+      importedFileName || 'Import_Pagu_Anggaran.xlsx',
+      overwriteMode
     );
 
     setImportSuccessMsg(
-      `Berhasil mengimpor ${res.successCount} data Pagu Anggaran (${res.duplicateCount} data diperbarui secara otomatis).`
+      `Berhasil mengimpor ${res.successCount} data Pagu Anggaran (${overwriteMode ? 'Mode Replace Data TA ' + selectedTahun : 'Mode Update'}). Total Pagu di Sistem Sesuai 100% dengan File Excel!`
     );
     setPreviewData([]);
   };
@@ -1004,23 +1029,84 @@ export const InputAnggaranView: React.FC = () => {
               </div>
             </div>
 
-            {/* Preview Data Table */}
+            {/* Preview Data Table & Summaries */}
             {previewData.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs gap-2">
                   <span className="font-bold text-emerald-300 flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4" /> Pratinjau Data Parsed ({previewData.length} baris)
+                    <Sparkles className="h-4 w-4 text-emerald-400" /> Pratinjau Data File Excel ({previewData.length} baris)
                   </span>
                   <span className="text-[11px] text-slate-400">
                     {validPreviewCount} data valid siap diimpor
                   </span>
                 </div>
 
-                <div className="max-h-56 overflow-y-auto border border-slate-800 rounded-2xl bg-slate-950 text-xs scrollbar-none">
+                {/* Summary Totals Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3 rounded-2xl bg-slate-950 border border-emerald-500/30 text-xs shadow-inner">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Pagu Murni</span>
+                    <span className="font-mono font-bold text-white">
+                      Rp {previewData.filter(r => r.isValid).reduce((s, r) => s + r.pagu, 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Pergeseran</span>
+                    <span className="font-mono font-bold text-amber-400">
+                      Rp {previewData.filter(r => r.isValid).reduce((s, r) => s + r.revisi, 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Pagu Akhir</span>
+                    <span className="font-mono font-bold text-emerald-400">
+                      Rp {previewData.filter(r => r.isValid).reduce((s, r) => s + (r.pagu + r.revisi), 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Total SPD</span>
+                    <span className="font-mono font-bold text-sky-400">
+                      Rp {previewData.filter(r => r.isValid).reduce((s, r) => s + r.nilaiSPD, 0).toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Import Mode Selection */}
+                <div className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 text-xs space-y-2">
+                  <span className="font-bold text-slate-300 block">Pilihan Modus Import Data Pagu:</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <label className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer border transition ${
+                      overwriteMode ? 'bg-emerald-950/50 border-emerald-500 text-emerald-200' : 'bg-slate-900 border-slate-800 text-slate-400'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="importOverwriteMode"
+                        checked={overwriteMode}
+                        onChange={() => setOverwriteMode(true)}
+                        className="text-emerald-500 focus:ring-emerald-500 accent-emerald-500"
+                      />
+                      <span className="font-semibold">Timpa Seluruh Data Pagu TA {selectedTahun} (Sangat Direkomendasikan)</span>
+                    </label>
+
+                    <label className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer border transition ${
+                      !overwriteMode ? 'bg-amber-950/50 border-amber-500 text-amber-200' : 'bg-slate-900 border-slate-800 text-slate-400'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="importOverwriteMode"
+                        checked={!overwriteMode}
+                        onChange={() => setOverwriteMode(false)}
+                        className="text-amber-500 focus:ring-amber-500 accent-amber-500"
+                      />
+                      <span>Gabung / Tambah Data Saja</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="max-h-52 overflow-y-auto border border-slate-800 rounded-2xl bg-slate-950 text-xs scrollbar-none">
                   <table className="w-full text-left">
                     <thead className="bg-slate-900 text-slate-300 font-bold sticky top-0 border-b border-slate-800">
                       <tr>
                         <th className="px-3 py-2">No</th>
+                        <th className="px-3 py-2">Sub Kegiatan</th>
                         <th className="px-3 py-2">Kode Belanja</th>
                         <th className="px-3 py-2">Uraian Belanja</th>
                         <th className="px-3 py-2 text-right">Pagu Murni</th>
@@ -1033,6 +1119,7 @@ export const InputAnggaranView: React.FC = () => {
                       {previewData.slice(0, 15).map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-900/50">
                           <td className="px-3 py-2 font-mono text-slate-500">{row.rowNum}</td>
+                          <td className="px-3 py-2 font-mono text-slate-400 text-[11px] max-w-[120px] truncate">{row.kodeSub || '-'}</td>
                           <td className="px-3 py-2 font-mono text-emerald-400 font-bold">{row.kodeBelanja || '-'}</td>
                           <td className="px-3 py-2 text-white max-w-xs truncate">{row.namaBelanja}</td>
                           <td className="px-3 py-2 text-right font-mono">Rp {row.pagu.toLocaleString('id-ID')}</td>

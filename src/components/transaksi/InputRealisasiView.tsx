@@ -272,7 +272,26 @@ export const InputRealisasiView: React.FC = () => {
         const workbook = XLSX.read(buffer, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[firstSheetName];
-        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+        // Smart Header Finder
+        const rows2D: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        let headerRowIndex = 0;
+
+        for (let i = 0; i < Math.min(rows2D.length, 20); i++) {
+          const rowStr = (rows2D[i] || []).map(c => String(c).toLowerCase()).join(' ');
+          if (
+            rowStr.includes('sp2d') ||
+            rowStr.includes('nilai') ||
+            rowStr.includes('realisasi') ||
+            rowStr.includes('belanja') ||
+            rowStr.includes('rekening')
+          ) {
+            headerRowIndex = i;
+            break;
+          }
+        }
+
+        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
 
         if (!rawJson || rawJson.length === 0) {
           setImportErrors(['File Excel kosong atau format tidak valid.']);

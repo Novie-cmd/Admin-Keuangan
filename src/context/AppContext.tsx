@@ -87,7 +87,8 @@ interface AppContextType {
       nilaiSPD?: number;
       sumberDana?: string;
     }[],
-    fileName?: string
+    fileName?: string,
+    overwriteExisting?: boolean
   ) => { successCount: number; duplicateCount: number; errors: string[] };
   
   addRealisasi: (realisasi: Omit<Realisasi, 'id'>) => void;
@@ -111,7 +112,8 @@ interface AppContextType {
       rekanan: string;
       tanggal: string;
     }[],
-    fileName: string
+    fileName: string,
+    overwriteExisting?: boolean
   ) => { successCount: number; duplicateCount: number; errors: string[] };
 
   // Master Data CRUD
@@ -461,65 +463,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       nilaiSPD?: number;
       sumberDana?: string;
     }[],
-    fileName: string = 'Import_Anggaran_Pagu.xlsx'
+    fileName: string = 'Import_Anggaran_Pagu.xlsx',
+    overwriteExisting: boolean = true
   ) => {
     let successCount = 0;
     let duplicateCount = 0;
     const errors: string[] = [];
 
-    const importedMap = new Map<string, typeof items[0]>();
-    items.forEach(item => {
-      if (!item.kodeBelanja) return;
-      const t = item.tahun || selectedTahun;
-      const key = `${t}_${item.kodeBelanja.trim()}`;
-      importedMap.set(key, item);
-    });
+    if (!items || items.length === 0) {
+      return { successCount: 0, duplicateCount: 0, errors: ['File tidak berisi data anggaran yang valid.'] };
+    }
 
     setAnggaranList(prev => {
-      const existingKeysSeen = new Set<string>();
+      const targetYears = new Set(items.map(i => i.tahun || selectedTahun));
 
-      const updatedList = prev.map(a => {
-        const key = `${a.tahun}_${a.kodeBelanja}`;
-        if (importedMap.has(key)) {
-          existingKeysSeen.add(key);
-          duplicateCount++;
-          successCount++;
-          const row = importedMap.get(key)!;
-          const pagu = Number(row.pagu) || 0;
-          const revisi = Number(row.revisi) || 0;
-          const nilaiSPD = row.nilaiSPD !== undefined ? Number(row.nilaiSPD) : (pagu + revisi);
-          const belObj = belanjaList.find(b => b.kodeBelanja === row.kodeBelanja);
-          const namaBelanja = row.namaBelanja || belObj?.namaBelanja || a.namaBelanja;
+      let baseList = prev;
+      if (overwriteExisting) {
+        // Filter out existing data for the imported fiscal year(s) so total matches Excel exactly
+        baseList = prev.filter(a => !targetYears.has(a.tahun));
+      }
 
-          return {
-            ...a,
-            kodeProgram: row.kodeProgram || a.kodeProgram,
-            kodeKegiatan: row.kodeKegiatan || a.kodeKegiatan,
-            kodeSub: row.kodeSub || a.kodeSub,
-            pagu,
-            revisi,
-            nilaiSPD,
-            paguAkhir: pagu + revisi,
-            namaBelanja,
-            sumberDana: row.sumberDana || a.sumberDana
-          };
-        }
-        return a;
+      const existingMap = new Map<string, Anggaran>();
+      baseList.forEach(a => {
+        const k = `${a.tahun}_${(a.kodeSub || '').trim().toLowerCase()}_${a.kodeBelanja.trim().toLowerCase()}`;
+        existingMap.set(k, a);
       });
 
-      const newItems: Anggaran[] = [];
-      importedMap.forEach((row, key) => {
-        if (!existingKeysSeen.has(key)) {
-          successCount++;
-          const rowTahun = row.tahun || selectedTahun;
-          const belObj = belanjaList.find(b => b.kodeBelanja === row.kodeBelanja);
-          const namaBelanja = row.namaBelanja || belObj?.namaBelanja || `Belanja ${row.kodeBelanja}`;
-          const pagu = Number(row.pagu) || 0;
-          const revisi = Number(row.revisi) || 0;
-          const nilaiSPD = row.nilaiSPD !== undefined ? Number(row.nilaiSPD) : (pagu + revisi);
+      const updatedList = [...baseList];
 
-          newItems.push({
-            id: `ANG-${rowTahun}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      items.forEach((row, idx) => {
+        if (!row.kodeBelanja) return;
+        const rowTahun = row.tahun || selectedTahun;
+        const subKey = (row.kodeSub || '').trim().toLowerCase();
+        const belKey = row.kodeBelanja.trim().toLowerCase();
+        const compositeKey = `${rowTahun}_${subKey}_${belKey}`;
+
+        const belObj = belanjaList.find(b => b.kodeBelanja.trim().toLowerCase() === belKey);
+        const namaBelanja = row.namaBelanja || belObj?.namaBelanja || `Belanja ${row.kodeBelanja.trim()}`;
+        const pagu = Number(row.pagu) || 0;
+        const revisi = Number(row.revisi) || 0;
+        const nilaiSPD = row.nilaiSPD !== undefined ? Number(row.nilaiSPD) : (pagu + revisi);
+
+        if (!overwriteExisting && existingMap.has(compositeKey)) {
+          duplicateCount++;
+          successCount++;
+          const existingItem = existingMap.get(compositeKey)!;
+          const idxInArr = updatedList.findIndex(x => x.id === existingItem.id);
+          if (idxInArr !== -1) {
+            updatedList[idxInArr] = {
+              ...existingItem,
+              kodeProgram: row.kodeProgram || existingItem.kodeProgram,
+              kodeKegiatan: row.kodeKegiatan || existingItem.kodeKegiatan,
+              kodeSub: row.kodeSub || existingItem.kodeSub,
+              pagu,
+              revisi,
+              nilaiSPD,
+              paguAkhir: pagu + revisi,
+              namaBelanja,
+              sumberDana: row.sumberDana || existingItem.sumberDana
+            };
+          }
+        } else {
+          successCount++;
+          updatedList.push({
+            id: `ANG-${rowTahun}-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
             tahun: rowTahun,
             kodeProgram: row.kodeProgram || '5.01.01',
             kodeKegiatan: row.kodeKegiatan || '5.01.01.2.01',
@@ -537,23 +544,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       });
 
-      return [...newItems, ...updatedList];
+      return updatedList;
     });
 
     const importLogEntry: ImportLog = {
       id: `IMP-${Date.now()}`,
       tanggal: new Date().toISOString().replace('T', ' ').substring(0, 19),
       namaFile: fileName,
-      jumlahData: successCount,
+      jumlahData: items.length,
       operator: currentUser.nama,
-      status: successCount > 0 ? (errors.length > 0 ? 'Sebagian' : 'Berhasil') : 'Gagal',
-      catatan: `Import Anggaran: Berhasil ${successCount} data (${duplicateCount} diperbarui)`
+      status: 'Berhasil',
+      catatan: `Import Anggaran: Berhasil ${items.length} data (${overwriteExisting ? 'Replace Mode' : 'Update Mode'})`
     };
 
     setImportLogs(prev => [importLogEntry, ...prev]);
-    logActivity(`Import Excel Anggaran Pagu "${fileName}": ${successCount} data berhasil diimpor.`);
+    logActivity(`Import Excel Anggaran Pagu "${fileName}": ${items.length} data berhasil diimpor.`);
 
-    return { successCount, duplicateCount, errors };
+    return { successCount: items.length, duplicateCount, errors };
   };
 
   const addRealisasi = (newReal: Omit<Realisasi, 'id'>) => {
