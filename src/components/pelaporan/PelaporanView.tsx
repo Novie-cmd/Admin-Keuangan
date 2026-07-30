@@ -12,8 +12,148 @@ import {
   BookOpen,
   Calendar,
   Layers,
-  Building2
+  Building2,
+  ChevronDown,
+  Check
 } from 'lucide-react';
+
+interface SubKegiatanComboboxProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ kodeSub: string; namaSub: string }>;
+}
+
+const SubKegiatanCombobox: React.FC<SubKegiatanComboboxProps> = ({
+  value,
+  onChange,
+  options
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(o => o.kodeSub === value);
+
+  const filteredOptions = options.filter(
+    o =>
+      o.kodeSub.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.namaSub.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const displayLabel =
+    value === 'all'
+      ? '-- Semua Sub Kegiatan (Rekapitulasi Global) --'
+      : selectedOption
+      ? `${selectedOption.kodeSub} - ${selectedOption.namaSub}`
+      : value;
+
+  return (
+    <div ref={wrapperRef} className="relative max-w-xl w-full">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between bg-slate-900 border border-slate-700 hover:border-amber-500 rounded-xl px-3 py-2 cursor-pointer text-xs transition-colors shadow-sm"
+      >
+        <span className="font-semibold text-white truncate mr-2">
+          {displayLabel}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 text-slate-400 transition-transform ${
+            isOpen ? 'rotate-180 text-amber-400' : ''
+          }`}
+        />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden text-xs">
+          <div className="p-2 border-b border-slate-800 flex items-center gap-2 bg-slate-950">
+            <Search className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+            <input
+              type="text"
+              autoFocus
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Ketik kode atau nama Sub Kegiatan..."
+              className="bg-transparent text-white font-medium text-xs focus:outline-none w-full placeholder:text-slate-500"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="text-slate-400 hover:text-white text-[10px] bg-slate-800 px-2 py-0.5 rounded-lg"
+              >
+                Hapus
+              </button>
+            )}
+          </div>
+
+          <div className="max-h-60 overflow-y-auto divide-y divide-slate-800/50 scrollbar-thin">
+            <div
+              onClick={() => {
+                onChange('all');
+                setIsOpen(false);
+                setSearchTerm('');
+              }}
+              className={`p-2.5 cursor-pointer font-semibold transition-colors hover:bg-amber-500/10 hover:text-amber-300 ${
+                value === 'all'
+                  ? 'bg-amber-500/20 text-amber-300 font-bold'
+                  : 'text-slate-300'
+              }`}
+            >
+              -- Semua Sub Kegiatan (Rekapitulasi Global) --
+            </div>
+
+            {filteredOptions.length === 0 ? (
+              <div className="p-3 text-center text-slate-500 italic">
+                Sub Kegiatan dengan pencarian "{searchTerm}" tidak ditemukan.
+              </div>
+            ) : (
+              filteredOptions.map(s => {
+                const isSelected = s.kodeSub === value;
+                return (
+                  <div
+                    key={s.kodeSub}
+                    onClick={() => {
+                      onChange(s.kodeSub);
+                      setIsOpen(false);
+                      setSearchTerm('');
+                    }}
+                    className={`p-2.5 cursor-pointer transition-colors hover:bg-amber-500/10 hover:text-amber-300 flex items-center justify-between gap-2 ${
+                      isSelected
+                        ? 'bg-amber-500/20 text-amber-300 font-bold'
+                        : 'text-slate-200'
+                    }`}
+                  >
+                    <div className="flex flex-col min-w-0 pr-2">
+                      <span className="font-semibold text-white text-xs leading-snug">
+                        {s.namaSub}
+                      </span>
+                      <span className="font-mono text-amber-400 text-[11px] font-bold">
+                        {s.kodeSub}
+                      </span>
+                    </div>
+                    {isSelected && (
+                      <Check className="h-4 w-4 text-amber-400 shrink-0" />
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface PelaporanViewProps {
   initialReportType?: string;
@@ -67,6 +207,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Filters
   const [filterProgram, setFilterProgram] = useState<string>('all');
   const [filterBulan, setFilterBulan] = useState<number | 'all'>('all');
+  const [filterSelectedSub, setFilterSelectedSub] = useState<string>('all');
 
   const currentAnggaran = anggaranList.filter(a => a.tahun === selectedTahun);
   const currentRealisasi = realisasiList.filter(r => r.tahun === selectedTahun);
@@ -173,7 +314,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   );
 
   const subReportData = allSubKodes.map(kode => {
-    const sObj = subKegiatanList.find(s => s.kodeSub === kode);
+    const sObj = subKegiatanList.find(s => s.kodeSub.trim().toLowerCase() === kode.trim().toLowerCase());
     const paguMurni = currentAnggaran
       .filter(a => a.kodeSub === kode)
       .reduce((s, a) => s + a.pagu, 0);
@@ -207,6 +348,68 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
       realisasi: real,
       sisa,
       persen: pct
+    };
+  });
+
+  // Options & calculation for detailed Rekening Belanja under selected Sub Kegiatan
+  const availableSubKegiatanOptions = Array.from(
+    new Set([
+      ...subKegiatanList.filter(s => s.tahun === selectedTahun).map(s => s.kodeSub),
+      ...currentAnggaran.map(a => a.kodeSub)
+    ])
+  ).map(kode => {
+    const sObj = subKegiatanList.find(s => s.kodeSub.trim().toLowerCase() === kode.trim().toLowerCase());
+    const aMatch = currentAnggaran.find(a => a.kodeSub === kode);
+    const kObj = kegiatanList.find(k => k.kodeKegiatan === (sObj?.kodeKegiatan || aMatch?.kodeKegiatan));
+    const pObj = programs.find(p => p.kodeProgram === aMatch?.kodeProgram);
+    return {
+      kodeSub: kode,
+      namaSub: sObj?.namaSub || `Sub-Kegiatan ${kode}`,
+      kodeKegiatan: sObj?.kodeKegiatan || aMatch?.kodeKegiatan || '',
+      namaKegiatan: kObj?.namaKegiatan || '',
+      kodeProgram: aMatch?.kodeProgram || '',
+      namaProgram: pObj?.namaProgram || ''
+    };
+  });
+
+  const selectedSubDetail = availableSubKegiatanOptions.find(s => s.kodeSub === filterSelectedSub);
+  const selectedSubAnggaran = currentAnggaran.filter(a => a.kodeSub === filterSelectedSub);
+
+  const selectedSubBelanjaKodes = Array.from(
+    new Set([
+      ...selectedSubAnggaran.map(a => a.kodeBelanja),
+      ...currentRealisasi.filter(r => r.kodeSub === filterSelectedSub).map(r => r.kodeBelanja)
+    ])
+  );
+
+  const selectedSubBelanjaData = selectedSubBelanjaKodes.map(kodeBelanja => {
+    const bObj = belanjaList.find(b => b.kodeBelanja === kodeBelanja);
+    const aMatches = selectedSubAnggaran.filter(a => a.kodeBelanja === kodeBelanja);
+    const aMatch = aMatches[0];
+
+    const paguMurni = aMatches.reduce((s, a) => s + a.pagu, 0);
+    const revisi = aMatches.reduce((s, a) => s + a.revisi, 0);
+    const nilaiSPD = aMatches.reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
+    const paguAkhir = aMatches.reduce((s, a) => s + a.paguAkhir, 0);
+
+    const realisasi = currentRealisasi
+      .filter(r => r.kodeSub === filterSelectedSub && r.kodeBelanja === kodeBelanja)
+      .reduce((s, r) => s + r.nilai, 0);
+
+    const sisa = paguAkhir - realisasi;
+    const persen = paguAkhir > 0 ? (realisasi / paguAkhir) * 100 : 0;
+
+    return {
+      kodeBelanja,
+      namaBelanja: aMatch?.namaBelanja || bObj?.namaBelanja || `Belanja ${kodeBelanja}`,
+      jenisBelanja: bObj?.jenisBelanja || 'Operasional',
+      paguMurni,
+      revisi,
+      nilaiSPD,
+      paguAkhir,
+      realisasi,
+      sisa,
+      persen
     };
   });
 
@@ -291,18 +494,36 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
         'Persentase (%)': r.persen.toFixed(2)
       }));
     } else if (activeTab === 'laporan-subkegiatan') {
-      titleName = `Realisasi_SubKegiatan_NTB_${selectedTahun}`;
-      exportRows = subReportData.map(r => ({
-        'Kode Sub Kegiatan': r.kodeSub,
-        'Nama Sub Kegiatan': r.namaSub,
-        'Pagu Murni (Rp)': r.paguMurni,
-        'Pergeseran/Revisi (Rp)': r.revisi,
-        'Nilai SPD (Rp)': r.nilaiSPD,
-        'Pagu Akhir (Rp)': r.paguAkhir,
-        'Realisasi SP2D (Rp)': r.realisasi,
-        'Sisa Pagu (Rp)': r.sisa,
-        'Persentase (%)': r.persen.toFixed(2)
-      }));
+      if (filterSelectedSub !== 'all') {
+        titleName = `Realisasi_Rekening_SubKegiatan_${filterSelectedSub}_${selectedTahun}`;
+        exportRows = selectedSubBelanjaData.map(r => ({
+          'Kode Sub Kegiatan': filterSelectedSub,
+          'Nama Sub Kegiatan': selectedSubDetail?.namaSub || filterSelectedSub,
+          'Kode Rekening Belanja': r.kodeBelanja,
+          'Uraian Rekening Belanja': r.namaBelanja,
+          'Jenis Belanja': r.jenisBelanja,
+          'Pagu Murni (Rp)': r.paguMurni,
+          'Pergeseran/Revisi (Rp)': r.revisi,
+          'Nilai SPD (Rp)': r.nilaiSPD,
+          'Pagu Akhir (Rp)': r.paguAkhir,
+          'Realisasi SP2D (Rp)': r.realisasi,
+          'Sisa Pagu (Rp)': r.sisa,
+          'Persentase (%)': r.persen.toFixed(2)
+        }));
+      } else {
+        titleName = `Realisasi_SubKegiatan_NTB_${selectedTahun}`;
+        exportRows = subReportData.map(r => ({
+          'Kode Sub Kegiatan': r.kodeSub,
+          'Nama Sub Kegiatan': r.namaSub,
+          'Pagu Murni (Rp)': r.paguMurni,
+          'Pergeseran/Revisi (Rp)': r.revisi,
+          'Nilai SPD (Rp)': r.nilaiSPD,
+          'Pagu Akhir (Rp)': r.paguAkhir,
+          'Realisasi SP2D (Rp)': r.realisasi,
+          'Sisa Pagu (Rp)': r.sisa,
+          'Persentase (%)': r.persen.toFixed(2)
+        }));
+      }
     } else {
       titleName = `Realisasi_Belanja_NTB_${selectedTahun}`;
       exportRows = belanjaReportData.map(r => ({
@@ -590,70 +811,181 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
         {/* 3. LAPORAN PER SUB KEGIATAN */}
         {activeTab === 'laporan-subkegiatan' && (
           <div className="space-y-4">
-            <h3 className="text-xs font-bold uppercase text-amber-400 print:text-slate-900 border-b border-slate-800 pb-1">
-              III. Laporan Realisasi Keuangan Per Sub-Kegiatan
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-950 print:bg-slate-200 text-slate-300 print:text-slate-900 font-bold uppercase border-b border-slate-800">
-                  <tr>
-                    <th className="p-3">Kode Sub</th>
-                    <th className="p-3">Uraian Sub Kegiatan</th>
-                    <th className="p-3 text-right">Pagu Murni (Rp)</th>
-                    <th className="p-3 text-right">Pergeseran (Rp)</th>
-                    <th className="p-3 text-right">Nilai SPD (Rp)</th>
-                    <th className="p-3 text-right">Pagu Akhir (Rp)</th>
-                    <th className="p-3 text-right">Realisasi SP2D (Rp)</th>
-                    <th className="p-3 text-right">Sisa Pagu (Rp)</th>
-                    <th className="p-3 text-center">% Serapan</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800 print:divide-slate-300">
-                  {subReportData.map(r => (
-                    <tr key={r.kodeSub} className="hover:bg-slate-800/40">
-                      <td className="p-3 font-mono font-bold text-amber-400 print:text-slate-900">{r.kodeSub}</td>
-                      <td className="p-3 font-semibold text-white print:text-slate-900">{r.namaSub}</td>
-                      <td className="p-3 text-right font-mono text-slate-300 print:text-slate-800">Rp {r.paguMurni.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
-                        Rp {r.realisasi.toLocaleString('id-ID')}
-                      </td>
-                      <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
-                        Rp {r.sisa.toLocaleString('id-ID')}
-                      </td>
-                      <td className="p-3 text-center font-bold text-emerald-300 print:text-slate-900">
-                        {r.persen.toFixed(2)} %
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot className="bg-slate-950 font-bold border-t-2 border-slate-700 text-white print:bg-slate-100 print:text-black">
-                  {(() => {
-                    const totalMurni = subReportData.reduce((s, r) => s + r.paguMurni, 0);
-                    const totalRev = subReportData.reduce((s, r) => s + r.revisi, 0);
-                    const totalSPD = subReportData.reduce((s, r) => s + r.nilaiSPD, 0);
-                    const totalAkhir = subReportData.reduce((s, r) => s + r.paguAkhir, 0);
-                    const totalReal = subReportData.reduce((s, r) => s + r.realisasi, 0);
-                    const totalSisa = totalAkhir - totalReal;
-                    const totalPct = totalAkhir > 0 ? (totalReal / totalAkhir) * 100 : 0;
-                    return (
-                      <tr>
-                        <td colSpan={2} className="p-3 text-right uppercase">TOTAL KESELURUHAN SUB-KEGIATAN:</td>
-                        <td className="p-3 text-right font-mono">Rp {totalMurni.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-right font-mono text-amber-300">Rp {totalRev.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-right font-mono text-blue-300">Rp {totalSPD.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-right font-mono text-emerald-400">Rp {totalAkhir.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-right font-mono text-emerald-300">Rp {totalReal.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-right font-mono text-amber-300">Rp {totalSisa.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-center text-emerald-300">{totalPct.toFixed(2)} %</td>
-                      </tr>
-                    );
-                  })()}
-                </tfoot>
-              </table>
+            {/* Filter Droplist Sub Kegiatan */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950 p-3.5 rounded-2xl border border-slate-800 print:hidden">
+              <div className="flex items-center gap-2">
+                <Layers className="h-4 w-4 text-amber-400" />
+                <label className="text-xs font-bold text-slate-200">Filter Sub Kegiatan:</label>
+              </div>
+              <SubKegiatanCombobox
+                value={filterSelectedSub}
+                onChange={setFilterSelectedSub}
+                options={availableSubKegiatanOptions}
+              />
             </div>
+
+            <h3 className="text-xs font-bold uppercase text-amber-400 print:text-slate-900 border-b border-slate-800 pb-1">
+              {filterSelectedSub === 'all'
+                ? 'III. Laporan Realisasi Keuangan Per Sub-Kegiatan (Rekapitulasi)'
+                : `III. Laporan Realisasi Rekening Belanja - Sub-Kegiatan ${filterSelectedSub}`}
+            </h3>
+
+            {filterSelectedSub !== 'all' && selectedSubDetail && (
+              <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1.5 print:bg-slate-100 print:border-slate-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-400 font-bold">Kode Sub Kegiatan: </span>
+                    <span className="font-mono font-bold text-amber-400 print:text-black">{selectedSubDetail.kodeSub}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold">Nama Sub Kegiatan: </span>
+                    <span className="font-bold text-white print:text-black">{selectedSubDetail.namaSub}</span>
+                  </div>
+                  {selectedSubDetail.namaKegiatan && (
+                    <div className="md:col-span-2">
+                      <span className="text-slate-400 font-bold">Kegiatan: </span>
+                      <span className="text-slate-300 print:text-slate-800">{selectedSubDetail.kodeKegiatan} - {selectedSubDetail.namaKegiatan}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {filterSelectedSub === 'all' ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950 print:bg-slate-200 text-slate-300 print:text-slate-900 font-bold uppercase border-b border-slate-800">
+                    <tr>
+                      <th className="p-3">Kode Sub</th>
+                      <th className="p-3">Uraian Sub Kegiatan</th>
+                      <th className="p-3 text-right">Pagu Murni (Rp)</th>
+                      <th className="p-3 text-right">Pergeseran (Rp)</th>
+                      <th className="p-3 text-right">Nilai SPD (Rp)</th>
+                      <th className="p-3 text-right">Pagu Akhir (Rp)</th>
+                      <th className="p-3 text-right">Realisasi SP2D (Rp)</th>
+                      <th className="p-3 text-right">Sisa Pagu (Rp)</th>
+                      <th className="p-3 text-center">% Serapan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 print:divide-slate-300">
+                    {subReportData.map(r => (
+                      <tr key={r.kodeSub} className="hover:bg-slate-800/40 cursor-pointer" onClick={() => setFilterSelectedSub(r.kodeSub)}>
+                        <td className="p-3 font-mono font-bold text-amber-400 print:text-slate-900">{r.kodeSub}</td>
+                        <td className="p-3 font-semibold text-white print:text-slate-900">{r.namaSub}</td>
+                        <td className="p-3 text-right font-mono text-slate-300 print:text-slate-800">Rp {r.paguMurni.toLocaleString('id-ID')}</td>
+                        <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
+                        <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
+                        <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
+                        <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
+                          Rp {r.realisasi.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
+                          Rp {r.sisa.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-center font-bold text-emerald-300 print:text-slate-900">
+                          {r.persen.toFixed(2)} %
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-slate-950 font-bold border-t-2 border-slate-700 text-white print:bg-slate-100 print:text-black">
+                    {(() => {
+                      const totalMurni = subReportData.reduce((s, r) => s + r.paguMurni, 0);
+                      const totalRev = subReportData.reduce((s, r) => s + r.revisi, 0);
+                      const totalSPD = subReportData.reduce((s, r) => s + r.nilaiSPD, 0);
+                      const totalAkhir = subReportData.reduce((s, r) => s + r.paguAkhir, 0);
+                      const totalReal = subReportData.reduce((s, r) => s + r.realisasi, 0);
+                      const totalSisa = totalAkhir - totalReal;
+                      const totalPct = totalAkhir > 0 ? (totalReal / totalAkhir) * 100 : 0;
+                      return (
+                        <tr>
+                          <td colSpan={2} className="p-3 text-right uppercase">TOTAL KESELURUHAN SUB-KEGIATAN:</td>
+                          <td className="p-3 text-right font-mono">Rp {totalMurni.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-amber-300">Rp {totalRev.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-blue-300">Rp {totalSPD.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-emerald-400">Rp {totalAkhir.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-emerald-300">Rp {totalReal.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-amber-300">Rp {totalSisa.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-center text-emerald-300">{totalPct.toFixed(2)} %</td>
+                        </tr>
+                      );
+                    })()}
+                  </tfoot>
+                </table>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-950 print:bg-slate-200 text-slate-300 print:text-slate-900 font-bold uppercase border-b border-slate-800">
+                    <tr>
+                      <th className="p-3">Kode Rekening</th>
+                      <th className="p-3">Nama Uraian Belanja</th>
+                      <th className="p-3">Jenis Belanja</th>
+                      <th className="p-3 text-right">Pagu Murni (Rp)</th>
+                      <th className="p-3 text-right">Pergeseran (Rp)</th>
+                      <th className="p-3 text-right">Nilai SPD (Rp)</th>
+                      <th className="p-3 text-right">Pagu Akhir (Rp)</th>
+                      <th className="p-3 text-right">Realisasi SP2D (Rp)</th>
+                      <th className="p-3 text-right">Sisa Pagu (Rp)</th>
+                      <th className="p-3 text-center">% Serapan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800 print:divide-slate-300">
+                    {selectedSubBelanjaData.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="p-6 text-center text-slate-500 italic">
+                          Tidak ada data rekening belanja pada sub kegiatan ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      selectedSubBelanjaData.map(r => (
+                        <tr key={r.kodeBelanja} className="hover:bg-slate-800/40">
+                          <td className="p-3 font-mono font-bold text-emerald-400 print:text-slate-900">{r.kodeBelanja}</td>
+                          <td className="p-3 font-semibold text-white print:text-slate-900">{r.namaBelanja}</td>
+                          <td className="p-3 text-slate-300 print:text-slate-700">{r.jenisBelanja}</td>
+                          <td className="p-3 text-right font-mono text-slate-300 print:text-slate-800">Rp {r.paguMurni.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
+                            Rp {r.realisasi.toLocaleString('id-ID')}
+                          </td>
+                          <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
+                            Rp {r.sisa.toLocaleString('id-ID')}
+                          </td>
+                          <td className="p-3 text-center font-bold text-emerald-300 print:text-slate-900">
+                            {r.persen.toFixed(2)} %
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  <tfoot className="bg-slate-950 font-bold border-t-2 border-slate-700 text-white print:bg-slate-100 print:text-black">
+                    {(() => {
+                      const totalMurni = selectedSubBelanjaData.reduce((s, r) => s + r.paguMurni, 0);
+                      const totalRev = selectedSubBelanjaData.reduce((s, r) => s + r.revisi, 0);
+                      const totalSPD = selectedSubBelanjaData.reduce((s, r) => s + r.nilaiSPD, 0);
+                      const totalAkhir = selectedSubBelanjaData.reduce((s, r) => s + r.paguAkhir, 0);
+                      const totalReal = selectedSubBelanjaData.reduce((s, r) => s + r.realisasi, 0);
+                      const totalSisa = totalAkhir - totalReal;
+                      const totalPct = totalAkhir > 0 ? (totalReal / totalAkhir) * 100 : 0;
+                      return (
+                        <tr>
+                          <td colSpan={3} className="p-3 text-right uppercase">TOTAL SUB-KEGIATAN INI:</td>
+                          <td className="p-3 text-right font-mono">Rp {totalMurni.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-amber-300">Rp {totalRev.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-blue-300">Rp {totalSPD.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-emerald-400">Rp {totalAkhir.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-emerald-300">Rp {totalReal.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-right font-mono text-amber-300">Rp {totalSisa.toLocaleString('id-ID')}</td>
+                          <td className="p-3 text-center text-emerald-300">{totalPct.toFixed(2)} %</td>
+                        </tr>
+                      );
+                    })()}
+                  </tfoot>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
