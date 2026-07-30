@@ -66,10 +66,78 @@ export const InputAnggaranView: React.FC = () => {
   const [deletingAnggaran, setDeletingAnggaran] = useState<Anggaran | null>(null);
 
   // Edit form state
+  const [editKodeProgram, setEditKodeProgram] = useState<string>('');
+  const [editKodeKegiatan, setEditKodeKegiatan] = useState<string>('');
+  const [editKodeSub, setEditKodeSub] = useState<string>('');
+  const [editKodeBelanja, setEditKodeBelanja] = useState<string>('');
+  const [editNamaBelanja, setEditNamaBelanja] = useState<string>('');
   const [editPagu, setEditPagu] = useState<number>(0);
   const [editRevisi, setEditRevisi] = useState<number>(0);
   const [editNilaiSPD, setEditNilaiSPD] = useState<number>(0);
   const [editSumberDana, setEditSumberDana] = useState<string>('DAU');
+
+  // Filtered master data for Edit Modal cascading
+  const editFilteredKegiatan = kegiatanList.filter(
+    k => k.kodeProgram === editKodeProgram && (!k.tahun || k.tahun === selectedTahun)
+  );
+  const editFinalKegiatan =
+    editFilteredKegiatan.length > 0
+      ? editFilteredKegiatan
+      : kegiatanList.filter(k => k.kodeProgram === editKodeProgram);
+
+  const editFilteredSub = subKegiatanList.filter(
+    s => s.kodeKegiatan === editKodeKegiatan && (!s.tahun || s.tahun === selectedTahun)
+  );
+  const editFinalSub =
+    editFilteredSub.length > 0
+      ? editFilteredSub
+      : subKegiatanList.filter(s => s.kodeKegiatan === editKodeKegiatan);
+
+  const handleEditProgramChange = (progCode: string) => {
+    setEditKodeProgram(progCode);
+    const matchingKegs = kegiatanList.filter(
+      k => k.kodeProgram === progCode && (!k.tahun || k.tahun === selectedTahun)
+    );
+    const kegs = matchingKegs.length > 0 ? matchingKegs : kegiatanList.filter(k => k.kodeProgram === progCode);
+
+    if (kegs.length > 0) {
+      const firstKeg = kegs[0].kodeKegiatan;
+      setEditKodeKegiatan(firstKeg);
+      const matchingSubs = subKegiatanList.filter(
+        s => s.kodeKegiatan === firstKeg && (!s.tahun || s.tahun === selectedTahun)
+      );
+      const subs = matchingSubs.length > 0 ? matchingSubs : subKegiatanList.filter(s => s.kodeKegiatan === firstKeg);
+      if (subs.length > 0) {
+        setEditKodeSub(subs[0].kodeSub);
+      } else {
+        setEditKodeSub('');
+      }
+    } else {
+      setEditKodeKegiatan('');
+      setEditKodeSub('');
+    }
+  };
+
+  const handleEditKegiatanChange = (kegCode: string) => {
+    setEditKodeKegiatan(kegCode);
+    const matchingSubs = subKegiatanList.filter(
+      s => s.kodeKegiatan === kegCode && (!s.tahun || s.tahun === selectedTahun)
+    );
+    const subs = matchingSubs.length > 0 ? matchingSubs : subKegiatanList.filter(s => s.kodeKegiatan === kegCode);
+    if (subs.length > 0) {
+      setEditKodeSub(subs[0].kodeSub);
+    } else {
+      setEditKodeSub('');
+    }
+  };
+
+  const handleEditBelanjaChange = (belCode: string) => {
+    setEditKodeBelanja(belCode);
+    const belObj = belanjaList.find(b => b.kodeBelanja === belCode);
+    if (belObj) {
+      setEditNamaBelanja(belObj.namaBelanja);
+    }
+  };
 
   // Excel Import States
   const [showImportModal, setShowImportModal] = useState(false);
@@ -175,6 +243,16 @@ export const InputAnggaranView: React.FC = () => {
   // Open Edit Modal
   const handleOpenEdit = (a: Anggaran) => {
     setEditingAnggaran(a);
+    const pCode = a.kodeProgram || (finalPrograms[0]?.kodeProgram || '5.01.01');
+    const kCode = a.kodeKegiatan || (finalKegiatan[0]?.kodeKegiatan || '5.01.01.2.01');
+    const sCode = a.kodeSub || (finalSub[0]?.kodeSub || '5.01.01.2.01.01');
+    const bCode = a.kodeBelanja || (belanjaList[0]?.kodeBelanja || '5.1.02.01.01.0024');
+
+    setEditKodeProgram(pCode);
+    setEditKodeKegiatan(kCode);
+    setEditKodeSub(sCode);
+    setEditKodeBelanja(bCode);
+    setEditNamaBelanja(a.namaBelanja || '');
     setEditPagu(a.pagu);
     setEditRevisi(a.revisi);
     setEditNilaiSPD(a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir);
@@ -186,7 +264,15 @@ export const InputAnggaranView: React.FC = () => {
     e.preventDefault();
     if (!editingAnggaran) return;
 
+    const belObj = belanjaList.find(b => b.kodeBelanja === editKodeBelanja);
+    const finalNamaBelanja = belObj?.namaBelanja || editNamaBelanja || editingAnggaran.namaBelanja;
+
     updateAnggaran(editingAnggaran.id, {
+      kodeProgram: editKodeProgram,
+      kodeKegiatan: editKodeKegiatan,
+      kodeSub: editKodeSub,
+      kodeBelanja: editKodeBelanja,
+      namaBelanja: finalNamaBelanja,
       pagu: editPagu,
       revisi: editRevisi,
       nilaiSPD: editNilaiSPD,
