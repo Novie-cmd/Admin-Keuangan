@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { Realisasi } from '../../types';
 import * as XLSX from 'xlsx';
 import { safeDownloadExcel } from '../../utils/downloadHelper';
+import { extractCode, findRowValueByKeys } from '../../utils/codeUtils';
 import {
   FileText,
   Plus,
@@ -342,48 +343,29 @@ export const InputRealisasiView: React.FC = () => {
         };
 
         rawJson.forEach((row, idx) => {
-          const getVal = (...keys: string[]) => {
-            for (const key of keys) {
-              const matchedKey = Object.keys(row).find(k => {
-                if (!k) return false;
-                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                return cleanK === cleanKey;
-              });
-              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
-                return String(row[matchedKey]).trim();
-              }
-            }
+          const thnStr = findRowValueByKeys(row, ['tahun', 'thn', 'tahunanggaran', 'ta']);
+          const thn = parseInt(thnStr || String(selectedTahun), 10) || selectedTahun;
 
-            for (const key of keys) {
-              const matchedKey = Object.keys(row).find(k => {
-                if (!k) return false;
-                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                return cleanK.includes(cleanKey);
-              });
-              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
-                return String(row[matchedKey]).trim();
-              }
-            }
-            return '';
-          };
+          const progRaw = findRowValueByKeys(row, ['kodeprogram', 'kodeprog', 'program'], true);
+          const kegRaw = findRowValueByKeys(row, ['kodekegiatan', 'kodekeg', 'kegiatan'], true);
+          const subRaw = findRowValueByKeys(row, ['kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub'], true);
+          const belRaw = findRowValueByKeys(row, ['kodebelanja', 'koderekening', 'rekening', 'kode', 'belanja'], true);
 
-          const thn = parseInt(getVal('tahun', 'thn', 'tahunanggaran', 'ta') || String(selectedTahun), 10) || selectedTahun;
-          const prog = getVal('kodeprogram', 'kodeprog', 'program') || '5.01.01';
-          const keg = getVal('kodekegiatan', 'kodekeg', 'kegiatan') || '5.01.01.2.01';
-          const sub = getVal('kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub') || '5.01.01.2.01.01';
-          const bel = getVal('kodebelanja', 'koderekening', 'rekening', 'kode') || '5.1.02.01.01.0024';
+          const prog = extractCode(progRaw) || '5.01.01';
+          const keg = extractCode(kegRaw) || '5.01.01.2.01';
+          const sub = extractCode(subRaw) || '5.01.01.2.01.01';
+          const bel = extractCode(belRaw) || '5.1.02.01.01.0024';
+
           const belObj = belanjaList.find(b => b.kodeBelanja === bel);
-          const namaBel = getVal('namabelanja', 'uraianbelanja', 'namarekening') || belObj?.namaBelanja || `Belanja ${bel}`;
+          const namaBel = findRowValueByKeys(row, ['namabelanja', 'uraianbelanja', 'namarekening']) || belObj?.namaBelanja || `Belanja ${bel}`;
 
-          const sp2dVal = getVal('nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls');
-          const spmVal = getVal('nospm', 'spm', 'nomorspm') || sp2dVal.replace('SP2D', 'SPM');
-          const nilaiRaw = getVal('nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d');
+          const sp2dVal = findRowValueByKeys(row, ['nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls']);
+          const spmVal = findRowValueByKeys(row, ['nospm', 'spm', 'nomorspm']) || sp2dVal.replace('SP2D', 'SPM');
+          const nilaiRaw = findRowValueByKeys(row, ['nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d']);
           const nilaiVal = parseNumber(nilaiRaw);
-          const uraianVal = getVal('uraian', 'keterangan', 'uraianrealisasi', 'rincian') || 'Realisasi Keuangan';
-          const rekananVal = getVal('penyedia', 'rekanan', 'penerima', 'namarekanan') || 'PT Bank NTB Syariah';
-          const tglVal = getVal('tanggal', 'tgl', 'tanggalsp2d') || new Date().toISOString().split('T')[0];
+          const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian']) || 'Realisasi Keuangan';
+          const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan']) || 'PT Bank NTB Syariah';
+          const tglVal = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']) || new Date().toISOString().split('T')[0];
 
           let err = '';
           const isDup = existingSp2dSet.has(sp2dVal.toLowerCase());

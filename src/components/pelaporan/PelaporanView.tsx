@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { isCodeEqual } from '../../utils/codeUtils';
 import { NTBLogo } from '../common/NTBLogo';
 import * as XLSX from 'xlsx';
 import { safeDownloadExcel } from '../../utils/downloadHelper';
@@ -354,31 +355,32 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Helper calculation for Laporan Per Program (Syced with Input Anggaran Pagu & Realisasi)
   const allProgramKodes = Array.from(
     new Set([
-      ...programs.filter(p => p.tahun === selectedTahun).map(p => p.kodeProgram),
-      ...currentAnggaran.map(a => a.kodeProgram)
+      ...programs.filter(p => p.tahun === selectedTahun).map(p => p.kodeProgram.trim()),
+      ...currentAnggaran.map(a => a.kodeProgram.trim()),
+      ...currentRealisasi.map(r => r.kodeProgram.trim())
     ])
   );
 
   const programReportData = allProgramKodes.map(kode => {
-    const pObj = programs.find(p => p.kodeProgram === kode);
+    const pObj = programs.find(p => isCodeEqual(p.kodeProgram, kode));
     const paguMurni = currentAnggaran
-      .filter(a => a.kodeProgram === kode)
+      .filter(a => isCodeEqual(a.kodeProgram, kode))
       .reduce((s, a) => s + a.pagu, 0);
 
     const revisi = currentAnggaran
-      .filter(a => a.kodeProgram === kode)
+      .filter(a => isCodeEqual(a.kodeProgram, kode))
       .reduce((s, a) => s + a.revisi, 0);
 
     const nilaiSPD = currentAnggaran
-      .filter(a => a.kodeProgram === kode)
+      .filter(a => isCodeEqual(a.kodeProgram, kode))
       .reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
 
     const paguAkhir = currentAnggaran
-      .filter(a => a.kodeProgram === kode)
+      .filter(a => isCodeEqual(a.kodeProgram, kode))
       .reduce((s, a) => s + a.paguAkhir, 0);
 
     const real = currentRealisasi
-      .filter(r => r.kodeProgram === kode)
+      .filter(r => isCodeEqual(r.kodeProgram, kode))
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - real;
@@ -400,38 +402,39 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Helper calculation for Laporan Per Kegiatan
   const allKegiatanKodes = Array.from(
     new Set([
-      ...kegiatanList.filter(k => k.tahun === selectedTahun).map(k => k.kodeKegiatan),
-      ...currentAnggaran.map(a => a.kodeKegiatan)
+      ...kegiatanList.filter(k => k.tahun === selectedTahun).map(k => k.kodeKegiatan.trim()),
+      ...currentAnggaran.map(a => a.kodeKegiatan.trim()),
+      ...currentRealisasi.map(r => r.kodeKegiatan.trim())
     ])
   );
 
   const kegiatanReportData = allKegiatanKodes.map(kode => {
-    const kObj = kegiatanList.find(k => k.kodeKegiatan === kode);
+    const kObj = kegiatanList.find(k => isCodeEqual(k.kodeKegiatan, kode));
     const paguMurni = currentAnggaran
-      .filter(a => a.kodeKegiatan === kode)
+      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
       .reduce((s, a) => s + a.pagu, 0);
 
     const revisi = currentAnggaran
-      .filter(a => a.kodeKegiatan === kode)
+      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
       .reduce((s, a) => s + a.revisi, 0);
 
     const nilaiSPD = currentAnggaran
-      .filter(a => a.kodeKegiatan === kode)
+      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
       .reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
 
     const paguAkhir = currentAnggaran
-      .filter(a => a.kodeKegiatan === kode)
+      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
       .reduce((s, a) => s + a.paguAkhir, 0);
 
     const real = currentRealisasi
-      .filter(r => r.kodeKegiatan === kode)
+      .filter(r => isCodeEqual(r.kodeKegiatan, kode))
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - real;
     const pct = paguAkhir > 0 ? (real / paguAkhir) * 100 : 0;
 
     return {
-      kodeProg: kObj?.kodeProgram || currentAnggaran.find(a => a.kodeKegiatan === kode)?.kodeProgram || '',
+      kodeProg: kObj?.kodeProgram || currentAnggaran.find(a => isCodeEqual(a.kodeKegiatan, kode))?.kodeProgram || '',
       kodeKeg: kode,
       namaKeg: kObj?.namaKegiatan || `Kegiatan ${kode}`,
       paguMurni,
@@ -447,31 +450,32 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Helper calculation for Laporan Per Sub Kegiatan
   const allSubKodes = Array.from(
     new Set([
-      ...subKegiatanList.filter(s => s.tahun === selectedTahun).map(s => s.kodeSub),
-      ...currentAnggaran.map(a => a.kodeSub)
+      ...subKegiatanList.filter(s => s.tahun === selectedTahun).map(s => s.kodeSub.trim()),
+      ...currentAnggaran.map(a => a.kodeSub.trim()),
+      ...currentRealisasi.map(r => r.kodeSub.trim())
     ])
   );
 
   const subReportData = allSubKodes.map(kode => {
-    const sObj = subKegiatanList.find(s => s.kodeSub.trim().toLowerCase() === kode.trim().toLowerCase());
+    const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, kode));
     const paguMurni = currentAnggaran
-      .filter(a => a.kodeSub === kode)
+      .filter(a => isCodeEqual(a.kodeSub, kode))
       .reduce((s, a) => s + a.pagu, 0);
 
     const revisi = currentAnggaran
-      .filter(a => a.kodeSub === kode)
+      .filter(a => isCodeEqual(a.kodeSub, kode))
       .reduce((s, a) => s + a.revisi, 0);
 
     const nilaiSPD = currentAnggaran
-      .filter(a => a.kodeSub === kode)
+      .filter(a => isCodeEqual(a.kodeSub, kode))
       .reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
 
     const paguAkhir = currentAnggaran
-      .filter(a => a.kodeSub === kode)
+      .filter(a => isCodeEqual(a.kodeSub, kode))
       .reduce((s, a) => s + a.paguAkhir, 0);
 
     const real = currentRealisasi
-      .filter(r => r.kodeSub === kode)
+      .filter(r => isCodeEqual(r.kodeSub, kode))
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - real;
@@ -493,14 +497,15 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Options & calculation for detailed Rekening Belanja under selected Sub Kegiatan
   const availableSubKegiatanOptions = Array.from(
     new Set([
-      ...subKegiatanList.filter(s => s.tahun === selectedTahun).map(s => s.kodeSub),
-      ...currentAnggaran.map(a => a.kodeSub)
+      ...subKegiatanList.filter(s => s.tahun === selectedTahun).map(s => s.kodeSub.trim()),
+      ...currentAnggaran.map(a => a.kodeSub.trim()),
+      ...currentRealisasi.map(r => r.kodeSub.trim())
     ])
   ).map(kode => {
-    const sObj = subKegiatanList.find(s => s.kodeSub.trim().toLowerCase() === kode.trim().toLowerCase());
-    const aMatch = currentAnggaran.find(a => a.kodeSub === kode);
-    const kObj = kegiatanList.find(k => k.kodeKegiatan === (sObj?.kodeKegiatan || aMatch?.kodeKegiatan));
-    const pObj = programs.find(p => p.kodeProgram === aMatch?.kodeProgram);
+    const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, kode));
+    const aMatch = currentAnggaran.find(a => isCodeEqual(a.kodeSub, kode));
+    const kObj = kegiatanList.find(k => isCodeEqual(k.kodeKegiatan, sObj?.kodeKegiatan || aMatch?.kodeKegiatan));
+    const pObj = programs.find(p => isCodeEqual(p.kodeProgram, aMatch?.kodeProgram));
     return {
       kodeSub: kode,
       namaSub: sObj?.namaSub || `Sub-Kegiatan ${kode}`,
@@ -511,19 +516,19 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     };
   });
 
-  const selectedSubDetail = availableSubKegiatanOptions.find(s => s.kodeSub === filterSelectedSub);
-  const selectedSubAnggaran = currentAnggaran.filter(a => a.kodeSub === filterSelectedSub);
+  const selectedSubDetail = availableSubKegiatanOptions.find(s => isCodeEqual(s.kodeSub, filterSelectedSub));
+  const selectedSubAnggaran = currentAnggaran.filter(a => isCodeEqual(a.kodeSub, filterSelectedSub));
 
   const selectedSubBelanjaKodes = Array.from(
     new Set([
-      ...selectedSubAnggaran.map(a => a.kodeBelanja),
-      ...currentRealisasi.filter(r => r.kodeSub === filterSelectedSub).map(r => r.kodeBelanja)
+      ...selectedSubAnggaran.map(a => a.kodeBelanja.trim()),
+      ...currentRealisasi.filter(r => isCodeEqual(r.kodeSub, filterSelectedSub)).map(r => r.kodeBelanja.trim())
     ])
   );
 
   const selectedSubBelanjaData = selectedSubBelanjaKodes.map(kodeBelanja => {
-    const bObj = belanjaList.find(b => b.kodeBelanja === kodeBelanja);
-    const aMatches = selectedSubAnggaran.filter(a => a.kodeBelanja === kodeBelanja);
+    const bObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, kodeBelanja));
+    const aMatches = selectedSubAnggaran.filter(a => isCodeEqual(a.kodeBelanja, kodeBelanja));
     const aMatch = aMatches[0];
 
     const paguMurni = aMatches.reduce((s, a) => s + a.pagu, 0);
@@ -532,7 +537,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     const paguAkhir = aMatches.reduce((s, a) => s + a.paguAkhir, 0);
 
     const realisasi = currentRealisasi
-      .filter(r => r.kodeSub === filterSelectedSub && r.kodeBelanja === kodeBelanja)
+      .filter(r => isCodeEqual(r.kodeSub, filterSelectedSub) && isCodeEqual(r.kodeBelanja, kodeBelanja))
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - realisasi;
@@ -555,33 +560,34 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Helper calculation for Laporan Per Belanja
   const allBelanjaKodes = Array.from(
     new Set([
-      ...belanjaList.map(b => b.kodeBelanja),
-      ...currentAnggaran.map(a => a.kodeBelanja)
+      ...belanjaList.map(b => b.kodeBelanja.trim()),
+      ...currentAnggaran.map(a => a.kodeBelanja.trim()),
+      ...currentRealisasi.map(r => r.kodeBelanja.trim())
     ])
   );
 
   const belanjaReportData = allBelanjaKodes.map(kode => {
-    const bObj = belanjaList.find(b => b.kodeBelanja === kode);
-    const aMatch = currentAnggaran.find(a => a.kodeBelanja === kode);
+    const bObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, kode));
+    const aMatch = currentAnggaran.find(a => isCodeEqual(a.kodeBelanja, kode));
 
     const paguMurni = currentAnggaran
-      .filter(a => a.kodeBelanja === kode)
+      .filter(a => isCodeEqual(a.kodeBelanja, kode))
       .reduce((s, a) => s + a.pagu, 0);
 
     const revisi = currentAnggaran
-      .filter(a => a.kodeBelanja === kode)
+      .filter(a => isCodeEqual(a.kodeBelanja, kode))
       .reduce((s, a) => s + a.revisi, 0);
 
     const nilaiSPD = currentAnggaran
-      .filter(a => a.kodeBelanja === kode)
+      .filter(a => isCodeEqual(a.kodeBelanja, kode))
       .reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
 
     const paguAkhir = currentAnggaran
-      .filter(a => a.kodeBelanja === kode)
+      .filter(a => isCodeEqual(a.kodeBelanja, kode))
       .reduce((s, a) => s + a.paguAkhir, 0);
 
     const real = currentRealisasi
-      .filter(r => r.kodeBelanja === kode)
+      .filter(r => isCodeEqual(r.kodeBelanja, kode))
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - real;
@@ -604,12 +610,13 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Options & calculation for detailed Sub Kegiatan under selected Rekening Belanja
   const availableBelanjaOptions = Array.from(
     new Set([
-      ...belanjaList.map(b => b.kodeBelanja),
-      ...currentAnggaran.map(a => a.kodeBelanja)
+      ...belanjaList.map(b => b.kodeBelanja.trim()),
+      ...currentAnggaran.map(a => a.kodeBelanja.trim()),
+      ...currentRealisasi.map(r => r.kodeBelanja.trim())
     ])
   ).map(kode => {
-    const bObj = belanjaList.find(b => b.kodeBelanja === kode);
-    const aMatch = currentAnggaran.find(a => a.kodeBelanja === kode);
+    const bObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, kode));
+    const aMatch = currentAnggaran.find(a => isCodeEqual(a.kodeBelanja, kode));
     return {
       kodeBelanja: kode,
       namaBelanja: aMatch?.namaBelanja || bObj?.namaBelanja || `Belanja ${kode}`,
@@ -617,18 +624,18 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     };
   });
 
-  const selectedBelanjaDetail = availableBelanjaOptions.find(b => b.kodeBelanja === filterSelectedBelanja);
+  const selectedBelanjaDetail = availableBelanjaOptions.find(b => isCodeEqual(b.kodeBelanja, filterSelectedBelanja));
 
   const selectedBelanjaSubKodes = Array.from(
     new Set([
-      ...currentAnggaran.filter(a => a.kodeBelanja === filterSelectedBelanja).map(a => a.kodeSub),
-      ...currentRealisasi.filter(r => r.kodeBelanja === filterSelectedBelanja).map(r => r.kodeSub)
+      ...currentAnggaran.filter(a => isCodeEqual(a.kodeBelanja, filterSelectedBelanja)).map(a => a.kodeSub.trim()),
+      ...currentRealisasi.filter(r => isCodeEqual(r.kodeBelanja, filterSelectedBelanja)).map(r => r.kodeSub.trim())
     ])
   );
 
   const selectedBelanjaSubData = selectedBelanjaSubKodes.map(kodeSub => {
-    const sObj = subKegiatanList.find(s => s.kodeSub.trim().toLowerCase() === kodeSub.trim().toLowerCase());
-    const aMatches = currentAnggaran.filter(a => a.kodeSub === kodeSub && a.kodeBelanja === filterSelectedBelanja);
+    const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, kodeSub));
+    const aMatches = currentAnggaran.filter(a => isCodeEqual(a.kodeSub, kodeSub) && isCodeEqual(a.kodeBelanja, filterSelectedBelanja));
 
     const paguMurni = aMatches.reduce((s, a) => s + a.pagu, 0);
     const revisi = aMatches.reduce((s, a) => s + a.revisi, 0);
@@ -636,7 +643,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     const paguAkhir = aMatches.reduce((s, a) => s + a.paguAkhir, 0);
 
     const realisasi = currentRealisasi
-      .filter(r => r.kodeSub === kodeSub && r.kodeBelanja === filterSelectedBelanja)
+      .filter(r => isCodeEqual(r.kodeSub, kodeSub) && isCodeEqual(r.kodeBelanja, filterSelectedBelanja))
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - realisasi;

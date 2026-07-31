@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { extractCode } from '../utils/codeUtils';
 import {
   User,
   UserRole,
@@ -656,18 +657,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const dateObj = new Date(row.tanggal || Date.now());
       const month = dateObj.getMonth() + 1;
 
+      const cleanBelanja = extractCode(row.kodeBelanja);
+      const cleanSub = extractCode(row.kodeSub);
+      const cleanKeg = extractCode(row.kodeKegiatan);
+      const cleanProg = extractCode(row.kodeProgram);
+
+      // Auto lookup parent code structure from existing anggaranList or default
+      const rowTahun = row.tahun || selectedTahun;
+      const angMatch = anggaranList.find(a =>
+        a.kodeBelanja.trim().toLowerCase() === cleanBelanja.toLowerCase() &&
+        a.tahun === rowTahun
+      ) || anggaranList.find(a =>
+        a.kodeBelanja.trim().toLowerCase() === cleanBelanja.toLowerCase()
+      );
+
+      const finalBelanja = cleanBelanja || angMatch?.kodeBelanja || '5.1.02.01.01.0024';
+      const finalSub = cleanSub || angMatch?.kodeSub || '5.01.01.2.01.01';
+      const finalKeg = cleanKeg || angMatch?.kodeKegiatan || '5.01.01.2.01';
+      const finalProg = cleanProg || angMatch?.kodeProgram || '5.01.01';
+
       newRealisasiItems.push({
-        id: `REAL-${row.tahun}-${Date.now()}-${index}`,
+        id: `REAL-${rowTahun}-${Date.now()}-${index}`,
         tanggal: row.tanggal || new Date().toISOString().split('T')[0],
         bulan: month || 1,
-        tahun: row.tahun || selectedTahun,
-        kodeProgram: row.kodeProgram || '5.01.01',
-        kodeKegiatan: row.kodeKegiatan || '5.01.01.2.01',
-        kodeSub: row.kodeSub || '5.01.01.2.01.01',
-        kodeBelanja: row.kodeBelanja || '5.1.02.01.01.0024',
+        tahun: rowTahun,
+        kodeProgram: finalProg,
+        kodeKegiatan: finalKeg,
+        kodeSub: finalSub,
+        kodeBelanja: finalBelanja,
         nilai: row.nilai,
-        noSP2D: row.sp2d,
-        noSPM: row.spm || row.sp2d.replace('SP2D', 'SPM'),
+        noSP2D: (row.sp2d || '').trim(),
+        noSPM: (row.spm || row.sp2d?.replace('SP2D', 'SPM') || '').trim(),
         uraian: row.uraian || 'Import Excel Realisasi',
         rekanan: row.rekanan || 'Rekanan Penyedia NTB',
         operator: currentUser.nama,

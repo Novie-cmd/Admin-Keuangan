@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import * as XLSX from 'xlsx';
+import { extractCode, findRowValueByKeys } from '../../utils/codeUtils';
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -103,43 +104,25 @@ export const UploadExcelView: React.FC = () => {
 
         // Parse and validate rows
         const parsedRows: PreviewRow[] = jsonRows.map((row, index) => {
-          const getVal = (...keys: string[]) => {
-            for (const key of keys) {
-              const matchedKey = Object.keys(row).find(k => {
-                if (!k) return false;
-                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                return cleanK === cleanKey;
-              });
-              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
-                return String(row[matchedKey]).trim();
-              }
-            }
-            for (const key of keys) {
-              const matchedKey = Object.keys(row).find(k => {
-                if (!k) return false;
-                const cleanK = k.trim().toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                const cleanKey = key.toLowerCase().replace(/[\s_\-()/.:]/g, '').replace(/rp/g, '');
-                return cleanK.includes(cleanKey);
-              });
-              if (matchedKey && row[matchedKey] !== undefined && row[matchedKey] !== null && String(row[matchedKey]).trim() !== '') {
-                return String(row[matchedKey]).trim();
-              }
-            }
-            return '';
-          };
+          const thnStr = findRowValueByKeys(row, ['tahun', 'thn', 'tahunanggaran', 'ta']);
+          const thn = parseInt(thnStr || String(selectedTahun), 10) || selectedTahun;
 
-          const thn = parseInt(getVal('tahun', 'thn', 'ta') || String(selectedTahun), 10) || selectedTahun;
-          const prog = getVal('program', 'kodeprogram', 'kodeprog') || '5.01.01';
-          const keg = getVal('kegiatan', 'kodekegiatan', 'kodekeg') || '5.01.01.2.01';
-          const sub = getVal('subkegiatan', 'sub', 'kodesub') || '5.01.01.2.01.01';
-          const bel = getVal('belanja', 'kodebelanja', 'koderekening', 'rekening') || '5.1.02.01.01.0024';
-          const sp2d = getVal('sp2d', 'nosp2d', 'nomorsp2d', 'sp2dno');
-          const nilaiRaw = getVal('nilai', 'realisasi', 'jumlah', 'nilaisp2d', 'nilairealisasi');
+          const progRaw = findRowValueByKeys(row, ['kodeprogram', 'kodeprog', 'program'], true);
+          const kegRaw = findRowValueByKeys(row, ['kodekegiatan', 'kodekeg', 'kegiatan'], true);
+          const subRaw = findRowValueByKeys(row, ['kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub'], true);
+          const belRaw = findRowValueByKeys(row, ['kodebelanja', 'koderekening', 'rekening', 'kode', 'belanja'], true);
+
+          const prog = extractCode(progRaw) || '5.01.01';
+          const keg = extractCode(kegRaw) || '5.01.01.2.01';
+          const sub = extractCode(subRaw) || '5.01.01.2.01.01';
+          const bel = extractCode(belRaw) || '5.1.02.01.01.0024';
+
+          const sp2d = findRowValueByKeys(row, ['sp2d', 'nosp2d', 'nomorsp2d', 'sp2dno']);
+          const nilaiRaw = findRowValueByKeys(row, ['nilai', 'realisasi', 'jumlah', 'nilaisp2d', 'nilairealisasi']);
           const nilai = parseNumber(nilaiRaw);
-          const uraian = getVal('uraian', 'keterangan', 'uraianrealisasi') || 'Realisasi Import Excel';
-          const rekanan = getVal('rekanan', 'penyedia', 'pihakketiga') || 'PT Bank NTB Syariah';
-          const tanggal = getVal('tanggal', 'tgl', 'tanggalsp2d') || new Date().toISOString().split('T')[0];
+          const uraian = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi']) || 'Realisasi Import Excel';
+          const rekanan = findRowValueByKeys(row, ['rekanan', 'penyedia', 'pihakketiga']) || 'PT Bank NTB Syariah';
+          const tanggal = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']) || new Date().toISOString().split('T')[0];
 
           const isDup = sp2d ? existingSP2DSet.has(sp2d.trim().toLowerCase()) : false;
 
