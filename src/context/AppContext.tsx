@@ -123,15 +123,19 @@ interface AppContextType {
   addProgram: (prog: Program) => void;
   updateProgram: (oldKode: string, oldTahun: number, updated: Partial<Program>) => void;
   deleteProgram: (kodeProgram: string, tahun: number) => void;
+  clearProgramDatabase: (tahun?: number) => void;
   addKegiatan: (keg: Kegiatan) => void;
   updateKegiatan: (oldKode: string, oldTahun: number, updated: Partial<Kegiatan>) => void;
   deleteKegiatan: (kodeKegiatan: string, tahun: number) => void;
+  clearKegiatanDatabase: (tahun?: number) => void;
   addSubKegiatan: (sub: SubKegiatan) => void;
   updateSubKegiatan: (oldKode: string, oldTahun: number, updated: Partial<SubKegiatan>) => void;
   deleteSubKegiatan: (kodeSub: string, tahun: number) => void;
+  clearSubKegiatanDatabase: (tahun?: number) => void;
   addBelanja: (bel: Belanja) => void;
   updateBelanja: (oldKode: string, oldTahun: number, updated: Partial<Belanja>) => void;
   deleteBelanja: (kodeBelanja: string, tahun?: number) => void;
+  clearBelanjaDatabase: (tahun?: number) => void;
   importProgramsBatch: (items: Program[]) => { successCount: number; duplicateCount: number };
   importKegiatanBatch: (items: Kegiatan[]) => { successCount: number; duplicateCount: number };
   importSubKegiatanBatch: (items: SubKegiatan[]) => { successCount: number; duplicateCount: number };
@@ -139,9 +143,11 @@ interface AppContextType {
   addSumberDana: (sd: Omit<SumberDana, 'id'>) => void;
   updateSumberDana: (id: string, updated: Partial<SumberDana>) => void;
   deleteSumberDana: (id: string) => void;
+  clearSumberDanaDatabase: () => void;
   addRekanan: (rek: Omit<Rekanan, 'id'>) => void;
   updateRekanan: (id: string, updated: Partial<Rekanan>) => void;
   deleteRekanan: (id: string) => void;
+  clearRekananDatabase: () => void;
   addOpd: (newOpd: OPD) => void;
   updateOpd: (idOrKode: string, updated: Partial<OPD>) => void;
   deleteOpd: (idOrKode: string) => void;
@@ -723,6 +729,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menghapus Program Master: ${kodeProgram}`);
   };
 
+  const clearProgramDatabase = (tahun?: number) => {
+    if (tahun) {
+      setPrograms(prev => prev.filter(p => p.tahun !== tahun));
+      logActivity(`Kosongkan Database Master Program TA ${tahun}`);
+    } else {
+      setPrograms([]);
+      logActivity('Kosongkan Seluruh Database Master Program');
+    }
+  };
+
   const addKegiatan = (keg: Kegiatan) => {
     setKegiatanList(prev => [...prev, keg]);
     logActivity(`Menambah Kegiatan Master: ${keg.kodeKegiatan}`);
@@ -736,6 +752,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteKegiatan = (kodeKegiatan: string, tahun: number) => {
     setKegiatanList(prev => prev.filter(k => !(k.kodeKegiatan === kodeKegiatan && k.tahun === tahun)));
     logActivity(`Menghapus Kegiatan Master: ${kodeKegiatan}`);
+  };
+
+  const clearKegiatanDatabase = (tahun?: number) => {
+    if (tahun) {
+      setKegiatanList(prev => prev.filter(k => k.tahun !== tahun));
+      logActivity(`Kosongkan Database Master Kegiatan TA ${tahun}`);
+    } else {
+      setKegiatanList([]);
+      logActivity('Kosongkan Seluruh Database Master Kegiatan');
+    }
   };
 
   const addSubKegiatan = (sub: SubKegiatan) => {
@@ -753,6 +779,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menghapus Sub Kegiatan Master: ${kodeSub}`);
   };
 
+  const clearSubKegiatanDatabase = (tahun?: number) => {
+    if (tahun) {
+      setSubKegiatanList(prev => prev.filter(s => s.tahun !== tahun));
+      logActivity(`Kosongkan Database Master Sub Kegiatan TA ${tahun}`);
+    } else {
+      setSubKegiatanList([]);
+      logActivity('Kosongkan Seluruh Database Master Sub Kegiatan');
+    }
+  };
+
   const addBelanja = (bel: Belanja) => {
     setBelanjaList(prev => [...prev, bel]);
     logActivity(`Menambah Belanja Master: ${bel.kodeBelanja}`);
@@ -766,6 +802,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteBelanja = (kodeBelanja: string, tahun?: number) => {
     setBelanjaList(prev => prev.filter(b => !(b.kodeBelanja === kodeBelanja && (tahun ? b.tahun === tahun : true))));
     logActivity(`Menghapus Belanja Master: ${kodeBelanja}`);
+  };
+
+  const clearBelanjaDatabase = (tahun?: number) => {
+    if (tahun) {
+      setBelanjaList(prev => prev.filter(b => b.tahun && b.tahun !== tahun));
+      logActivity(`Kosongkan Database Master Belanja Rekening TA ${tahun}`);
+    } else {
+      setBelanjaList([]);
+      logActivity('Kosongkan Seluruh Database Master Belanja Rekening');
+    }
   };
 
   const importProgramsBatch = (items: Program[]) => {
@@ -884,6 +930,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menghapus Sumber Dana ID: ${id}`);
   };
 
+  const clearSumberDanaDatabase = () => {
+    setSumberDanaList([]);
+    logActivity('Kosongkan Seluruh Database Master Sumber Dana');
+  };
+
   const addRekanan = (rek: Omit<Rekanan, 'id'>) => {
     const fullRek: Rekanan = { ...rek, id: `REK-${Date.now()}` };
     setRekananList(prev => [...prev, fullRek]);
@@ -898,6 +949,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteRekanan = (id: string) => {
     setRekananList(prev => prev.filter(r => r.id !== id));
     logActivity(`Menghapus Rekanan ID: ${id}`);
+  };
+
+  const clearRekananDatabase = () => {
+    setRekananList([]);
+    logActivity('Kosongkan Seluruh Database Master Data Rekanan');
   };
 
   // OPD Management
@@ -1078,15 +1134,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addProgram,
         updateProgram,
         deleteProgram,
+        clearProgramDatabase,
         addKegiatan,
         updateKegiatan,
         deleteKegiatan,
+        clearKegiatanDatabase,
         addSubKegiatan,
         updateSubKegiatan,
         deleteSubKegiatan,
+        clearSubKegiatanDatabase,
         addBelanja,
         updateBelanja,
         deleteBelanja,
+        clearBelanjaDatabase,
         importProgramsBatch,
         importKegiatanBatch,
         importSubKegiatanBatch,
@@ -1094,9 +1154,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addSumberDana,
         updateSumberDana,
         deleteSumberDana,
+        clearSumberDanaDatabase,
         addRekanan,
         updateRekanan,
         deleteRekanan,
+        clearRekananDatabase,
         addOpd,
         updateOpd,
         deleteOpd,

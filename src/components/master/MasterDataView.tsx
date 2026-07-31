@@ -71,6 +71,12 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
     addRekanan,
     updateRekanan,
     deleteRekanan,
+    clearProgramDatabase,
+    clearKegiatanDatabase,
+    clearSubKegiatanDatabase,
+    clearBelanjaDatabase,
+    clearSumberDanaDatabase,
+    clearRekananDatabase,
     addOpd,
     updateOpd,
     deleteOpd,
@@ -118,11 +124,34 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
 
   // Excel Import States
   const [showImportExcelModal, setShowImportExcelModal] = useState(false);
+  const [showClearDbModal, setShowClearDbModal] = useState<
+    'program' | 'kegiatan' | 'subkegiatan' | 'belanja' | 'sumberdana' | 'rekanan' | null
+  >(null);
+  const [clearTargetScope, setClearTargetScope] = useState<'selected' | 'all'>('selected');
   const [importCategory, setImportCategory] = useState<'program' | 'kegiatan' | 'subkegiatan' | 'belanja'>('program');
   const [importedFileName, setImportedFileName] = useState('');
   const [parsedDataPreview, setParsedDataPreview] = useState<any[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
+
+  // Confirm Clear Database Handler
+  const handleConfirmClearDb = () => {
+    if (!showClearDbModal) return;
+    if (showClearDbModal === 'program') {
+      clearProgramDatabase(clearTargetScope === 'selected' ? selectedTahun : undefined);
+    } else if (showClearDbModal === 'kegiatan') {
+      clearKegiatanDatabase(clearTargetScope === 'selected' ? selectedTahun : undefined);
+    } else if (showClearDbModal === 'subkegiatan') {
+      clearSubKegiatanDatabase(clearTargetScope === 'selected' ? selectedTahun : undefined);
+    } else if (showClearDbModal === 'belanja') {
+      clearBelanjaDatabase(clearTargetScope === 'selected' ? selectedTahun : undefined);
+    } else if (showClearDbModal === 'sumberdana') {
+      clearSumberDanaDatabase();
+    } else if (showClearDbModal === 'rekanan') {
+      clearRekananDatabase();
+    }
+    setShowClearDbModal(null);
+  };
 
   // Form states for manual additions
   const [formTahun, setFormTahun] = useState({ id: '', tahun: selectedTahun, keterangan: 'Tahun Anggaran Murni' });
@@ -981,13 +1010,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               Total Program: {programs.filter(p => p.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
             {!isReadonly && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Program</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowClearDbModal('program');
+                    setClearTargetScope('selected');
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-900/60 hover:border-rose-700 transition"
+                  title="Kosongkan Database Master Program"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Database Program</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Program</span>
+                </button>
+              </div>
             )}
           </div>
           <table className="w-full text-left text-xs">
@@ -1047,13 +1089,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               Total Kegiatan: {kegiatanList.filter(k => k.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
             {!isReadonly && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Kegiatan</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowClearDbModal('kegiatan');
+                    setClearTargetScope('selected');
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-900/60 hover:border-rose-700 transition"
+                  title="Kosongkan Database Master Kegiatan"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Database Kegiatan</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Kegiatan</span>
+                </button>
+              </div>
             )}
           </div>
           <table className="w-full text-left text-xs">
@@ -1115,13 +1170,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               Total Sub Kegiatan: {subKegiatanList.filter(s => s.tahun === selectedTahun).length} item (Tahun {selectedTahun})
             </span>
             {!isReadonly && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Sub Kegiatan</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowClearDbModal('subkegiatan');
+                    setClearTargetScope('selected');
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-900/60 hover:border-rose-700 transition"
+                  title="Kosongkan Database Master Sub Kegiatan"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Database Sub Kegiatan</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Sub Kegiatan</span>
+                </button>
+              </div>
             )}
           </div>
           <table className="w-full text-left text-xs">
@@ -1183,13 +1251,26 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               Total Belanja Rekening: {belanjaList.length} item
             </span>
             {!isReadonly && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Belanja</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowClearDbModal('belanja');
+                    setClearTargetScope('selected');
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-900/60 hover:border-rose-700 transition"
+                  title="Kosongkan Database Master Belanja Rekening"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Database Belanja</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Belanja</span>
+                </button>
+              </div>
             )}
           </div>
           <table className="w-full text-left text-xs">
@@ -1252,13 +1333,25 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               Total Sumber Dana: {sumberDanaList.length} item
             </span>
             {!isReadonly && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Sumber Dana</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowClearDbModal('sumberdana');
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-900/60 hover:border-rose-700 transition"
+                  title="Kosongkan Database Master Sumber Dana"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Database Sumber Dana</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Sumber Dana</span>
+                </button>
+              </div>
             )}
           </div>
           <table className="w-full text-left text-xs">
@@ -1317,13 +1410,25 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               Total Rekanan: {rekananList.length} item
             </span>
             {!isReadonly && (
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Rekanan</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowClearDbModal('rekanan');
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl border border-rose-900/60 bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-400 hover:bg-rose-900/60 hover:border-rose-700 transition"
+                  title="Kosongkan Database Master Data Rekanan"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Hapus Database Rekanan</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-500 shadow"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Tambah Rekanan</span>
+                </button>
+              </div>
             )}
           </div>
           <table className="w-full text-left text-xs">
@@ -2782,6 +2887,82 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CLEAR DATABASE MASTER DATA */}
+      {showClearDbModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-rose-900/60 bg-slate-900 p-6 shadow-2xl space-y-5">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="rounded-2xl bg-rose-950/80 p-3 border border-rose-800/60">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Konfirmasi Hapus Database Master</h3>
+                <p className="text-xs text-rose-300/80">Tindakan ini tidak dapat dibatalkan!</p>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-slate-950 p-4 border border-slate-800 text-xs text-slate-300 space-y-3">
+              <p>
+                Anda akan menghapus seluruh data pada database{' '}
+                <strong className="text-rose-400 uppercase">
+                  {showClearDbModal === 'program' && 'Master Program'}
+                  {showClearDbModal === 'kegiatan' && 'Master Kegiatan'}
+                  {showClearDbModal === 'subkegiatan' && 'Master Sub Kegiatan'}
+                  {showClearDbModal === 'belanja' && 'Master Belanja Rekening'}
+                  {showClearDbModal === 'sumberdana' && 'Master Sumber Dana'}
+                  {showClearDbModal === 'rekanan' && 'Master Data Rekanan'}
+                </strong>
+                .
+              </p>
+
+              {['program', 'kegiatan', 'subkegiatan', 'belanja'].includes(showClearDbModal) && (
+                <div className="space-y-2 pt-2 border-t border-slate-800">
+                  <label className="text-xs font-bold text-slate-200">Pilih Cakupan Hapus Data:</label>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                      <input
+                        type="radio"
+                        name="clearScope"
+                        checked={clearTargetScope === 'selected'}
+                        onChange={() => setClearTargetScope('selected')}
+                        className="accent-rose-500"
+                      />
+                      <span>Hapus Khusus Tahun Anggaran <strong className="text-amber-400">{selectedTahun}</strong></span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                      <input
+                        type="radio"
+                        name="clearScope"
+                        checked={clearTargetScope === 'all'}
+                        onChange={() => setClearTargetScope('all')}
+                        className="accent-rose-500"
+                      />
+                      <span>Hapus Seluruh Tahun Anggaran (Kosongkan Total)</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowClearDbModal(null)}
+                className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-slate-700"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmClearDb}
+                className="flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-500 shadow-lg shadow-rose-950/50"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Ya, Hapus Database</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
