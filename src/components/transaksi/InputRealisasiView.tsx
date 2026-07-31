@@ -3,7 +3,14 @@ import { useApp } from '../../context/AppContext';
 import { Realisasi } from '../../types';
 import * as XLSX from 'xlsx';
 import { safeDownloadExcel } from '../../utils/downloadHelper';
-import { extractCode, findRowValueByKeys } from '../../utils/codeUtils';
+import {
+  extractCode,
+  findRowValueByKeys,
+  parseNumber,
+  parseExcelDate,
+  makeRealisasiCompositeKey,
+  isCodeEqual
+} from '../../utils/codeUtils';
 import {
   FileText,
   Plus,
@@ -300,47 +307,14 @@ export const InputRealisasiView: React.FC = () => {
           return;
         }
 
-        const existingSp2dSet = new Set(realisasiList.map(r => r.noSP2D.trim().toLowerCase()));
+        const existingKeys = new Set(
+          realisasiList.map(r =>
+            makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+          )
+        );
+        const seenBatchKeys = new Set<string>();
         const parsedRows: PreviewRealisasiRow[] = [];
         const errs: string[] = [];
-
-        const parseNumber = (val: any): number => {
-          if (typeof val === 'number') return isNaN(val) ? 0 : val;
-          if (val === undefined || val === null) return 0;
-          let s = String(val).trim();
-          if (!s) return 0;
-
-          s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
-
-          if (s.includes('.') && s.includes(',')) {
-            if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
-              s = s.replace(/\./g, '').replace(',', '.');
-            } else {
-              s = s.replace(/,/g, '');
-            }
-          } else if (s.includes('.')) {
-            const parts = s.split('.');
-            if (parts.length > 2) {
-              s = s.replace(/\./g, '');
-            } else if (parts.length === 2 && parts[1].length === 3) {
-              s = s.replace(/\./g, '');
-            }
-          } else if (s.includes(',')) {
-            const parts = s.split(',');
-            if (parts.length > 2) {
-              s = s.replace(/,/g, '');
-            } else if (parts.length === 2) {
-              if (parts[1].length === 3) {
-                s = s.replace(/,/g, '');
-              } else {
-                s = s.replace(',', '.');
-              }
-            }
-          }
-
-          const num = parseFloat(s);
-          return isNaN(num) ? 0 : num;
-        };
 
         rawJson.forEach((row, idx) => {
           const thnStr = findRowValueByKeys(row, ['tahun', 'thn', 'tahunanggaran', 'ta']);
@@ -356,29 +330,31 @@ export const InputRealisasiView: React.FC = () => {
           const sub = extractCode(subRaw) || '5.01.01.2.01.01';
           const bel = extractCode(belRaw) || '5.1.02.01.01.0024';
 
-          const belObj = belanjaList.find(b => b.kodeBelanja === bel);
+          const belObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, bel));
           const namaBel = findRowValueByKeys(row, ['namabelanja', 'uraianbelanja', 'namarekening']) || belObj?.namaBelanja || `Belanja ${bel}`;
 
-          const sp2dVal = findRowValueByKeys(row, ['nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls']);
+          const sp2dVal = findRowValueByKeys(row, ['nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls']) || `SP2D-${thn}-${idx + 1}`;
           const spmVal = findRowValueByKeys(row, ['nospm', 'spm', 'nomorspm']) || sp2dVal.replace('SP2D', 'SPM');
           const nilaiRaw = findRowValueByKeys(row, ['nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d']);
           const nilaiVal = parseNumber(nilaiRaw);
           const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian']) || 'Realisasi Keuangan';
           const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan']) || 'PT Bank NTB Syariah';
-          const tglVal = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']) || new Date().toISOString().split('T')[0];
+          const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']);
+          const parsedDate = parseExcelDate(tglRaw, thn);
+
+          const key = makeRealisasiCompositeKey(sp2dVal, bel, sub, nilaiVal, uraianVal);
+          const isDup = key ? (existingKeys.has(key) || seenBatchKeys.has(key)) : false;
+          if (key && !isDup) {
+            seenBatchKeys.add(key);
+          }
 
           let err = '';
-          const isDup = existingSp2dSet.has(sp2dVal.toLowerCase());
-
-          if (!sp2dVal) {
-            err = 'Nomor SP2D tidak boleh kosong.';
-            errs.push(`Baris ${idx + 2}: Nomor SP2D kosong.`);
-          } else if (nilaiVal <= 0) {
+          if (nilaiVal <= 0) {
             err = 'Nilai realisasi harus lebih dari 0.';
             errs.push(`Baris ${idx + 2}: Nilai realisasi <= 0.`);
           } else if (isDup) {
-            err = 'Nomor SP2D sudah terdaftar di sistem.';
-            errs.push(`Baris ${idx + 2}: SP2D "${sp2dVal}" duplikat.`);
+            err = 'Data Realisasi ini duplikat dengan database/file ini.';
+            errs.push(`Baris ${idx + 2}: Item "${sp2dVal}" (${bel}) duplikat.`);
           }
 
           parsedRows.push({
@@ -394,7 +370,7 @@ export const InputRealisasiView: React.FC = () => {
             nilai: nilaiVal,
             uraian: uraianVal,
             rekanan: rekananVal,
-            tanggal: tglVal,
+            tanggal: parsedDate.isoDate,
             isValid: !err,
             status: isDup ? 'Duplikat (Dilewati)' : 'Data Baru',
             validationError: err

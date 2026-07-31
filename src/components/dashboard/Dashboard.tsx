@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
+import { isCodeEqual } from '../../utils/codeUtils';
 import { NTBLogo } from '../common/NTBLogo';
 import {
   DollarSign,
@@ -45,8 +46,8 @@ export const Dashboard: React.FC = () => {
   } = useApp();
 
   // Compute metrics for selected fiscal year
-  const currentAnggaranList = anggaranList.filter(a => a.tahun === selectedTahun);
-  const currentRealisasiList = realisasiList.filter(r => r.tahun === selectedTahun);
+  const currentAnggaranList = anggaranList.filter(a => Number(a.tahun) === Number(selectedTahun));
+  const currentRealisasiList = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
 
   const totalAnggaran = currentAnggaranList.reduce((acc, a) => acc + a.paguAkhir, 0);
   const totalRealisasi = currentRealisasiList.reduce((acc, r) => acc + r.nilai, 0);
@@ -58,7 +59,7 @@ export const Dashboard: React.FC = () => {
   const realisasiPerBulanData = namaBulan.map((m, idx) => {
     const monthNum = idx + 1;
     const realisasiBulan = currentRealisasiList
-      .filter(r => r.bulan === monthNum)
+      .filter(r => Number(r.bulan) === monthNum)
       .reduce((sum, r) => sum + r.nilai, 0);
 
     // Target kumulatif ideal ~ (totalAnggaran / 12) * monthNum
@@ -74,14 +75,14 @@ export const Dashboard: React.FC = () => {
   // Chart Data 2: Pie Program (Distribution of Anggaran by Program)
   const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#06B6D4'];
   const programPieData = programs
-    .filter(p => p.tahun === selectedTahun)
+    .filter(p => Number(p.tahun) === Number(selectedTahun))
     .map((p, idx) => {
       const paguProg = currentAnggaranList
-        .filter(a => a.kodeProgram === p.kodeProgram)
+        .filter(a => isCodeEqual(a.kodeProgram, p.kodeProgram))
         .reduce((sum, a) => sum + a.paguAkhir, 0);
 
       const realProg = currentRealisasiList
-        .filter(r => r.kodeProgram === p.kodeProgram)
+        .filter(r => isCodeEqual(r.kodeProgram, p.kodeProgram))
         .reduce((sum, r) => sum + r.nilai, 0);
 
       return {
@@ -95,15 +96,15 @@ export const Dashboard: React.FC = () => {
 
   // Chart Data 3: Bar Kegiatan (Anggaran vs Realisasi per Kegiatan)
   const barKegiatanData = kegiatanList
-    .filter(k => k.tahun === selectedTahun)
+    .filter(k => Number(k.tahun) === Number(selectedTahun))
     .slice(0, 6)
     .map(k => {
       const paguKeg = currentAnggaranList
-        .filter(a => a.kodeKegiatan === k.kodeKegiatan)
+        .filter(a => isCodeEqual(a.kodeKegiatan, k.kodeKegiatan))
         .reduce((sum, a) => sum + a.paguAkhir, 0);
 
       const realKeg = currentRealisasiList
-        .filter(r => r.kodeKegiatan === k.kodeKegiatan)
+        .filter(r => isCodeEqual(r.kodeKegiatan, k.kodeKegiatan))
         .reduce((sum, r) => sum + r.nilai, 0);
 
       return {
@@ -118,20 +119,22 @@ export const Dashboard: React.FC = () => {
   const belanjaGroupMap: { [key: string]: { name: string; realisasi: number; pagu: number } } = {};
 
   currentAnggaranList.forEach(a => {
-    if (!belanjaGroupMap[a.kodeBelanja]) {
-      belanjaGroupMap[a.kodeBelanja] = {
+    const key = a.kodeBelanja.trim().toLowerCase();
+    if (!belanjaGroupMap[key]) {
+      belanjaGroupMap[key] = {
         name: a.namaBelanja.length > 25 ? a.namaBelanja.substring(0, 25) + '...' : a.namaBelanja,
         pagu: a.paguAkhir,
         realisasi: 0
       };
     } else {
-      belanjaGroupMap[a.kodeBelanja].pagu += a.paguAkhir;
+      belanjaGroupMap[key].pagu += a.paguAkhir;
     }
   });
 
   currentRealisasiList.forEach(r => {
-    if (belanjaGroupMap[r.kodeBelanja]) {
-      belanjaGroupMap[r.kodeBelanja].realisasi += r.nilai;
+    const matchedKey = Object.keys(belanjaGroupMap).find(k => isCodeEqual(k, r.kodeBelanja));
+    if (matchedKey) {
+      belanjaGroupMap[matchedKey].realisasi += r.nilai;
     }
   });
 

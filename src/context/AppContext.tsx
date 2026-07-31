@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { extractCode } from '../utils/codeUtils';
+import { extractCode, isCodeEqual, parseExcelDate, makeRealisasiCompositeKey } from '../utils/codeUtils';
 import {
   User,
   UserRole,
@@ -639,62 +639,69 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let duplicateCount = 0;
     const errors: string[] = [];
 
-    const existingSP2Ds = new Set(realisasiList.map(r => r.noSP2D));
+    const existingKeys = new Set(
+      realisasiList.map(r =>
+        makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+      )
+    );
     const newRealisasiItems: Realisasi[] = [];
 
     importedRows.forEach((row, index) => {
-      if (!row.sp2d || !row.nilai || row.nilai <= 0) {
-        errors.push(`Baris ${index + 1}: Data Nilai atau Nomor SP2D tidak valid.`);
+      if (!row.nilai || row.nilai <= 0) {
+        errors.push(`Baris ${index + 1}: Data Nilai (${row.nilai}) tidak valid (harus > 0).`);
         return;
       }
 
-      if (existingSP2Ds.has(row.sp2d)) {
-        duplicateCount++;
-        errors.push(`Baris ${index + 1}: Nomor SP2D "${row.sp2d}" sudah ada dalam database (Duplikat).`);
-        return;
-      }
-
-      const dateObj = new Date(row.tanggal || Date.now());
-      const month = dateObj.getMonth() + 1;
-
+      const rowTahun = Number(row.tahun) || selectedTahun;
       const cleanBelanja = extractCode(row.kodeBelanja);
       const cleanSub = extractCode(row.kodeSub);
       const cleanKeg = extractCode(row.kodeKegiatan);
       const cleanProg = extractCode(row.kodeProgram);
 
       // Auto lookup parent code structure from existing anggaranList or default
-      const rowTahun = row.tahun || selectedTahun;
       const angMatch = anggaranList.find(a =>
-        a.kodeBelanja.trim().toLowerCase() === cleanBelanja.toLowerCase() &&
-        a.tahun === rowTahun
+        isCodeEqual(a.kodeBelanja, cleanBelanja) && Number(a.tahun) === rowTahun
       ) || anggaranList.find(a =>
-        a.kodeBelanja.trim().toLowerCase() === cleanBelanja.toLowerCase()
+        isCodeEqual(a.kodeBelanja, cleanBelanja)
       );
 
       const finalBelanja = cleanBelanja || angMatch?.kodeBelanja || '5.1.02.01.01.0024';
       const finalSub = cleanSub || angMatch?.kodeSub || '5.01.01.2.01.01';
       const finalKeg = cleanKeg || angMatch?.kodeKegiatan || '5.01.01.2.01';
       const finalProg = cleanProg || angMatch?.kodeProgram || '5.01.01';
+      const sp2dStr = (row.sp2d || '').trim();
+
+      const key = makeRealisasiCompositeKey(sp2dStr, finalBelanja, finalSub, row.nilai, row.uraian);
+
+      if (key && existingKeys.has(key)) {
+        duplicateCount++;
+        errors.push(`Baris ${index + 1}: Data Realisasi SP2D "${sp2dStr}" (${finalBelanja}) sudah ada (Duplikat).`);
+        return;
+      }
+
+      const parsedDate = parseExcelDate(row.tanggal, rowTahun);
 
       newRealisasiItems.push({
         id: `REAL-${rowTahun}-${Date.now()}-${index}`,
-        tanggal: row.tanggal || new Date().toISOString().split('T')[0],
-        bulan: month || 1,
-        tahun: rowTahun,
+        tanggal: parsedDate.isoDate,
+        bulan: parsedDate.month,
+        tahun: parsedDate.year || rowTahun,
         kodeProgram: finalProg,
         kodeKegiatan: finalKeg,
         kodeSub: finalSub,
         kodeBelanja: finalBelanja,
         nilai: row.nilai,
-        noSP2D: (row.sp2d || '').trim(),
-        noSPM: (row.spm || row.sp2d?.replace('SP2D', 'SPM') || '').trim(),
+        noSP2D: sp2dStr || `SP2D-${rowTahun}-${index + 1}`,
+        noSPM: (row.spm || sp2dStr.replace('SP2D', 'SPM') || `SPM-${rowTahun}-${index + 1}`).trim(),
         uraian: row.uraian || 'Import Excel Realisasi',
         rekanan: row.rekanan || 'Rekanan Penyedia NTB',
         operator: currentUser.nama,
         statusValidation: 'Disetujui PPK'
       });
 
-      existingSP2Ds.add(row.sp2d);
+      if (key) {
+        existingKeys.add(key);
+      }
       successCount++;
     });
 

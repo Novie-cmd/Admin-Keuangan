@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import * as XLSX from 'xlsx';
-import { extractCode, findRowValueByKeys } from '../../utils/codeUtils';
+import {
+  extractCode,
+  findRowValueByKeys,
+  parseNumber,
+  parseExcelDate,
+  makeRealisasiCompositeKey
+} from '../../utils/codeUtils';
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -43,8 +49,12 @@ export const UploadExcelView: React.FC = () => {
     errors: string[];
   } | null>(null);
 
-  // Existing SP2Ds for instant duplicate detection in preview
-  const existingSP2DSet = new Set(realisasiList.map(r => r.noSP2D.trim().toLowerCase()));
+  // Existing composite keys for instant duplicate detection in preview
+  const existingKeySet = new Set(
+    realisasiList.map(r =>
+      makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+    )
+  );
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,44 +73,7 @@ export const UploadExcelView: React.FC = () => {
         const worksheet = workbook.Sheets[firstSheetName];
 
         const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet);
-
-        const parseNumber = (val: any): number => {
-          if (typeof val === 'number') return isNaN(val) ? 0 : val;
-          if (val === undefined || val === null) return 0;
-          let s = String(val).trim();
-          if (!s) return 0;
-
-          s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
-
-          if (s.includes('.') && s.includes(',')) {
-            if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
-              s = s.replace(/\./g, '').replace(',', '.');
-            } else {
-              s = s.replace(/,/g, '');
-            }
-          } else if (s.includes('.')) {
-            const parts = s.split('.');
-            if (parts.length > 2) {
-              s = s.replace(/\./g, '');
-            } else if (parts.length === 2 && parts[1].length === 3) {
-              s = s.replace(/\./g, '');
-            }
-          } else if (s.includes(',')) {
-            const parts = s.split(',');
-            if (parts.length > 2) {
-              s = s.replace(/,/g, '');
-            } else if (parts.length === 2) {
-              if (parts[1].length === 3) {
-                s = s.replace(/,/g, '');
-              } else {
-                s = s.replace(',', '.');
-              }
-            }
-          }
-
-          const num = parseFloat(s);
-          return isNaN(num) ? 0 : num;
-        };
+        const seenBatchKeys = new Set<string>();
 
         // Parse and validate rows
         const parsedRows: PreviewRow[] = jsonRows.map((row, index) => {
@@ -122,14 +95,18 @@ export const UploadExcelView: React.FC = () => {
           const nilai = parseNumber(nilaiRaw);
           const uraian = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi']) || 'Realisasi Import Excel';
           const rekanan = findRowValueByKeys(row, ['rekanan', 'penyedia', 'pihakketiga']) || 'PT Bank NTB Syariah';
-          const tanggal = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']) || new Date().toISOString().split('T')[0];
+          const tanggalRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']);
+          const parsedDate = parseExcelDate(tanggalRaw, thn);
 
-          const isDup = sp2d ? existingSP2DSet.has(sp2d.trim().toLowerCase()) : false;
+          const key = makeRealisasiCompositeKey(sp2d, bel, sub, nilai, uraian);
+          const isDup = key ? (existingKeySet.has(key) || seenBatchKeys.has(key)) : false;
+          if (key && !isDup) {
+            seenBatchKeys.add(key);
+          }
 
           let err = '';
-          if (!sp2d) err = 'Nomor SP2D kosong.';
-          else if (nilai <= 0) err = 'Nilai realisasi harus > 0.';
-          else if (isDup) err = 'Nomor SP2D sudah terdaftar di sistem (Duplikat).';
+          if (nilai <= 0) err = 'Nilai realisasi harus > 0.';
+          else if (isDup) err = 'Data Realisasi ini duplikat dengan database/file ini.';
 
           return {
             rowNum: index + 1,
@@ -138,11 +115,11 @@ export const UploadExcelView: React.FC = () => {
             kegiatan: keg,
             sub,
             belanja: bel,
-            sp2d,
+            sp2d: sp2d || `SP2D-${thn}-${index + 1}`,
             nilai,
             uraian,
             rekanan,
-            tanggal,
+            tanggal: parsedDate.isoDate,
             isValid: !err,
             isDuplicate: isDup,
             validationError: err
