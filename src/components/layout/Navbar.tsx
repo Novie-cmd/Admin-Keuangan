@@ -58,11 +58,13 @@ export const Navbar: React.FC<{
         </button>
 
         <div className="flex items-center gap-3">
-          {opd?.logoUrl ? (
-            <img src={opd.logoUrl} alt="Logo NTB" className="h-11 w-11 object-contain rounded-xl bg-slate-950/80 p-1 border border-emerald-500/40 shadow-md" />
-          ) : (
-            <NTBLogo size={42} />
-          )}
+          <div className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-slate-950 p-0.5 border border-emerald-500/50 shadow-md overflow-hidden">
+            {opd?.logoUrl ? (
+              <img src={opd.logoUrl} alt="Logo NTB" className="h-full w-full object-cover rounded-lg" />
+            ) : (
+              <NTBLogo className="h-full w-full" />
+            )}
+          </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="rounded bg-emerald-800/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-200 ring-1 ring-emerald-500/30">

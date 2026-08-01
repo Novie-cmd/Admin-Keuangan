@@ -155,15 +155,17 @@ export const Dashboard: React.FC = () => {
         
         <div className="relative z-10 flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div className="flex items-center gap-5">
-            {opd?.logoUrl ? (
-              <img
-                src={opd.logoUrl}
-                alt="Logo NTB"
-                className="h-16 w-16 object-contain rounded-2xl bg-slate-950 p-1.5 border border-emerald-500/40 shadow-lg flex-shrink-0"
-              />
-            ) : (
-              <NTBLogo size={64} className="shadow-lg flex-shrink-0" />
-            )}
+            <div className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-950 p-0.5 border border-emerald-500/50 shadow-xl overflow-hidden">
+              {opd?.logoUrl ? (
+                <img
+                  src={opd.logoUrl}
+                  alt="Logo NTB"
+                  className="h-full w-full object-cover rounded-xl"
+                />
+              ) : (
+                <NTBLogo className="h-full w-full" />
+              )}
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="rounded-full bg-emerald-800/80 px-3 py-1 text-[11px] font-bold text-emerald-200 ring-1 ring-emerald-500/30">

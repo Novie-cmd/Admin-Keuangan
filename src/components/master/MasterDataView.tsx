@@ -882,17 +882,17 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                     <div className="flex items-start justify-between gap-4 border-b border-slate-800 pb-4">
                       <div className="flex items-center gap-4">
                         <div className="relative group flex-shrink-0">
-                          {item.logoUrl ? (
-                            <img
-                              src={item.logoUrl}
-                              alt="Logo NTB"
-                              className="h-16 w-16 object-contain rounded-2xl bg-slate-950 p-2 border border-emerald-500/30 shadow-inner"
-                            />
-                          ) : (
-                            <div className="p-1 rounded-2xl bg-slate-950 border border-emerald-500/30">
-                              <NTBLogo size={52} />
-                            </div>
-                          )}
+                          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-950 p-0.5 border border-emerald-500/40 shadow-inner overflow-hidden">
+                            {item.logoUrl ? (
+                              <img
+                                src={item.logoUrl}
+                                alt="Logo NTB"
+                                className="h-full w-full object-cover rounded-xl"
+                              />
+                            ) : (
+                              <NTBLogo className="h-full w-full" />
+                            )}
+                          </div>
 
                           {!isReadonly && (
                             <label
@@ -1811,17 +1811,17 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
               <div className="rounded-xl border border-slate-800 bg-slate-950 p-3 space-y-2">
                 <label className="font-bold text-slate-300 block">Logo Resmi Provinsi NTB:</label>
                 <div className="flex items-center gap-3">
-                  {editingOpd.logoUrl ? (
-                    <img
-                      src={editingOpd.logoUrl}
-                      alt="Preview Logo"
-                      className="h-12 w-12 object-contain rounded-xl bg-slate-900 p-1 border border-emerald-500/30"
-                    />
-                  ) : (
-                    <div className="p-1 rounded-xl bg-slate-900 border border-emerald-500/30">
-                      <NTBLogo size={40} />
-                    </div>
-                  )}
+                  <div className="relative flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-slate-900 p-0.5 border border-emerald-500/30 overflow-hidden">
+                    {editingOpd.logoUrl ? (
+                      <img
+                        src={editingOpd.logoUrl}
+                        alt="Preview Logo"
+                        className="h-full w-full object-cover rounded-lg"
+                      />
+                    ) : (
+                      <NTBLogo className="h-full w-full" />
+                    )}
+                  </div>
 
                   <label className="flex items-center gap-1.5 cursor-pointer rounded-xl bg-emerald-950 hover:bg-emerald-900 border border-emerald-700 px-3 py-2 font-bold text-emerald-300">
                     <Upload className="h-4 w-4" />

@@ -4,6 +4,7 @@ import { isCodeEqual } from '../../utils/codeUtils';
 import { NTBLogo } from '../common/NTBLogo';
 import * as XLSX from 'xlsx';
 import { safeDownloadExcel } from '../../utils/downloadHelper';
+import { Realisasi, Belanja, SubKegiatan } from '../../types';
 import {
   FileText,
   Printer,
@@ -15,7 +16,10 @@ import {
   Layers,
   Building2,
   ChevronDown,
-  Check
+  Check,
+  X,
+  Eye,
+  Info
 } from 'lucide-react';
 
 interface SubKegiatanComboboxProps {
@@ -294,6 +298,221 @@ const BelanjaCombobox: React.FC<BelanjaComboboxProps> = ({
   );
 };
 
+interface RealisasiDetailFilter {
+  title: string;
+  subtitle?: string;
+  kodeSub?: string;
+  kodeBelanja?: string;
+  kodeKegiatan?: string;
+  kodeProgram?: string;
+}
+
+interface RealisasiDetailModalProps {
+  filter: RealisasiDetailFilter;
+  onClose: () => void;
+  currentRealisasi: Realisasi[];
+  belanjaList: Belanja[];
+  subKegiatanList: SubKegiatan[];
+  selectedTahun: number;
+}
+
+const RealisasiDetailModal: React.FC<RealisasiDetailModalProps> = ({
+  filter,
+  onClose,
+  currentRealisasi,
+  belanjaList,
+  subKegiatanList,
+  selectedTahun
+}) => {
+  const [modalSearch, setModalSearch] = useState('');
+
+  const matchingRealisasi = currentRealisasi.filter(r => {
+    if (filter.kodeSub && !isCodeEqual(r.kodeSub, filter.kodeSub)) return false;
+    if (filter.kodeBelanja && !isCodeEqual(r.kodeBelanja, filter.kodeBelanja)) return false;
+    if (filter.kodeKegiatan && !isCodeEqual(r.kodeKegiatan, filter.kodeKegiatan)) return false;
+    if (filter.kodeProgram && !isCodeEqual(r.kodeProgram, filter.kodeProgram)) return false;
+    return true;
+  });
+
+  const searchedRealisasi = matchingRealisasi.filter(r => {
+    if (!modalSearch.trim()) return true;
+    const q = modalSearch.toLowerCase();
+    const bObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, r.kodeBelanja));
+    const namaBel = bObj?.namaBelanja || '';
+    const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, r.kodeSub));
+    const namaSub = sObj?.namaSub || '';
+    return (
+      (r.uraian && r.uraian.toLowerCase().includes(q)) ||
+      (r.noSP2D && r.noSP2D.toLowerCase().includes(q)) ||
+      (r.noSPM && r.noSPM.toLowerCase().includes(q)) ||
+      (r.rekanan && r.rekanan.toLowerCase().includes(q)) ||
+      r.kodeBelanja.toLowerCase().includes(q) ||
+      namaBel.toLowerCase().includes(q) ||
+      r.kodeSub.toLowerCase().includes(q) ||
+      namaSub.toLowerCase().includes(q)
+    );
+  });
+
+  const totalNilaiModal = searchedRealisasi.reduce((s, r) => s + r.nilai, 0);
+
+  const exportModalExcel = () => {
+    const rows = searchedRealisasi.map((r, idx) => {
+      const bObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, r.kodeBelanja));
+      const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, r.kodeSub));
+      return {
+        'No': idx + 1,
+        'Tanggal SP2D': r.tanggal,
+        'Nomor SP2D': r.noSP2D,
+        'Nomor SPM': r.noSPM || '-',
+        'Kode Sub Kegiatan': r.kodeSub,
+        'Nama Sub Kegiatan': sObj?.namaSub || r.kodeSub,
+        'Kode Belanja': r.kodeBelanja,
+        'Nama Rekening Belanja': bObj?.namaBelanja || `Belanja ${r.kodeBelanja}`,
+        'Uraian Realisasi': r.uraian || '-',
+        'Rekanan / Penyedia': r.rekanan || '-',
+        'Nilai Realisasi (Rp)': r.nilai
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Uraian_Realisasi');
+    safeDownloadExcel(wb, `Rincian_Uraian_Realisasi_${selectedTahun}.xlsx`);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-3xl border border-slate-700 bg-slate-900 shadow-2xl overflow-hidden text-slate-100">
+        {/* Header */}
+        <div className="flex items-start justify-between border-b border-slate-800 p-5 bg-slate-950">
+          <div className="space-y-1 pr-6">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                Rincian Uraian Realisasi
+              </span>
+              <span className="text-xs font-semibold text-slate-400">TA {selectedTahun}</span>
+            </div>
+            <h2 className="text-lg font-bold text-white leading-tight">
+              {filter.title}
+            </h2>
+            {filter.subtitle && (
+              <p className="text-xs text-amber-400 font-semibold">
+                {filter.subtitle}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Search & Actions Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-slate-900/90 border-b border-slate-800">
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={modalSearch}
+              onChange={e => setModalSearch(e.target.value)}
+              placeholder="Cari uraian belanja, No SP2D, rekanan..."
+              className="w-full bg-slate-950 text-white rounded-xl pl-9 pr-3 py-2 text-xs border border-slate-700 focus:outline-none focus:border-amber-500 placeholder:text-slate-500"
+            />
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <span className="text-xs text-slate-400 font-semibold">
+              Ditemukan: <strong className="text-emerald-400 font-mono">{searchedRealisasi.length}</strong> transaksi
+            </span>
+            <button
+              onClick={exportModalExcel}
+              disabled={searchedRealisasi.length === 0}
+              className="flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-bold text-emerald-400 border border-slate-700 disabled:opacity-50 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Ekspor Excel</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Table */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+          {searchedRealisasi.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 space-y-2">
+              <FileText className="h-10 w-10 text-slate-600 mx-auto" />
+              <p className="font-semibold text-sm">Tidak ada data realisasi yang ditemukan.</p>
+              <p className="text-xs text-slate-500">Coba gunakan kata kunci pencarian yang berbeda.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-900 text-slate-300 font-bold uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="p-3 text-center w-10">No</th>
+                    <th className="p-3 min-w-[130px]">Tanggal & SP2D</th>
+                    <th className="p-3 min-w-[180px]">Rekening Belanja</th>
+                    <th className="p-3 min-w-[280px]">Uraian Realisasi Belanja</th>
+                    <th className="p-3 min-w-[140px]">Penyedia / Rekanan</th>
+                    <th className="p-3 text-right min-w-[130px]">Nilai SP2D (Rp)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {searchedRealisasi.map((item, idx) => {
+                    const bObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, item.kodeBelanja));
+                    return (
+                      <tr key={item.id || idx} className="hover:bg-slate-900/80 transition-colors">
+                        <td className="p-3 text-center text-slate-500 font-mono">{idx + 1}</td>
+                        <td className="p-3 space-y-0.5">
+                          <div className="font-semibold text-white">{item.tanggal}</div>
+                          <div className="font-mono text-[11px] text-amber-400 font-bold">{item.noSP2D}</div>
+                          {item.noSPM && (
+                            <div className="text-[10px] text-slate-400 font-mono">SPM: {item.noSPM}</div>
+                          )}
+                        </td>
+                        <td className="p-3 space-y-0.5">
+                          <div className="font-mono font-bold text-emerald-400 text-[11px]">{item.kodeBelanja}</div>
+                          <div className="text-slate-300 text-[11px] font-medium leading-tight">
+                            {bObj?.namaBelanja || `Belanja ${item.kodeBelanja}`}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-2.5 text-slate-100 text-xs font-normal leading-relaxed break-words shadow-inner">
+                            {item.uraian || '-'}
+                          </div>
+                        </td>
+                        <td className="p-3 font-medium text-slate-300 text-xs">
+                          {item.rekanan || '-'}
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold text-emerald-400 text-xs whitespace-nowrap">
+                          Rp {item.nilai.toLocaleString('id-ID')}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-slate-800 p-4 bg-slate-950 text-xs">
+          <span className="text-slate-400 font-semibold">
+            Total Nilai Realisasi Rincian:
+          </span>
+          <div className="text-right">
+            <span className="text-lg font-black font-mono text-emerald-400">
+              Rp {totalNilaiModal.toLocaleString('id-ID')}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface PelaporanViewProps {
   initialReportType?: string;
 }
@@ -314,6 +533,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<string>(initialReportType);
+  const [selectedRealisasiFilter, setSelectedRealisasiFilter] = useState<RealisasiDetailFilter | null>(null);
 
   React.useEffect(() => {
     if (initialReportType) {
@@ -858,21 +1078,31 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
         ))}
       </div>
 
+      {/* Tip Banner for Interactive Realisasi Click */}
+      <div className="print:hidden flex items-center justify-between gap-2 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl px-4 py-2.5 text-xs text-emerald-300">
+        <div className="flex items-center gap-2">
+          <Info className="h-4 w-4 text-emerald-400 shrink-0" />
+          <span>Petunjuk: Klik pada nilai <strong className="text-emerald-200">Realisasi SP2D (Rp)</strong> pada tabel untuk menampilkan rincian <strong>Uraian Belanja</strong> dari transaksi tersebut.</span>
+        </div>
+      </div>
+
       {/* REPORT CANVAS SHEET FOR PRINT & DISPLAY */}
       <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-2xl text-slate-100 print:border-none print:p-0 print:bg-white print:text-slate-950">
         
         {/* OFFICIAL GOVERNMENT REPORT KOP SURAT / HEADER */}
         <div className="text-center border-b-2 border-slate-700 print:border-slate-900 pb-4 mb-6">
           <div className="flex justify-center mb-2">
-            {opd?.logoUrl ? (
-              <img
-                src={opd.logoUrl}
-                alt="Logo NTB"
-                className="h-14 w-14 object-contain rounded-xl bg-slate-950 print:bg-transparent p-1 border border-emerald-500/40 print:border-none shadow-md"
-              />
-            ) : (
-              <NTBLogo size={56} />
-            )}
+            <div className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-slate-950 print:bg-transparent p-0.5 border border-emerald-500/40 print:border-none shadow-md overflow-hidden">
+              {opd?.logoUrl ? (
+                <img
+                  src={opd.logoUrl}
+                  alt="Logo NTB"
+                  className="h-full w-full object-cover rounded-lg"
+                />
+              ) : (
+                <NTBLogo className="h-full w-full" />
+              )}
+            </div>
           </div>
           <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 print:text-slate-700">
             PEMERINTAH PROVINSI NUSA TENGGARA BARAT
@@ -915,8 +1145,19 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                       <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
-                        Rp {r.realisasi.toLocaleString('id-ID')}
+                      <td
+                        onClick={() => setSelectedRealisasiFilter({
+                          title: `Rincian Uraian Realisasi Program`,
+                          subtitle: `${r.kode} - ${r.nama}`,
+                          kodeProgram: r.kode
+                        })}
+                        className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                        title="Klik untuk melihat rincian uraian realisasi"
+                      >
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                          <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                        </span>
                       </td>
                       <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
                         Rp {r.sisa.toLocaleString('id-ID')}
@@ -985,8 +1226,19 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                       <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
                       <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
-                      <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
-                        Rp {r.realisasi.toLocaleString('id-ID')}
+                      <td
+                        onClick={() => setSelectedRealisasiFilter({
+                          title: `Rincian Uraian Realisasi Kegiatan`,
+                          subtitle: `${r.kodeKeg} - ${r.namaKeg}`,
+                          kodeKegiatan: r.kodeKeg
+                        })}
+                        className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                        title="Klik untuk melihat rincian uraian realisasi"
+                      >
+                        <span className="inline-flex items-center gap-1 justify-end">
+                          <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                          <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                        </span>
                       </td>
                       <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
                         Rp {r.sisa.toLocaleString('id-ID')}
@@ -1093,8 +1345,22 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                         <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
                         <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
                         <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
-                          Rp {r.realisasi.toLocaleString('id-ID')}
+                        <td
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedRealisasiFilter({
+                              title: `Rincian Uraian Realisasi Sub-Kegiatan`,
+                              subtitle: `${r.kodeSub} - ${r.namaSub}`,
+                              kodeSub: r.kodeSub
+                            });
+                          }}
+                          className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                          title="Klik untuk melihat rincian uraian realisasi belanja"
+                        >
+                          <span className="inline-flex items-center gap-1 justify-end">
+                            <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                            <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                          </span>
                         </td>
                         <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
                           Rp {r.sisa.toLocaleString('id-ID')}
@@ -1164,8 +1430,22 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                           <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
                           <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
                           <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
-                          <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
-                            Rp {r.realisasi.toLocaleString('id-ID')}
+                          <td
+                            onClick={() => {
+                              setSelectedRealisasiFilter({
+                                title: `Rincian Uraian Realisasi Belanja`,
+                                subtitle: `Sub Kegiatan: ${selectedSubDetail?.namaSub || filterSelectedSub} (${filterSelectedSub}) | Rekening: ${r.namaBelanja} (${r.kodeBelanja})`,
+                                kodeSub: filterSelectedSub,
+                                kodeBelanja: r.kodeBelanja
+                              });
+                            }}
+                            className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                            title="Klik untuk melihat rincian uraian realisasi belanja"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-end">
+                              <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                              <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                            </span>
                           </td>
                           <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
                             Rp {r.sisa.toLocaleString('id-ID')}
@@ -1274,8 +1554,22 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                         <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
                         <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
                         <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
-                        <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
-                          Rp {r.realisasi.toLocaleString('id-ID')}
+                        <td
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedRealisasiFilter({
+                              title: `Rincian Uraian Realisasi Rekening Belanja`,
+                              subtitle: `${r.kode} - ${r.nama}`,
+                              kodeBelanja: r.kode
+                            });
+                          }}
+                          className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                          title="Klik untuk melihat rincian uraian realisasi belanja"
+                        >
+                          <span className="inline-flex items-center gap-1 justify-end">
+                            <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                            <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                          </span>
                         </td>
                         <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
                           Rp {r.sisa.toLocaleString('id-ID')}
@@ -1343,8 +1637,22 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                           <td className="p-3 text-right font-mono text-amber-400/80 print:text-slate-800">Rp {r.revisi.toLocaleString('id-ID')}</td>
                           <td className="p-3 text-right font-mono text-blue-300 print:text-slate-800">Rp {r.nilaiSPD.toLocaleString('id-ID')}</td>
                           <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">Rp {r.paguAkhir.toLocaleString('id-ID')}</td>
-                          <td className="p-3 text-right font-mono text-emerald-400 print:text-slate-900 font-bold">
-                            Rp {r.realisasi.toLocaleString('id-ID')}
+                          <td
+                            onClick={() => {
+                              setSelectedRealisasiFilter({
+                                title: `Rincian Uraian Realisasi Belanja Sub-Kegiatan`,
+                                subtitle: `Rekening: ${selectedBelanjaDetail?.namaBelanja || filterSelectedBelanja} (${filterSelectedBelanja}) | Sub Kegiatan: ${r.namaSub} (${r.kodeSub})`,
+                                kodeBelanja: filterSelectedBelanja,
+                                kodeSub: r.kodeSub
+                              });
+                            }}
+                            className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                            title="Klik untuk melihat rincian uraian realisasi belanja"
+                          >
+                            <span className="inline-flex items-center gap-1 justify-end">
+                              <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                              <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                            </span>
                           </td>
                           <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
                             Rp {r.sisa.toLocaleString('id-ID')}
@@ -1467,6 +1775,18 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* MODAL BREAKDOWN DETAIL URAIAN REALISASI */}
+      {selectedRealisasiFilter && (
+        <RealisasiDetailModal
+          filter={selectedRealisasiFilter}
+          onClose={() => setSelectedRealisasiFilter(null)}
+          currentRealisasi={currentRealisasi}
+          belanjaList={belanjaList}
+          subKegiatanList={subKegiatanList}
+          selectedTahun={selectedTahun}
+        />
+      )}
     </div>
   );
 };
