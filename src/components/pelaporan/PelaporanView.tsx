@@ -19,7 +19,8 @@ import {
   Check,
   X,
   Eye,
-  Info
+  Info,
+  Sparkles
 } from 'lucide-react';
 
 interface SubKegiatanComboboxProps {
@@ -409,31 +410,65 @@ const RealisasiDetailModal: React.FC<RealisasiDetailModalProps> = ({
           </button>
         </div>
 
-        {/* Search & Actions Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 bg-slate-900/90 border-b border-slate-800">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              value={modalSearch}
-              onChange={e => setModalSearch(e.target.value)}
-              placeholder="Cari uraian belanja, No SP2D, rekanan..."
-              className="w-full bg-slate-950 text-white rounded-xl pl-9 pr-3 py-2 text-xs border border-slate-700 focus:outline-none focus:border-amber-500 placeholder:text-slate-500"
-            />
-          </div>
+        {/* Search & Stat Summary Bar */}
+        <div className="flex flex-col gap-3 p-4 bg-slate-900/90 border-b border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Stat Card 1: Jumlah Transaksi */}
+            <div className="flex items-center gap-3 rounded-2xl bg-slate-950 p-3 border border-emerald-500/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jumlah Transaksi</span>
+                <div className="text-lg font-black font-mono text-emerald-400">
+                  {searchedRealisasi.length} <span className="text-xs font-normal text-slate-300">Transaksi SP2D</span>
+                </div>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-            <span className="text-xs text-slate-400 font-semibold">
-              Ditemukan: <strong className="text-emerald-400 font-mono">{searchedRealisasi.length}</strong> transaksi
-            </span>
-            <button
-              onClick={exportModalExcel}
-              disabled={searchedRealisasi.length === 0}
-              className="flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-xs font-bold text-emerald-400 border border-slate-700 disabled:opacity-50 transition-colors"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span>Ekspor Excel</span>
-            </button>
+            {/* Stat Card 2: Total Nilai Realisasi */}
+            <div className="flex items-center gap-3 rounded-2xl bg-slate-950 p-3 border border-emerald-500/30">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Nilai Realisasi</span>
+                <div className="text-lg font-black font-mono text-amber-400">
+                  Rp {totalNilaiModal.toLocaleString('id-ID')}
+                </div>
+              </div>
+            </div>
+
+            {/* Stat Card 3: Pencarian Uraian */}
+            <div className="flex items-center gap-2 sm:col-span-2 lg:col-span-1">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={modalSearch}
+                  onChange={e => setModalSearch(e.target.value)}
+                  placeholder="Cari uraian, No SP2D, rekanan..."
+                  className="w-full bg-slate-950 text-white rounded-xl pl-9 pr-8 py-2.5 text-xs border border-slate-700 focus:outline-none focus:border-emerald-500 placeholder:text-slate-500"
+                />
+                {modalSearch && (
+                  <button
+                    onClick={() => setModalSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={exportModalExcel}
+                disabled={searchedRealisasi.length === 0}
+                className="flex items-center gap-1.5 shrink-0 rounded-xl bg-emerald-950 hover:bg-emerald-900 px-3 py-2 text-xs font-bold text-emerald-300 border border-emerald-700 disabled:opacity-50 transition-colors"
+                title="Ekspor daftar uraian ke Excel"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Excel</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -450,42 +485,52 @@ const RealisasiDetailModal: React.FC<RealisasiDetailModalProps> = ({
               <table className="w-full text-left text-xs border-collapse">
                 <thead className="bg-slate-900 text-slate-300 font-bold uppercase border-b border-slate-800">
                   <tr>
-                    <th className="p-3 text-center w-10">No</th>
-                    <th className="p-3 min-w-[130px]">Tanggal & SP2D</th>
-                    <th className="p-3 min-w-[180px]">Rekening Belanja</th>
-                    <th className="p-3 min-w-[280px]">Uraian Realisasi Belanja</th>
-                    <th className="p-3 min-w-[140px]">Penyedia / Rekanan</th>
-                    <th className="p-3 text-right min-w-[130px]">Nilai SP2D (Rp)</th>
+                    <th className="p-3 text-center w-12">No</th>
+                    <th className="p-3 min-w-[140px]">Tanggal & SP2D</th>
+                    <th className="p-3 min-w-[200px]">Sub Kegiatan & Rekening</th>
+                    <th className="p-3 min-w-[300px]">Uraian Realisasi Belanja</th>
+                    <th className="p-3 min-w-[150px]">Penyedia / Rekanan</th>
+                    <th className="p-3 text-right min-w-[140px]">Nilai SP2D (Rp)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60">
                   {searchedRealisasi.map((item, idx) => {
                     const bObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, item.kodeBelanja));
+                    const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, item.kodeSub));
                     return (
                       <tr key={item.id || idx} className="hover:bg-slate-900/80 transition-colors">
-                        <td className="p-3 text-center text-slate-500 font-mono">{idx + 1}</td>
-                        <td className="p-3 space-y-0.5">
+                        <td className="p-3 text-center text-slate-500 font-mono font-bold">{idx + 1}</td>
+                        <td className="p-3 space-y-1">
                           <div className="font-semibold text-white">{item.tanggal}</div>
                           <div className="font-mono text-[11px] text-amber-400 font-bold">{item.noSP2D}</div>
                           {item.noSPM && (
                             <div className="text-[10px] text-slate-400 font-mono">SPM: {item.noSPM}</div>
                           )}
                         </td>
-                        <td className="p-3 space-y-0.5">
-                          <div className="font-mono font-bold text-emerald-400 text-[11px]">{item.kodeBelanja}</div>
-                          <div className="text-slate-300 text-[11px] font-medium leading-tight">
-                            {bObj?.namaBelanja || `Belanja ${item.kodeBelanja}`}
+                        <td className="p-3 space-y-1">
+                          <div className="text-[11px] font-bold text-slate-200">
+                            {sObj?.namaSub || item.kodeSub}
+                          </div>
+                          <div className="font-mono text-[10px] text-slate-400">{item.kodeSub}</div>
+                          <div className="pt-1 flex items-center gap-1">
+                            <span className="font-mono font-bold text-emerald-400 text-[10px] bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-800/60">
+                              {item.kodeBelanja}
+                            </span>
+                            <span className="text-slate-300 text-[10px] truncate max-w-[160px]">
+                              {bObj?.namaBelanja || `Belanja ${item.kodeBelanja}`}
+                            </span>
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-2.5 text-slate-100 text-xs font-normal leading-relaxed break-words shadow-inner">
+                          <div className="bg-slate-900 border border-slate-800/80 rounded-xl p-3 text-slate-100 text-xs font-normal leading-relaxed break-words shadow-inner">
+                            <div className="text-[10px] font-bold uppercase text-slate-400 mb-1">Uraian Transaksi:</div>
                             {item.uraian || '-'}
                           </div>
                         </td>
                         <td className="p-3 font-medium text-slate-300 text-xs">
                           {item.rekanan || '-'}
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-emerald-400 text-xs whitespace-nowrap">
+                        <td className="p-3 text-right font-mono font-bold text-emerald-400 text-sm whitespace-nowrap bg-emerald-950/10">
                           Rp {item.nilai.toLocaleString('id-ID')}
                         </td>
                       </tr>
@@ -498,11 +543,15 @@ const RealisasiDetailModal: React.FC<RealisasiDetailModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t border-slate-800 p-4 bg-slate-950 text-xs">
-          <span className="text-slate-400 font-semibold">
-            Total Nilai Realisasi Rincian:
-          </span>
-          <div className="text-right">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-800 p-4 bg-slate-950 text-xs">
+          <div className="flex items-center gap-2 text-slate-300 font-semibold">
+            <span className="rounded-lg bg-emerald-950 border border-emerald-700/60 px-2.5 py-1 text-emerald-300 font-mono">
+              Total {searchedRealisasi.length} Transaksi
+            </span>
+            <span className="text-slate-400">Rincian Realisasi SP2D</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400 font-semibold">Total Nilai Realisasi:</span>
             <span className="text-lg font-black font-mono text-emerald-400">
               Rp {totalNilaiModal.toLocaleString('id-ID')}
             </span>
