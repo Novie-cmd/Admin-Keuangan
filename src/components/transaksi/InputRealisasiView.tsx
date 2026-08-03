@@ -408,7 +408,8 @@ export const InputRealisasiView: React.FC = () => {
         rekanan: r.rekanan,
         tanggal: r.tanggal
       })),
-      importedFileName || 'Import_Realisasi_SP2D.xlsx'
+      importedFileName || 'Import_Realisasi_SP2D.xlsx',
+      true
     );
 
     setImportSuccessMsg(

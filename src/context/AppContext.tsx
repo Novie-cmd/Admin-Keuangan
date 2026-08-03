@@ -448,9 +448,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearAnggaranDatabase = (tahun?: number) => {
-    if (tahun) {
-      setAnggaranList(prev => prev.filter(a => a.tahun !== tahun));
-      logActivity(`Kosongkan Database Pagu Anggaran TA ${tahun}`);
+    if (tahun !== undefined && tahun !== null) {
+      const targetTahun = Number(tahun);
+      setAnggaranList(prev => prev.filter(a => Number(a.tahun) !== targetTahun));
+      logActivity(`Kosongkan Database Pagu Anggaran TA ${targetTahun}`);
     } else {
       setAnggaranList([]);
       logActivity('Kosongkan Seluruh Database Pagu Anggaran');
@@ -594,9 +595,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearRealisasiDatabase = (tahun?: number) => {
-    if (tahun) {
-      setRealisasiList(prev => prev.filter(r => r.tahun !== tahun));
-      logActivity(`Kosongkan Database Realisasi SP2D TA ${tahun}`);
+    if (tahun !== undefined && tahun !== null) {
+      const targetTahun = Number(tahun);
+      setRealisasiList(prev => prev.filter(r => Number(r.tahun) !== targetTahun));
+      logActivity(`Kosongkan Database Realisasi SP2D TA ${targetTahun}`);
     } else {
       setRealisasiList([]);
       logActivity('Kosongkan Seluruh Database Realisasi SP2D');
@@ -633,81 +635,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       rekanan: string;
       tanggal: string;
     }[],
-    fileName: string
+    fileName: string,
+    overwriteExistingYear: boolean = false
   ) => {
     let successCount = 0;
     let duplicateCount = 0;
     const errors: string[] = [];
 
-    const existingKeys = new Set(
-      realisasiList.map(r =>
-        makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
-      )
-    );
-    const newRealisasiItems: Realisasi[] = [];
+    if (!importedRows || importedRows.length === 0) {
+      return { successCount: 0, duplicateCount: 0, errors: ['File tidak berisi data realisasi valid.'] };
+    }
 
-    importedRows.forEach((row, index) => {
-      if (!row.nilai || row.nilai <= 0) {
-        errors.push(`Baris ${index + 1}: Data Nilai (${row.nilai}) tidak valid (harus > 0).`);
-        return;
+    setRealisasiList(prev => {
+      let baseList = prev;
+
+      if (overwriteExistingYear) {
+        const targetYears = new Set(importedRows.map(r => Number(r.tahun) || Number(selectedTahun)));
+        baseList = prev.filter(r => !targetYears.has(Number(r.tahun)));
       }
 
-      const rowTahun = Number(row.tahun) || selectedTahun;
-      const cleanBelanja = extractCode(row.kodeBelanja);
-      const cleanSub = extractCode(row.kodeSub);
-      const cleanKeg = extractCode(row.kodeKegiatan);
-      const cleanProg = extractCode(row.kodeProgram);
-
-      // Auto lookup parent code structure from existing anggaranList or default
-      const angMatch = anggaranList.find(a =>
-        isCodeEqual(a.kodeBelanja, cleanBelanja) && Number(a.tahun) === rowTahun
-      ) || anggaranList.find(a =>
-        isCodeEqual(a.kodeBelanja, cleanBelanja)
+      const existingKeys = new Set(
+        baseList.map(r =>
+          makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+        )
       );
 
-      const finalBelanja = cleanBelanja || angMatch?.kodeBelanja || '5.1.02.01.01.0024';
-      const finalSub = cleanSub || angMatch?.kodeSub || '5.01.01.2.01.01';
-      const finalKeg = cleanKeg || angMatch?.kodeKegiatan || '5.01.01.2.01';
-      const finalProg = cleanProg || angMatch?.kodeProgram || '5.01.01';
-      const sp2dStr = (row.sp2d || '').trim();
+      const newRealisasiItems: Realisasi[] = [];
 
-      const key = makeRealisasiCompositeKey(sp2dStr, finalBelanja, finalSub, row.nilai, row.uraian);
+      importedRows.forEach((row, index) => {
+        if (!row.nilai || row.nilai <= 0) {
+          errors.push(`Baris ${index + 1}: Data Nilai (${row.nilai}) tidak valid (harus > 0).`);
+          return;
+        }
 
-      if (key && existingKeys.has(key)) {
-        duplicateCount++;
-        errors.push(`Baris ${index + 1}: Data Realisasi SP2D "${sp2dStr}" (${finalBelanja}) sudah ada (Duplikat).`);
-        return;
-      }
+        const rowTahun = Number(row.tahun) || Number(selectedTahun);
+        const cleanBelanja = extractCode(row.kodeBelanja);
+        const cleanSub = extractCode(row.kodeSub);
+        const cleanKeg = extractCode(row.kodeKegiatan);
+        const cleanProg = extractCode(row.kodeProgram);
 
-      const parsedDate = parseExcelDate(row.tanggal, rowTahun);
+        // Auto lookup parent code structure from existing anggaranList or default
+        const angMatch = anggaranList.find(a =>
+          isCodeEqual(a.kodeBelanja, cleanBelanja) && Number(a.tahun) === rowTahun
+        ) || anggaranList.find(a =>
+          isCodeEqual(a.kodeBelanja, cleanBelanja)
+        );
 
-      newRealisasiItems.push({
-        id: `REAL-${rowTahun}-${Date.now()}-${index}`,
-        tanggal: parsedDate.isoDate,
-        bulan: parsedDate.month,
-        tahun: parsedDate.year || rowTahun,
-        kodeProgram: finalProg,
-        kodeKegiatan: finalKeg,
-        kodeSub: finalSub,
-        kodeBelanja: finalBelanja,
-        nilai: row.nilai,
-        noSP2D: sp2dStr || `SP2D-${rowTahun}-${index + 1}`,
-        noSPM: (row.spm || sp2dStr.replace('SP2D', 'SPM') || `SPM-${rowTahun}-${index + 1}`).trim(),
-        uraian: row.uraian || 'Import Excel Realisasi',
-        rekanan: row.rekanan || 'Rekanan Penyedia NTB',
-        operator: currentUser.nama,
-        statusValidation: 'Disetujui PPK'
+        const finalBelanja = cleanBelanja || angMatch?.kodeBelanja || '5.1.02.01.01.0024';
+        const finalSub = cleanSub || angMatch?.kodeSub || '5.01.01.2.01.01';
+        const finalKeg = cleanKeg || angMatch?.kodeKegiatan || '5.01.01.2.01';
+        const finalProg = cleanProg || angMatch?.kodeProgram || '5.01.01';
+        const sp2dStr = (row.sp2d || '').trim();
+
+        const key = makeRealisasiCompositeKey(sp2dStr, finalBelanja, finalSub, row.nilai, row.uraian);
+
+        if (key && existingKeys.has(key)) {
+          duplicateCount++;
+          errors.push(`Baris ${index + 1}: Data Realisasi SP2D "${sp2dStr}" (${finalBelanja}) sudah ada (Duplikat).`);
+          return;
+        }
+
+        const parsedDate = parseExcelDate(row.tanggal, rowTahun);
+
+        newRealisasiItems.push({
+          id: `REAL-${rowTahun}-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`,
+          tanggal: parsedDate.isoDate,
+          bulan: parsedDate.month,
+          tahun: rowTahun,
+          kodeProgram: finalProg,
+          kodeKegiatan: finalKeg,
+          kodeSub: finalSub,
+          kodeBelanja: finalBelanja,
+          nilai: row.nilai,
+          noSP2D: sp2dStr || `SP2D-${rowTahun}-${index + 1}`,
+          noSPM: (row.spm || sp2dStr.replace('SP2D', 'SPM') || `SPM-${rowTahun}-${index + 1}`).trim(),
+          uraian: row.uraian || 'Import Excel Realisasi',
+          rekanan: row.rekanan || 'Rekanan Penyedia NTB',
+          operator: currentUser.nama,
+          statusValidation: 'Disetujui PPK'
+        });
+
+        if (key) {
+          existingKeys.add(key);
+        }
+        successCount++;
       });
 
-      if (key) {
-        existingKeys.add(key);
-      }
-      successCount++;
+      return [...newRealisasiItems, ...baseList];
     });
-
-    if (newRealisasiItems.length > 0) {
-      setRealisasiList(prev => [...newRealisasiItems, ...prev]);
-    }
 
     const importLogEntry: ImportLog = {
       id: `IMP-${Date.now()}`,
@@ -757,9 +772,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const clearProgramDatabase = (tahun?: number) => {
-    if (tahun) {
-      setPrograms(prev => prev.filter(p => p.tahun !== tahun));
-      logActivity(`Kosongkan Database Master Program TA ${tahun}`);
+    if (tahun !== undefined && tahun !== null) {
+      const targetTahun = Number(tahun);
+      setPrograms(prev => prev.filter(p => Number(p.tahun) !== targetTahun));
+      logActivity(`Kosongkan Database Master Program TA ${targetTahun}`);
     } else {
       setPrograms([]);
       logActivity('Kosongkan Seluruh Database Master Program');
@@ -777,14 +793,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteKegiatan = (kodeKegiatan: string, tahun: number) => {
-    setKegiatanList(prev => prev.filter(k => !(k.kodeKegiatan === kodeKegiatan && k.tahun === tahun)));
+    setKegiatanList(prev => prev.filter(k => !(k.kodeKegiatan === kodeKegiatan && Number(k.tahun) === Number(tahun))));
     logActivity(`Menghapus Kegiatan Master: ${kodeKegiatan}`);
   };
 
   const clearKegiatanDatabase = (tahun?: number) => {
-    if (tahun) {
-      setKegiatanList(prev => prev.filter(k => k.tahun !== tahun));
-      logActivity(`Kosongkan Database Master Kegiatan TA ${tahun}`);
+    if (tahun !== undefined && tahun !== null) {
+      const targetTahun = Number(tahun);
+      setKegiatanList(prev => prev.filter(k => Number(k.tahun) !== targetTahun));
+      logActivity(`Kosongkan Database Master Kegiatan TA ${targetTahun}`);
     } else {
       setKegiatanList([]);
       logActivity('Kosongkan Seluruh Database Master Kegiatan');
@@ -802,14 +819,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteSubKegiatan = (kodeSub: string, tahun: number) => {
-    setSubKegiatanList(prev => prev.filter(s => !(s.kodeSub === kodeSub && s.tahun === tahun)));
+    setSubKegiatanList(prev => prev.filter(s => !(s.kodeSub === kodeSub && Number(s.tahun) === Number(tahun))));
     logActivity(`Menghapus Sub Kegiatan Master: ${kodeSub}`);
   };
 
   const clearSubKegiatanDatabase = (tahun?: number) => {
-    if (tahun) {
-      setSubKegiatanList(prev => prev.filter(s => s.tahun !== tahun));
-      logActivity(`Kosongkan Database Master Sub Kegiatan TA ${tahun}`);
+    if (tahun !== undefined && tahun !== null) {
+      const targetTahun = Number(tahun);
+      setSubKegiatanList(prev => prev.filter(s => Number(s.tahun) !== targetTahun));
+      logActivity(`Kosongkan Database Master Sub Kegiatan TA ${targetTahun}`);
     } else {
       setSubKegiatanList([]);
       logActivity('Kosongkan Seluruh Database Master Sub Kegiatan');
@@ -827,14 +845,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteBelanja = (kodeBelanja: string, tahun?: number) => {
-    setBelanjaList(prev => prev.filter(b => !(b.kodeBelanja === kodeBelanja && (tahun ? b.tahun === tahun : true))));
+    setBelanjaList(prev => prev.filter(b => !(b.kodeBelanja === kodeBelanja && (tahun ? Number(b.tahun) === Number(tahun) : true))));
     logActivity(`Menghapus Belanja Master: ${kodeBelanja}`);
   };
 
   const clearBelanjaDatabase = (tahun?: number) => {
-    if (tahun) {
-      setBelanjaList(prev => prev.filter(b => b.tahun && b.tahun !== tahun));
-      logActivity(`Kosongkan Database Master Belanja Rekening TA ${tahun}`);
+    if (tahun !== undefined && tahun !== null) {
+      const targetTahun = Number(tahun);
+      setBelanjaList(prev => prev.filter(b => b.tahun && Number(b.tahun) !== targetTahun));
+      logActivity(`Kosongkan Database Master Belanja Rekening TA ${targetTahun}`);
     } else {
       setBelanjaList([]);
       logActivity('Kosongkan Seluruh Database Master Belanja Rekening');

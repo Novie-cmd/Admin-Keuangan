@@ -159,7 +159,7 @@ export const UploadExcelView: React.FC = () => {
       return;
     }
 
-    const res = batchImportExcel(validRows, fileName || 'Data_Import_Realisasi.xlsx');
+    const res = batchImportExcel(validRows, fileName || 'Data_Import_Realisasi.xlsx', true);
     setImportResult(res);
     setPreviewData([]);
   };
