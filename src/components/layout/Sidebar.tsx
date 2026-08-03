@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { PWAInstallModal } from '../common/PWAInstallModal';
 import {
   LayoutDashboard,
   Database,
@@ -24,7 +25,9 @@ import {
   Building2,
   FolderKanban,
   FileSearch,
-  BookOpen
+  BookOpen,
+  Smartphone,
+  Download
 } from 'lucide-react';
 
 export type ActiveTab =
@@ -81,6 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [openTransaksi, setOpenTransaksi] = useState(true);
   const [openPelaporan, setOpenPelaporan] = useState(true);
   const [openAnalisis, setOpenAnalisis] = useState(false);
+  const [showPwaModal, setShowPwaModal] = useState(false);
 
   // Auto-expand accordion when activeTab belongs to that category
   React.useEffect(() => {
@@ -106,15 +110,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar Header Brand Badge */}
       <div className="flex h-20 items-center justify-between border-b border-slate-800/80 px-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 font-bold text-white shadow-lg shadow-emerald-950/50">
-            <Building2 className="h-5 w-5" />
+          <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 border border-amber-500/50 shadow-lg shadow-red-950/40 overflow-hidden">
+            <img src="/app-logo.jpg" alt="Rusa Logo NTB" className="h-full w-full object-cover" />
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
-              BFMS ERP PORTAL
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+              BFMS NTB MAKMUR
             </span>
-            <span className="text-xs text-slate-400 font-medium">
-              NTB Province System
+            <span className="text-[10px] text-slate-400 font-medium">
+              BANGKIT BERSAMA!
             </span>
           </div>
         </div>
@@ -364,6 +368,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>Pengaturan & Audit</span>
           </button>
         )}
+
+        {/* PWA App Install Banner Card */}
+        <div className="mx-2 my-3 p-3.5 rounded-2xl bg-gradient-to-b from-slate-900 to-red-950/40 border border-amber-500/30 text-white shadow-xl relative overflow-hidden group">
+          <div className="flex items-center gap-3">
+            <div className="relative h-11 w-11 shrink-0 rounded-xl bg-slate-950 border border-amber-400/50 overflow-hidden shadow-md">
+              <img src="/app-logo.jpg" alt="Rusa Logo NTB" className="h-full w-full object-cover" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] font-black uppercase text-amber-400 truncate">
+                Instal Di HP & Laptop
+              </span>
+              <span className="text-xs font-bold text-white truncate">
+                Aplikasi Layar Utama
+              </span>
+              <span className="text-[9px] text-slate-300 font-medium">
+                PWA Fast Access
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowPwaModal(true)}
+            className="mt-2.5 w-full flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-red-600 to-amber-500 py-1.5 px-3 text-[11px] font-extrabold text-white shadow hover:brightness-110 transition active:scale-95"
+            id="btn-sidebar-pwa-install"
+          >
+            <Download className="h-3.5 w-3.5 text-amber-200" />
+            <span>Pasang Sekarang</span>
+          </button>
+        </div>
       </div>
 
       {/* User Session Footer & Quick Switch */}
@@ -388,6 +420,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
       </div>
+
+      <PWAInstallModal isOpen={showPwaModal} onClose={() => setShowPwaModal(false)} />
     </aside>
   );
 };

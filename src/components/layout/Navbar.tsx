@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { NTBLogo } from '../common/NTBLogo';
 import { UserRole } from '../../types';
+import { PWAInstallModal } from '../common/PWAInstallModal';
 import {
   Bell,
   Calendar,
@@ -13,7 +14,9 @@ import {
   AlertTriangle,
   Info,
   Layers,
-  Database
+  Database,
+  Download,
+  Smartphone
 } from 'lucide-react';
 
 export const Navbar: React.FC<{
@@ -35,6 +38,7 @@ export const Navbar: React.FC<{
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
+  const [showPwaModal, setShowPwaModal] = useState(false);
 
   const roles: UserRole[] = [
     'Administrator',
@@ -84,8 +88,23 @@ export const Navbar: React.FC<{
         </div>
       </div>
 
-      {/* Right Controls: Fiscal Year, Role Switcher, Google Sheet Sync, Notifications */}
+      {/* Right Controls: Install PWA App, Fiscal Year, Role Switcher, Google Sheet Sync, Notifications */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* PWA Install Button with Rusa NTB branding */}
+        <button
+          onClick={() => setShowPwaModal(true)}
+          className="flex items-center gap-1.5 rounded-xl border border-amber-500/50 bg-gradient-to-r from-red-950/80 via-slate-900 to-amber-950/80 px-2.5 sm:px-3 py-1.5 text-xs font-bold text-amber-300 hover:text-white hover:border-amber-400 hover:shadow-lg hover:shadow-red-900/30 transition-all group"
+          title="Instal / Tambah Aplikasi ke Layar Utama HP / Laptop"
+          id="btn-open-pwa-install"
+        >
+          <div className="relative flex h-5 w-5 items-center justify-center rounded-md bg-red-600 text-white font-black overflow-hidden shadow">
+            <img src="/app-logo.jpg" alt="Rusa Logo" className="h-full w-full object-cover" />
+          </div>
+          <span className="hidden sm:inline">Instal App</span>
+          <span className="inline sm:hidden">App</span>
+          <Download className="h-3.5 w-3.5 text-amber-400 group-hover:translate-y-0.5 transition-transform" />
+        </button>
+
         {/* Fiscal Year Dropdown (Multi Tahun Anggaran) */}
         <div className="relative flex items-center rounded-xl bg-slate-800/90 p-1.5 ring-1 ring-emerald-500/20 shadow-inner">
           <div className="flex items-center gap-1.5 px-2 text-xs font-semibold text-emerald-300">
@@ -255,6 +274,8 @@ export const Navbar: React.FC<{
           )}
         </div>
       </div>
+
+      <PWAInstallModal isOpen={showPwaModal} onClose={() => setShowPwaModal(false)} />
     </header>
   );
 };
