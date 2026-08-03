@@ -90,11 +90,11 @@ export const InputAnggaranView: React.FC = () => {
   const [sumberDana, setSumberDana] = useState('DAU');
 
   // Filtered master data based on selected year & cascading parents
-  const availablePrograms = programs.filter(p => !p.tahun || p.tahun === selectedTahun);
+  const availablePrograms = programs.filter(p => !p.tahun || Number(p.tahun) === Number(selectedTahun));
   const finalPrograms = availablePrograms.length > 0 ? availablePrograms : programs;
 
   const filteredKegiatan = kegiatanList.filter(
-    k => k.kodeProgram === kodeProgram && (!k.tahun || k.tahun === selectedTahun)
+    k => k.kodeProgram === kodeProgram && (!k.tahun || Number(k.tahun) === Number(selectedTahun))
   );
   const finalKegiatan =
     filteredKegiatan.length > 0
@@ -102,7 +102,7 @@ export const InputAnggaranView: React.FC = () => {
       : kegiatanList.filter(k => k.kodeProgram === kodeProgram);
 
   const filteredSub = subKegiatanList.filter(
-    s => s.kodeKegiatan === kodeKegiatan && (!s.tahun || s.tahun === selectedTahun)
+    s => s.kodeKegiatan === kodeKegiatan && (!s.tahun || Number(s.tahun) === Number(selectedTahun))
   );
   const finalSub =
     filteredSub.length > 0
@@ -473,7 +473,7 @@ export const InputAnggaranView: React.FC = () => {
     setNilaiSPD(100000000);
   };
 
-  const currentAnggaran = anggaranList.filter(a => a.tahun === selectedTahun);
+  const currentAnggaran = anggaranList.filter(a => Number(a.tahun) === Number(selectedTahun));
   const totalPaguMurni = currentAnggaran.reduce((s, a) => s + a.pagu, 0);
   const totalRevisi = currentAnggaran.reduce((s, a) => s + a.revisi, 0);
   const totalNilaiSPD = currentAnggaran.reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);

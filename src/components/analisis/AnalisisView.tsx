@@ -28,8 +28,8 @@ import {
 export const AnalisisView: React.FC = () => {
   const { selectedTahun, anggaranList, realisasiList, programs } = useApp();
 
-  const currentAnggaran = anggaranList.filter(a => a.tahun === selectedTahun);
-  const currentRealisasi = realisasiList.filter(r => r.tahun === selectedTahun);
+  const currentAnggaran = anggaranList.filter(a => Number(a.tahun) === Number(selectedTahun));
+  const currentRealisasi = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
 
   const totalPagu = currentAnggaran.reduce((s, a) => s + a.paguAkhir, 0);
   const totalReal = currentRealisasi.reduce((s, r) => s + r.nilai, 0);

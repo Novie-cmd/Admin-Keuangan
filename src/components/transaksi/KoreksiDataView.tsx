@@ -24,7 +24,7 @@ export const KoreksiDataView: React.FC = () => {
   const [catatan, setCatatan] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const currentList = realisasiList.filter(r => r.tahun === selectedTahun);
+  const currentList = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
 
   const isPPK = currentUser.role === 'PPK' || currentUser.role === 'Administrator';
 

@@ -51,9 +51,11 @@ export const UploadExcelView: React.FC = () => {
 
   // Existing composite keys for instant duplicate detection in preview
   const existingKeySet = new Set(
-    realisasiList.map(r =>
-      makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
-    )
+    realisasiList
+      .filter(r => Number(r.tahun) !== Number(selectedTahun))
+      .map(r =>
+        makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+      )
   );
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

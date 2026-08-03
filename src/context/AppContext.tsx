@@ -339,8 +339,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const notifs: SystemNotification[] = [];
 
     // Filter budget and realisasi for selected year
-    const currentAnggaran = anggaranList.filter(a => a.tahun === selectedTahun);
-    const currentRealisasi = realisasiList.filter(r => r.tahun === selectedTahun);
+    const currentAnggaran = anggaranList.filter(a => Number(a.tahun) === Number(selectedTahun));
+    const currentRealisasi = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
 
     // 1. Check if any budget items have 0 realization
     currentAnggaran.forEach(ang => {

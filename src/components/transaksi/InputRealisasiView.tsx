@@ -107,11 +107,11 @@ export const InputRealisasiView: React.FC = () => {
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
 
   // Filtered master data based on selected year & cascading parents
-  const availablePrograms = programs.filter(p => !p.tahun || p.tahun === selectedTahun);
+  const availablePrograms = programs.filter(p => !p.tahun || Number(p.tahun) === Number(selectedTahun));
   const finalPrograms = availablePrograms.length > 0 ? availablePrograms : programs;
 
   const filteredKegiatan = kegiatanList.filter(
-    k => k.kodeProgram === kodeProgram && (!k.tahun || k.tahun === selectedTahun)
+    k => k.kodeProgram === kodeProgram && (!k.tahun || Number(k.tahun) === Number(selectedTahun))
   );
   const finalKegiatan =
     filteredKegiatan.length > 0
@@ -119,7 +119,7 @@ export const InputRealisasiView: React.FC = () => {
       : kegiatanList.filter(k => k.kodeProgram === kodeProgram);
 
   const filteredSub = subKegiatanList.filter(
-    s => s.kodeKegiatan === kodeKegiatan && (!s.tahun || s.tahun === selectedTahun)
+    s => s.kodeKegiatan === kodeKegiatan && (!s.tahun || Number(s.tahun) === Number(selectedTahun))
   );
   const finalSub =
     filteredSub.length > 0
@@ -130,7 +130,7 @@ export const InputRealisasiView: React.FC = () => {
   const handleProgramChange = (progCode: string) => {
     setKodeProgram(progCode);
     const matchingKegs = kegiatanList.filter(
-      k => k.kodeProgram === progCode && (!k.tahun || k.tahun === selectedTahun)
+      k => k.kodeProgram === progCode && (!k.tahun || Number(k.tahun) === Number(selectedTahun))
     );
     const kegs = matchingKegs.length > 0 ? matchingKegs : kegiatanList.filter(k => k.kodeProgram === progCode);
 
@@ -138,7 +138,7 @@ export const InputRealisasiView: React.FC = () => {
       const firstKeg = kegs[0].kodeKegiatan;
       setKodeKegiatan(firstKeg);
       const matchingSubs = subKegiatanList.filter(
-        s => s.kodeKegiatan === firstKeg && (!s.tahun || s.tahun === selectedTahun)
+        s => s.kodeKegiatan === firstKeg && (!s.tahun || Number(s.tahun) === Number(selectedTahun))
       );
       const subs = matchingSubs.length > 0 ? matchingSubs : subKegiatanList.filter(s => s.kodeKegiatan === firstKeg);
       if (subs.length > 0) {
@@ -156,7 +156,7 @@ export const InputRealisasiView: React.FC = () => {
   const handleKegiatanChange = (kegCode: string) => {
     setKodeKegiatan(kegCode);
     const matchingSubs = subKegiatanList.filter(
-      s => s.kodeKegiatan === kegCode && (!s.tahun || s.tahun === selectedTahun)
+      s => s.kodeKegiatan === kegCode && (!s.tahun || Number(s.tahun) === Number(selectedTahun))
     );
     const subs = matchingSubs.length > 0 ? matchingSubs : subKegiatanList.filter(s => s.kodeKegiatan === kegCode);
     if (subs.length > 0) {
@@ -308,9 +308,11 @@ export const InputRealisasiView: React.FC = () => {
         }
 
         const existingKeys = new Set(
-          realisasiList.map(r =>
-            makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
-          )
+          realisasiList
+            .filter(r => Number(r.tahun) !== Number(selectedTahun))
+            .map(r =>
+              makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+            )
         );
         const seenBatchKeys = new Set<string>();
         const parsedRows: PreviewRealisasiRow[] = [];
@@ -430,10 +432,10 @@ export const InputRealisasiView: React.FC = () => {
     }
 
     // Validation 2: Check remaining budget
-    const angObj = anggaranList.find(a => a.kodeBelanja === kodeBelanja && a.tahun === selectedTahun);
+    const angObj = anggaranList.find(a => a.kodeBelanja === kodeBelanja && Number(a.tahun) === Number(selectedTahun));
     const paguAkhir = angObj ? angObj.paguAkhir : 0;
     const existingRealSum = realisasiList
-      .filter(r => r.kodeBelanja === kodeBelanja && r.tahun === selectedTahun)
+      .filter(r => r.kodeBelanja === kodeBelanja && Number(r.tahun) === Number(selectedTahun))
       .reduce((s, r) => s + r.nilai, 0);
 
     if (paguAkhir > 0 && existingRealSum + nilai > paguAkhir) {
@@ -473,7 +475,7 @@ export const InputRealisasiView: React.FC = () => {
     }
   };
 
-  const currentRealisasi = realisasiList.filter(r => r.tahun === selectedTahun);
+  const currentRealisasi = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
 
   return (
     <div className="space-y-6">

@@ -618,13 +618,13 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   const [filterSelectedSub, setFilterSelectedSub] = useState<string>('all');
   const [filterSelectedBelanja, setFilterSelectedBelanja] = useState<string>('all');
 
-  const currentAnggaran = anggaranList.filter(a => a.tahun === selectedTahun);
-  const currentRealisasi = realisasiList.filter(r => r.tahun === selectedTahun);
+  const currentAnggaran = anggaranList.filter(a => Number(a.tahun) === Number(selectedTahun));
+  const currentRealisasi = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
 
   // Helper calculation for Laporan Per Program (Syced with Input Anggaran Pagu & Realisasi)
   const allProgramKodes = Array.from(
     new Set([
-      ...programs.filter(p => p.tahun === selectedTahun).map(p => p.kodeProgram.trim()),
+      ...programs.filter(p => Number(p.tahun) === Number(selectedTahun)).map(p => p.kodeProgram.trim()),
       ...currentAnggaran.map(a => a.kodeProgram.trim()),
       ...currentRealisasi.map(r => r.kodeProgram.trim())
     ])
@@ -671,7 +671,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Helper calculation for Laporan Per Kegiatan
   const allKegiatanKodes = Array.from(
     new Set([
-      ...kegiatanList.filter(k => k.tahun === selectedTahun).map(k => k.kodeKegiatan.trim()),
+      ...kegiatanList.filter(k => Number(k.tahun) === Number(selectedTahun)).map(k => k.kodeKegiatan.trim()),
       ...currentAnggaran.map(a => a.kodeKegiatan.trim()),
       ...currentRealisasi.map(r => r.kodeKegiatan.trim())
     ])
@@ -719,7 +719,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Helper calculation for Laporan Per Sub Kegiatan
   const allSubKodes = Array.from(
     new Set([
-      ...subKegiatanList.filter(s => s.tahun === selectedTahun).map(s => s.kodeSub.trim()),
+      ...subKegiatanList.filter(s => Number(s.tahun) === Number(selectedTahun)).map(s => s.kodeSub.trim()),
       ...currentAnggaran.map(a => a.kodeSub.trim()),
       ...currentRealisasi.map(r => r.kodeSub.trim())
     ])
@@ -766,7 +766,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   // Options & calculation for detailed Rekening Belanja under selected Sub Kegiatan
   const availableSubKegiatanOptions = Array.from(
     new Set([
-      ...subKegiatanList.filter(s => s.tahun === selectedTahun).map(s => s.kodeSub.trim()),
+      ...subKegiatanList.filter(s => Number(s.tahun) === Number(selectedTahun)).map(s => s.kodeSub.trim()),
       ...currentAnggaran.map(a => a.kodeSub.trim()),
       ...currentRealisasi.map(r => r.kodeSub.trim())
     ])
