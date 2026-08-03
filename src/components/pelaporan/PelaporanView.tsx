@@ -1990,11 +1990,11 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                 <thead className="bg-slate-950 print:bg-slate-200 text-slate-300 print:text-slate-900 font-bold uppercase border-b border-slate-800">
                   <tr>
                     <th className="p-3 w-10 text-center">No</th>
-                    <th className="p-3 min-w-[200px]">Sub Kegiatan</th>
-                    <th className="p-3 min-w-[220px]">Rekening Belanja</th>
+                    <th className="p-3 min-w-[220px]">Sub Kegiatan (Nama & Kode)</th>
+                    <th className="p-3 min-w-[240px]">Rekening Belanja</th>
                     <th className="p-3 text-center">Sumber Dana</th>
-                    <th className="p-3 text-right">Pagu Akhir (Rp)</th>
-                    <th className="p-3 text-right">Realisasi SP2D (Rp)</th>
+                    <th className="p-3 text-right">Pagu Anggaran (Rp)</th>
+                    <th className="p-3 text-right">Realisasi (Rp)</th>
                     <th className="p-3 text-right">Nilai SiLPA / Sisa (Rp)</th>
                     <th className="p-3 text-center">% Serapan</th>
                     <th className="p-3 text-center min-w-[140px]">Status Eksekusi</th>
@@ -2013,12 +2013,16 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                       <tr key={r.id || `${r.kodeSub}-${r.kodeBelanja}-${idx}`} className="hover:bg-slate-800/40">
                         <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
                         <td className="p-3">
-                          <div className="font-mono text-[11px] font-bold text-teal-400 print:text-slate-900">{r.kodeSub}</div>
-                          <div className="text-white print:text-slate-900 font-medium line-clamp-2">{r.namaSub}</div>
+                          <div className="text-white print:text-slate-900 font-bold text-xs">{r.namaSub}</div>
+                          <div className="font-mono text-[11px] font-semibold text-teal-400 print:text-slate-700 mt-0.5">
+                            Kode: {r.kodeSub}
+                          </div>
                         </td>
                         <td className="p-3">
-                          <div className="font-mono text-[11px] font-bold text-amber-400 print:text-slate-900">{r.kodeBelanja}</div>
                           <div className="text-white print:text-slate-900 font-semibold line-clamp-2">{r.namaBelanja}</div>
+                          <div className="font-mono text-[11px] font-bold text-amber-400 print:text-slate-700 mt-0.5">
+                            Kode: {r.kodeBelanja}
+                          </div>
                         </td>
                         <td className="p-3 text-center">
                           <span className="inline-block px-2 py-0.5 rounded bg-slate-800 print:bg-slate-200 font-mono text-[10px] font-bold text-slate-300 print:text-slate-900">
@@ -2045,7 +2049,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                             <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
                           </span>
                         </td>
-                        <td className="p-3 text-right font-mono font-black text-rose-400 print:text-slate-900 bg-rose-950/20 print:bg-transparent">
+                        <td className="p-3 text-right font-mono font-black text-rose-400 print:text-slate-900 bg-rose-950/30 print:bg-transparent">
                           Rp {r.sisa.toLocaleString('id-ID')}
                         </td>
                         <td className="p-3 text-center font-bold text-slate-200 print:text-slate-900 font-mono">
