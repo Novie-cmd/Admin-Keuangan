@@ -52,6 +52,7 @@ export type ActiveTab =
   | 'laporan-triwulan'
   | 'laporan-semester'
   | 'laporan-tahunan'
+  | 'laporan-silpa'
   // Analisis
   | 'analisis-grafik'
   | 'analisis-target'
@@ -278,7 +279,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 { id: 'laporan-bulanan', label: 'Laporan Bulanan' },
                 { id: 'laporan-triwulan', label: 'Laporan Triwulan' },
                 { id: 'laporan-semester', label: 'Laporan Semester' },
-                { id: 'laporan-tahunan', label: 'Laporan Tahunan' }
+                { id: 'laporan-tahunan', label: 'Laporan Tahunan' },
+                { id: 'laporan-silpa', label: 'Detail Belanja SiLPA' }
               ].map(sub => (
                 <button
                   key={sub.id}

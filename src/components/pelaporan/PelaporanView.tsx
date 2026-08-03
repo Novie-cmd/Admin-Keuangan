@@ -20,7 +20,12 @@ import {
   X,
   Eye,
   Info,
-  Sparkles
+  Sparkles,
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  DollarSign
 } from 'lucide-react';
 
 interface SubKegiatanComboboxProps {
@@ -617,6 +622,8 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   const [filterBulan, setFilterBulan] = useState<number | 'all'>('all');
   const [filterSelectedSub, setFilterSelectedSub] = useState<string>('all');
   const [filterSelectedBelanja, setFilterSelectedBelanja] = useState<string>('all');
+  const [silpaFilterStatus, setSilpaFilterStatus] = useState<'all' | 'unexecuted' | 'partial' | 'full'>('all');
+  const [silpaSearchTerm, setSilpaSearchTerm] = useState<string>('');
 
   const currentAnggaran = anggaranList.filter(a => Number(a.tahun) === Number(selectedTahun));
   const currentRealisasi = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
@@ -931,12 +938,90 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     };
   });
 
+  // Calculation for Detail Belanja SiLPA (Tidak Tereksekusi)
+  const silpaReportData = currentAnggaran.map((ang, idx) => {
+    const subObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, ang.kodeSub));
+    const belObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, ang.kodeBelanja));
+
+    const totalReal = currentRealisasi
+      .filter(r => isCodeEqual(r.kodeBelanja, ang.kodeBelanja) && (isCodeEqual(r.kodeSub, ang.kodeSub) || !r.kodeSub))
+      .reduce((s, r) => s + r.nilai, 0);
+
+    const paguMurni = ang.pagu;
+    const revisi = ang.revisi;
+    const paguAkhir = ang.paguAkhir;
+    const sisa = paguAkhir - totalReal;
+    const persen = paguAkhir > 0 ? (totalReal / paguAkhir) * 100 : 0;
+
+    let status: 'unexecuted' | 'partial' | 'full' = 'full';
+    let statusText = 'Terserap Penuh';
+    if (totalReal === 0) {
+      status = 'unexecuted';
+      statusText = '100% Tidak Tereksekusi';
+    } else if (sisa > 0) {
+      status = 'partial';
+      statusText = 'Tereksekusi Sebagian';
+    }
+
+    return {
+      id: ang.id,
+      no: idx + 1,
+      kodeSub: ang.kodeSub,
+      namaSub: subObj?.namaSub || ang.namaSub || ang.kodeSub,
+      kodeBelanja: ang.kodeBelanja,
+      namaBelanja: belObj?.namaBelanja || ang.namaBelanja || ang.kodeBelanja,
+      sumberDana: ang.sumberDana || 'DAU',
+      paguMurni,
+      revisi,
+      paguAkhir,
+      realisasi: totalReal,
+      sisa,
+      persen,
+      status,
+      statusText,
+      kodeProgram: ang.kodeProgram,
+      kodeKegiatan: ang.kodeKegiatan
+    };
+  });
+
+  const filteredSilpaData = silpaReportData.filter(item => {
+    if (silpaFilterStatus === 'unexecuted' && item.status !== 'unexecuted') return false;
+    if (silpaFilterStatus === 'partial' && item.status !== 'partial') return false;
+    if (silpaFilterStatus === 'full' && item.status !== 'full') return false;
+    if (silpaFilterStatus === 'all' && item.sisa <= 0) return false;
+
+    if (silpaSearchTerm) {
+      const term = silpaSearchTerm.toLowerCase();
+      const matchSub = item.kodeSub.toLowerCase().includes(term) || item.namaSub.toLowerCase().includes(term);
+      const matchBel = item.kodeBelanja.toLowerCase().includes(term) || item.namaBelanja.toLowerCase().includes(term);
+      if (!matchSub && !matchBel) return false;
+    }
+
+    return true;
+  });
+
   // Helper Export Excel
   const exportToExcel = () => {
     let exportRows: any[] = [];
     let titleName = 'Laporan_Keuangan_BFMS_NTB';
 
-    if (activeTab === 'laporan-program') {
+    if (activeTab === 'laporan-silpa') {
+      titleName = `Detail_Belanja_SiLPA_NTB_${selectedTahun}`;
+      exportRows = filteredSilpaData.map(r => ({
+        'Kode Sub Kegiatan': r.kodeSub,
+        'Nama Sub Kegiatan': r.namaSub,
+        'Kode Rekening Belanja': r.kodeBelanja,
+        'Uraian Rekening Belanja': r.namaBelanja,
+        'Sumber Dana': r.sumberDana,
+        'Pagu Murni (Rp)': r.paguMurni,
+        'Pergeseran/Revisi (Rp)': r.revisi,
+        'Pagu Akhir (Rp)': r.paguAkhir,
+        'Realisasi SP2D (Rp)': r.realisasi,
+        'Sisa Pagu / SiLPA (Rp)': r.sisa,
+        'Persentase Serapan (%)': r.persen.toFixed(2),
+        'Status Eksekusi': r.statusText
+      }));
+    } else if (activeTab === 'laporan-program') {
       titleName = `Realisasi_Program_NTB_${selectedTahun}`;
       exportRows = programReportData.map(r => ({
         'Kode Program': r.kode,
@@ -1111,7 +1196,8 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
           { id: 'laporan-bulanan', label: '5. Laporan Bulanan' },
           { id: 'laporan-triwulan', label: '6. Laporan Triwulan' },
           { id: 'laporan-semester', label: '7. Laporan Semester' },
-          { id: 'laporan-tahunan', label: '8. Laporan Tahunan' }
+          { id: 'laporan-tahunan', label: '8. Laporan Tahunan' },
+          { id: 'laporan-silpa', label: '9. Detail Belanja SiLPA' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1742,11 +1828,295 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
           </div>
         )}
 
+        {/* 9. LAPORAN DETAIL BELANJA SILPA (TIDAK TEREKSEKUSI) */}
+        {activeTab === 'laporan-silpa' && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+              <div>
+                <h3 className="text-xs font-bold uppercase text-amber-400 print:text-slate-900 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-400 print:hidden" />
+                  <span>IX. Laporan Detail Belanja SiLPA (Tidak Tereksekusi / Sisa Pagu Anggaran)</span>
+                </h3>
+                <p className="text-[11px] text-slate-400 print:text-slate-700 mt-0.5">
+                  Rincian seluruh Rekening Belanja yang mengalami sisa pagu anggaran (SiLPA) atau 100% tidak tereksekusi pada TA {selectedTahun}.
+                </p>
+              </div>
+            </div>
+
+            {/* STAT SUMMARY CARDS FOR SILPA */}
+            <div className="print:hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {(() => {
+                const totalPaguSilpa = silpaReportData.reduce((s, r) => s + r.paguAkhir, 0);
+                const totalRealSilpa = silpaReportData.reduce((s, r) => s + r.realisasi, 0);
+                const totalSisaSilpa = silpaReportData.reduce((s, r) => s + r.sisa, 0);
+                const countUnexecuted = silpaReportData.filter(r => r.status === 'unexecuted').length;
+                const countPartial = silpaReportData.filter(r => r.status === 'partial').length;
+                const pctSilpa = totalPaguSilpa > 0 ? (totalSisaSilpa / totalPaguSilpa) * 100 : 0;
+
+                return (
+                  <>
+                    <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between text-xs text-rose-300 font-bold mb-1">
+                        <span>Total Potensi SiLPA (Sisa)</span>
+                        <DollarSign className="h-4 w-4 text-rose-400" />
+                      </div>
+                      <div className="text-lg font-black text-white font-mono">
+                        Rp {totalSisaSilpa.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-[10px] text-rose-300/80 mt-1">
+                        {pctSilpa.toFixed(2)}% dari Total Pagu Akhir
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-rose-500/40 bg-slate-950 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between text-xs text-rose-400 font-bold mb-1">
+                        <span>100% Tidak Tereksekusi</span>
+                        <XCircle className="h-4 w-4 text-rose-500" />
+                      </div>
+                      <div className="text-lg font-black text-rose-300 font-mono">
+                        {countUnexecuted} <span className="text-xs font-sans text-slate-400">Rekening</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        Rp {silpaReportData.filter(r => r.status === 'unexecuted').reduce((s, r) => s + r.paguAkhir, 0).toLocaleString('id-ID')} pagu mengendap
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-amber-500/30 bg-slate-950 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between text-xs text-amber-400 font-bold mb-1">
+                        <span>Tereksekusi Sebagian</span>
+                        <AlertTriangle className="h-4 w-4 text-amber-400" />
+                      </div>
+                      <div className="text-lg font-black text-amber-200 font-mono">
+                        {countPartial} <span className="text-xs font-sans text-slate-400">Rekening</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        Memiliki sisa dari penyerapan anggaran
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-emerald-500/30 bg-slate-950 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between text-xs text-emerald-400 font-bold mb-1">
+                        <span>Realisasi Tereksekusi</span>
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      </div>
+                      <div className="text-lg font-black text-emerald-300 font-mono">
+                        Rp {totalRealSilpa.toLocaleString('id-ID')}
+                      </div>
+                      <div className="text-[10px] text-emerald-400/80 mt-1">
+                        {(100 - pctSilpa).toFixed(2)}% Terakuisisi via SP2D
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* FILTER & SEARCH BAR FOR SILPA (Hidden during print) */}
+            <div className="print:hidden flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs font-bold text-slate-400 mr-1 flex items-center gap-1">
+                  <Filter className="h-3.5 w-3.5 text-amber-400" />
+                  Status:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSilpaFilterStatus('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    silpaFilterStatus === 'all'
+                      ? 'bg-amber-500 text-slate-950 shadow-md'
+                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Semua SiLPA (&gt; Rp 0)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSilpaFilterStatus('unexecuted')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    silpaFilterStatus === 'unexecuted'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'bg-slate-900 text-rose-400 hover:bg-slate-800'
+                  }`}
+                >
+                  100% Tidak Tereksekusi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSilpaFilterStatus('partial')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    silpaFilterStatus === 'partial'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'bg-slate-900 text-amber-400 hover:bg-slate-800'
+                  }`}
+                >
+                  Tereksekusi Sebagian
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSilpaFilterStatus('full')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    silpaFilterStatus === 'full'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Terserap Penuh (0 SiLPA)
+                </button>
+              </div>
+
+              <div className="relative max-w-xs w-full">
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  value={silpaSearchTerm}
+                  onChange={e => setSilpaSearchTerm(e.target.value)}
+                  placeholder="Cari Rekening / Sub Kegiatan..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                />
+                {silpaSearchTerm && (
+                  <button
+                    onClick={() => setSilpaSearchTerm('')}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-white text-xs font-bold"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* SILPA TABLE */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-950 print:bg-slate-200 text-slate-300 print:text-slate-900 font-bold uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="p-3 w-10 text-center">No</th>
+                    <th className="p-3 min-w-[200px]">Sub Kegiatan</th>
+                    <th className="p-3 min-w-[220px]">Rekening Belanja</th>
+                    <th className="p-3 text-center">Sumber Dana</th>
+                    <th className="p-3 text-right">Pagu Akhir (Rp)</th>
+                    <th className="p-3 text-right">Realisasi SP2D (Rp)</th>
+                    <th className="p-3 text-right">Nilai SiLPA / Sisa (Rp)</th>
+                    <th className="p-3 text-center">% Serapan</th>
+                    <th className="p-3 text-center min-w-[140px]">Status Eksekusi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 print:divide-slate-300">
+                  {filteredSilpaData.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="p-8 text-center text-slate-400">
+                        <AlertCircle className="h-8 w-8 text-amber-500/60 mx-auto mb-2" />
+                        <p className="font-semibold">Tidak ada data Rekening Belanja SiLPA yang sesuai filter.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSilpaData.map((r, idx) => (
+                      <tr key={r.id || `${r.kodeSub}-${r.kodeBelanja}-${idx}`} className="hover:bg-slate-800/40">
+                        <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
+                        <td className="p-3">
+                          <div className="font-mono text-[11px] font-bold text-teal-400 print:text-slate-900">{r.kodeSub}</div>
+                          <div className="text-white print:text-slate-900 font-medium line-clamp-2">{r.namaSub}</div>
+                        </td>
+                        <td className="p-3">
+                          <div className="font-mono text-[11px] font-bold text-amber-400 print:text-slate-900">{r.kodeBelanja}</div>
+                          <div className="text-white print:text-slate-900 font-semibold line-clamp-2">{r.namaBelanja}</div>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="inline-block px-2 py-0.5 rounded bg-slate-800 print:bg-slate-200 font-mono text-[10px] font-bold text-slate-300 print:text-slate-900">
+                            {r.sumberDana}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">
+                          Rp {r.paguAkhir.toLocaleString('id-ID')}
+                        </td>
+                        <td
+                          onClick={() =>
+                            setSelectedRealisasiFilter({
+                              title: `Rincian Realisasi / SP2D Belanja SiLPA`,
+                              subtitle: `${r.kodeBelanja} - ${r.namaBelanja} (${r.kodeSub})`,
+                              kodeBelanja: r.kodeBelanja,
+                              kodeSub: r.kodeSub
+                            })
+                          }
+                          className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                          title="Klik untuk melihat rincian SP2D transaksi"
+                        >
+                          <span className="inline-flex items-center gap-1 justify-end">
+                            <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                            <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-mono font-black text-rose-400 print:text-slate-900 bg-rose-950/20 print:bg-transparent">
+                          Rp {r.sisa.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-center font-bold text-slate-200 print:text-slate-900 font-mono">
+                          {r.persen.toFixed(2)} %
+                        </td>
+                        <td className="p-3 text-center">
+                          {r.status === 'unexecuted' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-950/80 text-rose-300 border border-rose-500/40 print:border-slate-800 print:text-slate-900">
+                              <XCircle className="h-3 w-3 text-rose-400 shrink-0 print:hidden" />
+                              100% Tidak Tereksekusi
+                            </span>
+                          ) : r.status === 'partial' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-950/80 text-amber-300 border border-amber-500/40 print:border-slate-800 print:text-slate-900">
+                              <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0 print:hidden" />
+                              Tereksekusi Sebagian
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 print:border-slate-800 print:text-slate-900">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0 print:hidden" />
+                              Terserap Penuh
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                <tfoot className="bg-slate-950 font-bold border-t-2 border-slate-700 text-white print:bg-slate-100 print:text-black">
+                  {(() => {
+                    const totalMurni = filteredSilpaData.reduce((s, r) => s + r.paguMurni, 0);
+                    const totalRev = filteredSilpaData.reduce((s, r) => s + r.revisi, 0);
+                    const totalAkhir = filteredSilpaData.reduce((s, r) => s + r.paguAkhir, 0);
+                    const totalReal = filteredSilpaData.reduce((s, r) => s + r.realisasi, 0);
+                    const totalSisa = filteredSilpaData.reduce((s, r) => s + r.sisa, 0);
+                    const totalPct = totalAkhir > 0 ? (totalReal / totalAkhir) * 100 : 0;
+
+                    return (
+                      <tr>
+                        <td colSpan={4} className="p-3 text-right uppercase">
+                          TOTAL REKENING SILPA DIPILIH ({filteredSilpaData.length} ITEM):
+                        </td>
+                        <td className="p-3 text-right font-mono text-emerald-400">
+                          Rp {totalAkhir.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-emerald-300">
+                          Rp {totalReal.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-rose-400 font-black">
+                          Rp {totalSisa.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-center text-amber-300 font-mono">
+                          {totalPct.toFixed(2)} %
+                        </td>
+                        <td className="p-3 text-center text-xs text-slate-400 font-normal">
+                          {filteredSilpaData.filter(r => r.status === 'unexecuted').length} Unexecuted
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* 5, 6, 7, 8. BULANAN / TRIWULAN / SEMESTER / TAHUNAN */}
         {activeTab !== 'laporan-program' &&
           activeTab !== 'laporan-kegiatan' &&
           activeTab !== 'laporan-subkegiatan' &&
-          activeTab !== 'laporan-belanja' && (
+          activeTab !== 'laporan-belanja' &&
+          activeTab !== 'laporan-silpa' && (
             <div className="space-y-4">
               <h3 className="text-xs font-bold uppercase text-amber-400 print:text-slate-900 border-b border-slate-800 pb-1">
                 Rekapitulasi {activeTab.replace('laporan-', '').toUpperCase()} TA {selectedTahun}
