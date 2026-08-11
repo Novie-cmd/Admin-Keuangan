@@ -3,10 +3,10 @@ import { useApp } from '../../context/AppContext';
 import * as XLSX from 'xlsx';
 import {
   extractCode,
-  findRowValueByKeys,
   parseNumber,
   parseExcelDate,
-  makeRealisasiCompositeKey
+  makeRealisasiCompositeKey,
+  parseRealisasiFromExcelData
 } from '../../utils/codeUtils';
 import {
   UploadCloud,
@@ -17,7 +17,8 @@ import {
   Download,
   ArrowRight,
   RefreshCw,
-  FileCheck
+  FileCheck,
+  Info
 } from 'lucide-react';
 
 interface PreviewRow {
@@ -26,8 +27,11 @@ interface PreviewRow {
   program: string;
   kegiatan: string;
   sub: string;
+  namaSub: string;
   belanja: string;
+  namaBelanja: string;
   sp2d: string;
+  spm: string;
   nilai: number;
   uraian: string;
   rekanan: string;
@@ -69,59 +73,43 @@ export const UploadExcelView: React.FC = () => {
     const reader = new FileReader();
     reader.onload = evt => {
       try {
-        const bstr = evt.target?.result;
-        const workbook = XLSX.read(bstr, { type: 'binary' });
+        const buffer = evt.target?.result;
+        const workbook = XLSX.read(buffer, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
-        const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet);
+        const sheet2D: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        const sheetJson: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+        const rawResults = parseRealisasiFromExcelData(sheet2D, sheetJson, selectedTahun);
         const seenBatchKeys = new Set<string>();
 
-        // Parse and validate rows
-        const parsedRows: PreviewRow[] = jsonRows.map((row, index) => {
-          const thnStr = findRowValueByKeys(row, ['tahun', 'thn', 'tahunanggaran', 'ta']);
-          const thn = parseInt(thnStr || String(selectedTahun), 10) || selectedTahun;
-
-          const progRaw = findRowValueByKeys(row, ['kodeprogram', 'kodeprog', 'program'], true);
-          const kegRaw = findRowValueByKeys(row, ['kodekegiatan', 'kodekeg', 'kegiatan'], true);
-          const subRaw = findRowValueByKeys(row, ['kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub'], true);
-          const belRaw = findRowValueByKeys(row, ['kodebelanja', 'koderekening', 'rekening', 'kode', 'belanja'], true);
-
-          const prog = extractCode(progRaw) || '5.01.01';
-          const keg = extractCode(kegRaw) || '5.01.01.2.01';
-          const sub = extractCode(subRaw) || '5.01.01.2.01.01';
-          const bel = extractCode(belRaw) || '5.1.02.01.01.0024';
-
-          const sp2d = findRowValueByKeys(row, ['sp2d', 'nosp2d', 'nomorsp2d', 'sp2dno']);
-          const nilaiRaw = findRowValueByKeys(row, ['nilai', 'realisasi', 'jumlah', 'nilaisp2d', 'nilairealisasi']);
-          const nilai = parseNumber(nilaiRaw);
-          const uraian = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi']) || 'Realisasi Import Excel';
-          const rekanan = findRowValueByKeys(row, ['rekanan', 'penyedia', 'pihakketiga']) || 'PT Bank NTB Syariah';
-          const tanggalRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']);
-          const parsedDate = parseExcelDate(tanggalRaw, thn);
-
-          const key = makeRealisasiCompositeKey(sp2d, bel, sub, nilai, uraian);
+        const parsedRows: PreviewRow[] = rawResults.map(r => {
+          const key = makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian);
           const isDup = key ? (existingKeySet.has(key) || seenBatchKeys.has(key)) : false;
           if (key && !isDup) {
             seenBatchKeys.add(key);
           }
 
           let err = '';
-          if (nilai <= 0) err = 'Nilai realisasi harus > 0.';
+          if (r.nilai <= 0) err = 'Nilai realisasi harus > 0.';
           else if (isDup) err = 'Data Realisasi ini duplikat dengan database/file ini.';
 
           return {
-            rowNum: index + 1,
-            tahun: thn,
-            program: prog,
-            kegiatan: keg,
-            sub,
-            belanja: bel,
-            sp2d: sp2d || `SP2D-${thn}-${index + 1}`,
-            nilai,
-            uraian,
-            rekanan,
-            tanggal: parsedDate.isoDate,
+            rowNum: r.rowNum,
+            tahun: r.tahun || selectedTahun,
+            program: r.kodeProgram,
+            kegiatan: r.kodeKegiatan,
+            sub: r.kodeSub,
+            namaSub: r.namaSub,
+            belanja: r.kodeBelanja,
+            namaBelanja: r.namaBelanja,
+            sp2d: r.noSP2D,
+            spm: r.noSPM,
+            nilai: r.nilai,
+            uraian: r.uraian,
+            rekanan: r.rekanan,
+            tanggal: r.tanggal,
             isValid: !err,
             isDuplicate: isDup,
             validationError: err
@@ -130,13 +118,14 @@ export const UploadExcelView: React.FC = () => {
 
         setPreviewData(parsedRows);
       } catch (error) {
+        console.error('Failed to parse Excel file:', error);
         alert('Gagal membaca file Excel. Pastikan format file .xlsx / .csv valid.');
       } finally {
         setIsProcessing(false);
       }
     };
 
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleExecuteImport = () => {
@@ -148,8 +137,9 @@ export const UploadExcelView: React.FC = () => {
         kodeKegiatan: r.kegiatan,
         kodeSub: r.sub,
         kodeBelanja: r.belanja,
-        namaBelanja: 'Belanja ' + r.belanja,
+        namaBelanja: r.namaBelanja,
         sp2d: r.sp2d,
+        spm: r.spm,
         nilai: r.nilai,
         uraian: r.uraian,
         rekanan: r.rekanan,
@@ -167,25 +157,93 @@ export const UploadExcelView: React.FC = () => {
   };
 
   const downloadSampleTemplate = () => {
-    const sampleData = [
-      {
-        Tahun: selectedTahun,
-        Program: '5.01.01',
-        Kegiatan: '5.01.01.2.01',
-        SubKegiatan: '5.01.01.2.01.01',
-        Belanja: '5.1.02.01.01.0024',
-        SP2D: `900/${Math.floor(1000 + Math.random() * 9000)}/SP2D-LS/KESBANG/${selectedTahun}`,
-        Nilai: 150000000,
-        Uraian: 'Pengadaan Alat Tulis Kantor & Cetak Laporan Perencanaan',
-        Rekanan: 'CV Nusa Media Grafindo',
-        Tanggal: new Date().toISOString().split('T')[0]
-      }
+    const wb = XLSX.utils.book_new();
+
+    // 1. Sheet Layout Q6-AQ6
+    const m6Data2D: any[][] = [
+      ['PEMERINTAH PROVINSI NUSA TENGGARA BARAT'],
+      ['BADAN KESATUAN BANGSA DAN POLITIK DALAM NEGERI (BAKESBANGPOLDAGRI)'],
+      [`TEMPLATE IMPLEMENTASI IMPORT REALISASI SP2D - TAHUN ANGGARAN ${selectedTahun}`],
+      ['Format Urutan Kolom: Q6 (Kode Sub) | R6 (Nama Sub) | S6 (Kode Belanja) | T6 (Nama Belanja) | AA6 (Nilai Realisasi) | AP6 (No SP2D) | AQ6 (Tanggal SP2D) | AO6 (No SPM) | Z6 (Uraian) | AD6 (Rekanan) | AE6 (Keterangan)'],
+      [''],
+      [] // Row 6 (index 5)
     ];
 
-    const ws = XLSX.utils.json_to_sheet(sampleData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Template_Import_BFMS');
-    XLSX.writeFile(wb, `Template_Import_Realisasi_NTB_${selectedTahun}.xlsx`);
+    // Populate Row 6 Header
+    m6Data2D[5][0] = 'No';
+    m6Data2D[5][1] = 'Tahun';
+    m6Data2D[5][16] = 'Kode Sub Kegiatan'; // Col Q (index 16)
+    m6Data2D[5][17] = 'Nama Sub Kegiatan'; // Col R (index 17)
+    m6Data2D[5][18] = 'Kode Rekening Belanja'; // Col S (index 18)
+    m6Data2D[5][19] = 'Nama Rekening Belanja'; // Col T (index 19)
+    m6Data2D[5][25] = 'Uraian Transaksi / Pekerjaan'; // Col Z (index 25)
+    m6Data2D[5][26] = 'Nilai Realisasi (Rp)'; // Col AA (index 26)
+    m6Data2D[5][29] = 'Nama Rekanan / Penyedia'; // Col AD (index 29)
+    m6Data2D[5][30] = 'Keterangan Rekanan / Bank / NPWP'; // Col AE (index 30)
+    m6Data2D[5][40] = 'Nomor SPM'; // Col AO (index 40)
+    m6Data2D[5][41] = 'Nomor SP2D'; // Col AP (index 41)
+    m6Data2D[5][42] = 'Tanggal SP2D'; // Col AQ (index 42)
+
+    // Row 7 Sample Data
+    const row7: any[] = [];
+    row7[0] = 1;
+    row7[1] = selectedTahun; // Automatic based on selected year
+    row7[16] = '5.01.01.2.01.01';
+    row7[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
+    row7[18] = '5.1.02.01.01.0024';
+    row7[19] = 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor';
+    row7[25] = 'Pembayaran Pengadaan ATK dan Cetak Laporan Triwulan I BAKESBANGPOLDAGRI';
+    row7[26] = 15000000;
+    row7[29] = 'CV Cahaya Gemilang';
+    row7[30] = 'Bank NTB Syariah - NPWP 01.234.567.8-901.000';
+    row7[40] = `900/101/SPM-LS/KESBANG/${selectedTahun}`;
+    row7[41] = `900/101/SP2D-LS/KESBANG/${selectedTahun}`;
+    row7[42] = `${selectedTahun}-02-10`;
+    m6Data2D.push(row7);
+
+    // Row 8 Sample Data
+    const row8: any[] = [];
+    row8[0] = 2;
+    row8[1] = selectedTahun; // Automatic based on selected year
+    row8[16] = '5.01.01.2.01.01';
+    row8[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
+    row8[18] = '5.1.02.01.01.0025';
+    row8[19] = 'Belanja Kertas dan Cover Cetakan Laporan';
+    row8[25] = 'Cetak Laporan Akuntabilitas Kinerja Instansi Pemerintah (LKjIP)';
+    row8[26] = 22500000;
+    row8[29] = 'PT Bank NTB Syariah';
+    row8[30] = 'Bank NTB Syariah Mataram';
+    row8[40] = `900/102/SPM-LS/KESBANG/${selectedTahun}`;
+    row8[41] = `900/102/SP2D-LS/KESBANG/${selectedTahun}`;
+    row8[42] = `${selectedTahun}-02-20`;
+    m6Data2D.push(row8);
+
+    const wsM6 = XLSX.utils.aoa_to_sheet(m6Data2D);
+    XLSX.utils.book_append_sheet(wb, wsM6, 'Template_Layout_Realisasi');
+
+    // 2. Sheet Clean Standard Format
+    const cleanStandardData = [
+      {
+        Tahun: selectedTahun,
+        'Kode Program': '5.01.01',
+        'Kode Kegiatan': '5.01.01.2.01',
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan',
+        'Kode Belanja': '5.1.02.01.01.0024',
+        'Nama Belanja': 'Belanja ATK',
+        'Nilai Realisasi': 15000000,
+        'No SP2D': `900/1001/SP2D-LS/KESBANG/${selectedTahun}`,
+        'Tanggal': `${selectedTahun}-02-10`,
+        'No SPM': `900/1001/SPM-LS/KESBANG/${selectedTahun}`,
+        Uraian: 'Pengadaan ATK Kegiatan Perencanaan',
+        Rekanan: 'CV Cahaya Gemilang',
+        Keterangan: 'Bank NTB Syariah - NPWP 01.234.567.8-901.000'
+      }
+    ];
+    const wsStandard = XLSX.utils.json_to_sheet(cleanStandardData);
+    XLSX.utils.book_append_sheet(wb, wsStandard, 'Format_Standar_Sederhana');
+
+    XLSX.writeFile(wb, `Template_Import_Realisasi_Q6_AQ6_NTB_${selectedTahun}.xlsx`);
   };
 
   const validCount = previewData.filter(r => r.isValid).length;
@@ -216,31 +274,81 @@ export const UploadExcelView: React.FC = () => {
       </div>
 
       {/* DROPZONE AREA */}
-      <div className="rounded-2xl border-2 border-dashed border-emerald-600/40 bg-slate-900/80 p-8 text-center shadow-xl">
+      <div className="rounded-2xl border-2 border-dashed border-emerald-600/40 bg-slate-900/80 p-6 text-center shadow-xl space-y-4">
         <FileSpreadsheet className="mx-auto h-12 w-12 text-emerald-400" />
-        <h2 className="mt-3 text-sm font-bold text-white">
-          Pilih File Excel Transaksi Keuangan (.xlsx / .csv)
-        </h2>
-        <p className="mt-1 text-xs text-slate-400">
-          Format Kolom Required: <code className="text-emerald-300">| Tahun | Program | Kegiatan | SubKegiatan | Belanja | SP2D | Nilai |</code>
-        </p>
-
-        <label className="mt-4 inline-flex items-center gap-2 cursor-pointer rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50">
-          <span>{isProcessing ? 'Membaca File...' : 'Pilih File Excel dari Komputer'}</span>
-          <input
-            type="file"
-            accept=".xlsx, .xls, .csv"
-            onChange={handleFileUpload}
-            className="hidden"
-            id="input-excel-file"
-          />
-        </label>
-
-        {fileName && (
-          <p className="mt-3 text-xs font-semibold text-emerald-300">
-            File Terpilih: {fileName}
+        <div>
+          <h2 className="text-sm font-bold text-white">
+            Pilih File Excel Transaksi Realisasi Keuangan (.xlsx / .csv)
+          </h2>
+          <p className="mt-1 text-xs text-slate-400">
+            Sistem mendukung format <span className="text-emerald-300 font-semibold">SIPD/SIMDA (Urutan Kolom Q6-AQ6)</span> maupun format header standar.
           </p>
-        )}
+        </div>
+
+        {/* INFO COLUMN MAPPER */}
+        <div className="mx-auto max-w-3xl rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-left text-xs">
+          <div className="flex items-center gap-2 text-emerald-400 font-bold mb-1.5">
+            <Info className="h-4 w-4" />
+            <span>Pemetaan Otomatis Kolom Excel Import Realisasi:</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-[11px] text-slate-300 font-mono">
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">Tahun:</span> Otomatis ({selectedTahun})
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">Q6:</span> Kode Sub Kegiatan
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">R6:</span> Nama Sub Kegiatan
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">S6:</span> Kode Rekening Belanja
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">T6:</span> Nama Rekening Belanja
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">AA6:</span> Nilai Realisasi (Rp)
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">AP6:</span> Nomor SP2D
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">AQ6:</span> Tanggal SP2D
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">AO6:</span> Nomor SPM
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">Z6:</span> Uraian Transaksi
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">AD6:</span> Nama Rekanan
+            </div>
+            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
+              <span className="text-emerald-400 font-bold">AE6:</span> Keterangan Rekanan
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50">
+            <span>{isProcessing ? 'Membaca File...' : 'Pilih File Excel dari Komputer'}</span>
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="input-excel-file"
+            />
+          </label>
+
+          {fileName && (
+            <p className="mt-3 text-xs font-semibold text-emerald-300">
+              File Terpilih: {fileName}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* RESULT NOTIFICATION BANNER */}

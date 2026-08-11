@@ -9,7 +9,8 @@ import {
   parseNumber,
   parseExcelDate,
   makeRealisasiCompositeKey,
-  isCodeEqual
+  isCodeEqual,
+  parseRealisasiFromExcelData
 } from '../../utils/codeUtils';
 import {
   FileText,
@@ -227,41 +228,54 @@ export const InputRealisasiView: React.FC = () => {
 
   // Download Excel Template for Realisasi SP2D
   const handleDownloadTemplate = () => {
-    const sampleData = [
-      {
-        'Tahun': selectedTahun,
-        'Kode Program': '5.01.01',
-        'Kode Kegiatan': '5.01.01.2.01',
-        'Kode Sub Kegiatan': '5.01.01.2.01.01',
-        'Kode Belanja': '5.1.02.01.01.0024',
-        'Nama Belanja': 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor',
-        'No SP2D': `900/1021/SP2D-LS/KESBANG/${selectedTahun}`,
-        'No SPM': `900/1021/SPM-LS/KESBANG/${selectedTahun}`,
-        'Nilai Realisasi': 25000000,
-        'Uraian': 'Pembayaran Pengadaan ATK Bulan Januari BAKESBANGPOL',
-        'Penyedia/Rekanan': 'CV Cahaya Gemilang',
-        'Tanggal': `${selectedTahun}-01-15`
-      },
-      {
-        'Tahun': selectedTahun,
-        'Kode Program': '5.01.01',
-        'Kode Kegiatan': '5.01.01.2.01',
-        'Kode Sub Kegiatan': '5.01.01.2.01.01',
-        'Kode Belanja': '5.1.02.01.01.0025',
-        'Nama Belanja': 'Belanja Kertas dan Cover Cetakan Laporan',
-        'No SP2D': `900/1022/SP2D-LS/KESBANG/${selectedTahun}`,
-        'No SPM': `900/1022/SPM-LS/KESBANG/${selectedTahun}`,
-        'Nilai Realisasi': 12500000,
-        'Uraian': 'Cetak Laporan Kinerja Instansi Pemerintah (LKjIP)',
-        'Penyedia/Rekanan': 'PT Bank NTB Syariah',
-        'Tanggal': `${selectedTahun}-01-20`
-      }
+    const wb = XLSX.utils.book_new();
+
+    // 1. Sheet Layout Q6-AQ6
+    const m6Data2D: any[][] = [
+      ['PEMERINTAH PROVINSI NUSA TENGGARA BARAT'],
+      ['BADAN KESATUAN BANGSA DAN POLITIK DALAM NEGERI (BAKESBANGPOLDAGRI)'],
+      [`TEMPLATE IMPLEMENTASI IMPORT REALISASI SP2D - TAHUN ANGGARAN ${selectedTahun}`],
+      ['Format Urutan Kolom: Q6 (Kode Sub) | R6 (Nama Sub) | S6 (Kode Belanja) | T6 (Nama Belanja) | AA6 (Nilai Realisasi) | AP6 (No SP2D) | AQ6 (Tanggal SP2D) | AO6 (No SPM) | Z6 (Uraian) | AD6 (Rekanan) | AE6 (Keterangan)'],
+      [''],
+      [] // Row 6 (index 5)
     ];
 
-    const ws = XLSX.utils.json_to_sheet(sampleData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Realisasi_SP2D');
-    safeDownloadExcel(wb, `Template_Import_Realisasi_SP2D_${selectedTahun}.xlsx`);
+    // Populate Row 6 Header
+    m6Data2D[5][0] = 'No';
+    m6Data2D[5][1] = 'Tahun';
+    m6Data2D[5][16] = 'Kode Sub Kegiatan'; // Col Q (index 16)
+    m6Data2D[5][17] = 'Nama Sub Kegiatan'; // Col R (index 17)
+    m6Data2D[5][18] = 'Kode Rekening Belanja'; // Col S (index 18)
+    m6Data2D[5][19] = 'Nama Rekening Belanja'; // Col T (index 19)
+    m6Data2D[5][25] = 'Uraian Transaksi / Pekerjaan'; // Col Z (index 25)
+    m6Data2D[5][26] = 'Nilai Realisasi (Rp)'; // Col AA (index 26)
+    m6Data2D[5][29] = 'Nama Rekanan / Penyedia'; // Col AD (index 29)
+    m6Data2D[5][30] = 'Keterangan Rekanan / Bank / NPWP'; // Col AE (index 30)
+    m6Data2D[5][40] = 'Nomor SPM'; // Col AO (index 40)
+    m6Data2D[5][41] = 'Nomor SP2D'; // Col AP (index 41)
+    m6Data2D[5][42] = 'Tanggal SP2D'; // Col AQ (index 42)
+
+    // Row 7 Sample Data
+    const row7: any[] = [];
+    row7[0] = 1;
+    row7[1] = selectedTahun; // Automatic based on selected year
+    row7[16] = '5.01.01.2.01.01';
+    row7[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
+    row7[18] = '5.1.02.01.01.0024';
+    row7[19] = 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor';
+    row7[25] = 'Pembayaran Pengadaan ATK dan Cetak Laporan Triwulan I BAKESBANGPOLDAGRI';
+    row7[26] = 15000000;
+    row7[29] = 'CV Cahaya Gemilang';
+    row7[30] = 'Bank NTB Syariah - NPWP 01.234.567.8-901.000';
+    row7[40] = `900/101/SPM-LS/KESBANG/${selectedTahun}`;
+    row7[41] = `900/101/SP2D-LS/KESBANG/${selectedTahun}`;
+    row7[42] = `${selectedTahun}-02-10`;
+    m6Data2D.push(row7);
+
+    const wsM6 = XLSX.utils.aoa_to_sheet(m6Data2D);
+    XLSX.utils.book_append_sheet(wb, wsM6, 'Template_Layout_Realisasi');
+
+    safeDownloadExcel(wb, `Template_Import_Realisasi_Q6_AQ6_NTB_${selectedTahun}.xlsx`);
   };
 
   // Upload Excel Handler for Realisasi
@@ -281,27 +295,12 @@ export const InputRealisasiView: React.FC = () => {
         const firstSheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[firstSheetName];
 
-        // Smart Header Finder
         const rows2D: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        let headerRowIndex = 0;
+        const rowsJson: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
-        for (let i = 0; i < Math.min(rows2D.length, 20); i++) {
-          const rowStr = (rows2D[i] || []).map(c => String(c).toLowerCase()).join(' ');
-          if (
-            rowStr.includes('sp2d') ||
-            rowStr.includes('nilai') ||
-            rowStr.includes('realisasi') ||
-            rowStr.includes('belanja') ||
-            rowStr.includes('rekening')
-          ) {
-            headerRowIndex = i;
-            break;
-          }
-        }
+        const parsedResults = parseRealisasiFromExcelData(rows2D, rowsJson, selectedTahun);
 
-        const rawJson: any[] = XLSX.utils.sheet_to_json(sheet, { range: headerRowIndex, defval: '' });
-
-        if (!rawJson || rawJson.length === 0) {
+        if (!parsedResults || parsedResults.length === 0) {
           setImportErrors(['File Excel kosong atau format tidak valid.']);
           setPreviewData([]);
           return;
@@ -318,61 +317,36 @@ export const InputRealisasiView: React.FC = () => {
         const parsedRows: PreviewRealisasiRow[] = [];
         const errs: string[] = [];
 
-        rawJson.forEach((row, idx) => {
-          const thnStr = findRowValueByKeys(row, ['tahun', 'thn', 'tahunanggaran', 'ta']);
-          const thn = parseInt(thnStr || String(selectedTahun), 10) || selectedTahun;
-
-          const progRaw = findRowValueByKeys(row, ['kodeprogram', 'kodeprog', 'program'], true);
-          const kegRaw = findRowValueByKeys(row, ['kodekegiatan', 'kodekeg', 'kegiatan'], true);
-          const subRaw = findRowValueByKeys(row, ['kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub'], true);
-          const belRaw = findRowValueByKeys(row, ['kodebelanja', 'koderekening', 'rekening', 'kode', 'belanja'], true);
-
-          const prog = extractCode(progRaw) || '5.01.01';
-          const keg = extractCode(kegRaw) || '5.01.01.2.01';
-          const sub = extractCode(subRaw) || '5.01.01.2.01.01';
-          const bel = extractCode(belRaw) || '5.1.02.01.01.0024';
-
-          const belObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, bel));
-          const namaBel = findRowValueByKeys(row, ['namabelanja', 'uraianbelanja', 'namarekening']) || belObj?.namaBelanja || `Belanja ${bel}`;
-
-          const sp2dVal = findRowValueByKeys(row, ['nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls']) || `SP2D-${thn}-${idx + 1}`;
-          const spmVal = findRowValueByKeys(row, ['nospm', 'spm', 'nomorspm']) || sp2dVal.replace('SP2D', 'SPM');
-          const nilaiRaw = findRowValueByKeys(row, ['nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d']);
-          const nilaiVal = parseNumber(nilaiRaw);
-          const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian']) || 'Realisasi Keuangan';
-          const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan']) || 'PT Bank NTB Syariah';
-          const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']);
-          const parsedDate = parseExcelDate(tglRaw, thn);
-
-          const key = makeRealisasiCompositeKey(sp2dVal, bel, sub, nilaiVal, uraianVal);
+        parsedResults.forEach((r, idx) => {
+          const key = makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian);
           const isDup = key ? (existingKeys.has(key) || seenBatchKeys.has(key)) : false;
           if (key && !isDup) {
             seenBatchKeys.add(key);
           }
 
           let err = '';
-          if (nilaiVal <= 0) {
+          if (r.nilai <= 0) {
             err = 'Nilai realisasi harus lebih dari 0.';
-            errs.push(`Baris ${idx + 2}: Nilai realisasi <= 0.`);
+            errs.push(`Baris ${r.rowNum}: Nilai realisasi <= 0.`);
           } else if (isDup) {
             err = 'Data Realisasi ini duplikat dengan database/file ini.';
-            errs.push(`Baris ${idx + 2}: Item "${sp2dVal}" (${bel}) duplikat.`);
+            errs.push(`Baris ${r.rowNum}: Item "${r.noSP2D}" (${r.kodeBelanja}) duplikat.`);
           }
 
           parsedRows.push({
-            rowNum: idx + 1,
-            tahun: thn,
-            kodeProgram: prog,
-            kodeKegiatan: keg,
-            kodeSub: sub,
-            kodeBelanja: bel,
-            namaBelanja: namaBel,
-            noSP2D: sp2dVal,
-            noSPM: spmVal,
-            nilai: nilaiVal,
-            uraian: uraianVal,
-            rekanan: rekananVal,
-            tanggal: parsedDate.isoDate,
+            rowNum: r.rowNum,
+            tahun: r.tahun || selectedTahun,
+            kodeProgram: r.kodeProgram,
+            kodeKegiatan: r.kodeKegiatan,
+            kodeSub: r.kodeSub,
+            kodeBelanja: r.kodeBelanja,
+            namaBelanja: r.namaBelanja,
+            noSP2D: r.noSP2D,
+            noSPM: r.noSPM,
+            nilai: r.nilai,
+            uraian: r.uraian,
+            rekanan: r.rekanan,
+            tanggal: r.tanggal,
             isValid: !err,
             status: isDup ? 'Duplikat (Dilewati)' : 'Data Baru',
             validationError: err
