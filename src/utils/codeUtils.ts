@@ -79,6 +79,11 @@ export const parseNumber = (val: any): number => {
   let s = String(val).trim();
   if (!s) return 0;
 
+  // Ignore document numbers, codes, dates, and non-numeric strings containing letters or slashes
+  if (/[a-ghj-qst-z]/i.test(s) || s.includes('/') || s.includes(':')) {
+    return 0;
+  }
+
   let isNegative = false;
   if (s.startsWith('(') && s.endsWith(')')) {
     isNegative = true;
@@ -89,6 +94,20 @@ export const parseNumber = (val: any): number => {
   }
 
   s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
+  if (!s) return 0;
+  s = s.replace(/\s+/g, '');
+
+  // Ignore dates like 2026-02-10
+  if (s.includes('-')) return 0;
+
+  // Ignore budget codes like 5.01.01 or 5.1.02.01.01.0024
+  if (/^\d+(\.\d+){2,}$/.test(s)) {
+    const dotParts = s.split('.');
+    const isCurrencyThousand = dotParts.slice(1).every(p => p.length === 3);
+    if (!isCurrencyThousand) {
+      return 0;
+    }
+  }
 
   if (s.includes('.') && s.includes(',')) {
     if (s.lastIndexOf('.') < s.lastIndexOf(',')) {
@@ -305,14 +324,35 @@ export const parseRealisasiFromExcelData = (
       const namaBelanja = String(row[19] || row[18] || '').trim();
       // Z6 (idx 25) - Uraian Transaksi / Pekerjaan
       const uraianVal = String(row[25] || '').trim();
-      // AA6 (idx 26) - Nilai Realisasi (Rp)
-      const nilaiVal = parseNumber(row[26] !== undefined && row[26] !== '' ? row[26] : row[19]);
+      
+      // AA6 (idx 26) - Nilai Realisasi (Rp) with smart fallbacks
+      let nilaiVal = parseNumber(row[26]);
+      if (nilaiVal === 0) {
+        nilaiVal = parseNumber(row[19]); // T6 fallback
+      }
+      if (nilaiVal === 0) {
+        // Search adjacent numerical columns (U, V, W, X, Y)
+        for (const cIdx of [20, 21, 22, 23, 24, 27, 28]) {
+          const candidate = parseNumber(row[cIdx]);
+          if (candidate > 0) {
+            nilaiVal = candidate;
+            break;
+          }
+        }
+      }
+
       // AD6 (idx 29) - Nama Rekanan / Penyedia
       const rekananVal = String(row[29] || '').trim();
       // AE6 (idx 30) - Keterangan Rekanan / Bank / NPWP
       const ketVal = String(row[30] || '').trim();
       // AO6 (idx 40) - Nomor SPM
-      const spmVal = String(row[40] || (row[26] && isNaN(Number(row[26])) ? row[26] : '') || '').trim();
+      let spmVal = String(row[40] || '').trim();
+      if (!spmVal) {
+        const candidateAA = String(row[26] || '').trim();
+        if (candidateAA && (candidateAA.toLowerCase().includes('spm') || candidateAA.includes('/'))) {
+          spmVal = candidateAA;
+        }
+      }
       // AP6 (idx 41) - Nomor SP2D
       const sp2dVal = String(row[41] || '').trim();
       // AQ6 (idx 42) - Tanggal SP2D
