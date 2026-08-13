@@ -79,8 +79,12 @@ export const parseNumber = (val: any): number => {
   let s = String(val).trim();
   if (!s) return 0;
 
-  // Ignore document numbers, codes, dates, and non-numeric strings containing letters or slashes
-  if (/[a-ghj-qst-z]/i.test(s) || s.includes('/') || s.includes(':')) {
+  // 1. Strip currency prefix first (Rp, Rp., IDR, IDR.)
+  s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
+  if (!s) return 0;
+
+  // 2. Ignore document numbers, dates, or non-numeric text containing letters, slashes, or colons
+  if (/[a-z]/i.test(s) || s.includes('/') || s.includes(':')) {
     return 0;
   }
 
@@ -93,14 +97,13 @@ export const parseNumber = (val: any): number => {
     s = s.substring(1).trim();
   }
 
-  s = s.replace(/^(rp|idr)\.?\s*/i, '').trim();
-  if (!s) return 0;
   s = s.replace(/\s+/g, '');
+  if (!s) return 0;
 
   // Ignore dates like 2026-02-10
   if (s.includes('-')) return 0;
 
-  // Ignore budget codes like 5.01.01 or 5.1.02.01.01.0024
+  // Ignore budget codes like 5.01.01 or 5.01.01.2.01.01 or 5.1.02.01.01.0024
   if (/^\d+(\.\d+){2,}$/.test(s)) {
     const dotParts = s.split('.');
     const isCurrencyThousand = dotParts.slice(1).every(p => p.length === 3);
@@ -138,6 +141,17 @@ export const parseNumber = (val: any): number => {
   const num = parseFloat(s);
   if (isNaN(num)) return 0;
   return isNegative ? -num : num;
+};
+
+export const isValidKodeSub = (val: any): boolean => {
+  if (val === undefined || val === null) return false;
+  const str = String(val).trim().toLowerCase();
+  if (!str) return false;
+  if (str.includes('sub kegiatan') || str.includes('kode sub') || str.includes('uraian') || str.includes('rekening') || str.includes('jumlah') || str.includes('total')) return false;
+  const code = extractCode(val);
+  if (!code) return false;
+  // Must match budget sub-activity pattern (e.g. 5.01.01.2.01.01 or 5.01.01.2.01 or at least 3 dots)
+  return /^\d+(\.\d+){3,}$/.test(code);
 };
 
 export const parseExcelDate = (val: any, fallbackYear: number): { isoDate: string; month: number; year: number } => {
@@ -261,34 +275,6 @@ export const parseRealisasiFromExcelData = (
   sheetJson: any[],
   selectedTahun: number
 ) => {
-  // Check if sheet2D has positional data
-  let isPositionalFormat = false;
-  if (sheet2D && sheet2D.length >= 6) {
-    // Check rows starting from index 5 (Row 6) to 30
-    for (let i = 5; i < Math.min(sheet2D.length, 30); i++) {
-      const row = sheet2D[i];
-      if (!row) continue;
-      const valQ = row[16]; // Col Q (Kode Sub)
-      const valS = row[18]; // Col S (Kode Belanja)
-      const valAA = row[26]; // Col AA (Nilai Realisasi)
-      const valAP = row[41]; // Col AP (No SP2D)
-      const valAQ = row[42]; // Col AQ (Tgl SP2D)
-      const valM = row[12]; // Col M (Fallback Kode Sub)
-      const valT = row[19]; // Col T (Fallback Nilai)
-
-      if (valQ || valS || valAA || valAP || valAQ || valM || valT) {
-        const codeSub = extractCode(valQ) || extractCode(valM);
-        const codeBel = extractCode(valS);
-        const numAA = parseNumber(valAA);
-        const numT = parseNumber(valT);
-        if (codeSub || codeBel || numAA > 0 || numT > 0 || String(valAP).toLowerCase().includes('sp2d')) {
-          isPositionalFormat = true;
-          break;
-        }
-      }
-    }
-  }
-
   const results: {
     rowNum: number;
     tahun: number;
@@ -307,45 +293,90 @@ export const parseRealisasiFromExcelData = (
     tanggal: string;
   }[] = [];
 
-  if (isPositionalFormat && sheet2D) {
-    // Parse using exact Q6, R6, S6, T6, AA6, AP6, AQ6, AO6, Z6, AD6, AE6 layout (with fallbacks for M6/AN6)
-    // Row 6 is index 5
-    for (let idx = 5; idx < sheet2D.length; idx++) {
+  if (sheet2D && sheet2D.length > 0) {
+    // Scan all rows starting from row 0 to find rows with a valid Kode Sub Kegiatan
+    for (let idx = 0; idx < sheet2D.length; idx++) {
       const row = sheet2D[idx];
       if (!row || row.length === 0) continue;
 
-      // Q6 (idx 16) - Kode Sub Kegiatan
-      const subRaw = row[16] || row[12];
-      // R6 (idx 17) - Nama Sub Kegiatan
-      const namaSub = String(row[17] || row[14] || '').trim();
-      // S6 (idx 18) - Kode Rekening Belanja
-      const belRaw = row[18] || row[16];
-      // T6 (idx 19) - Nama Rekening Belanja
-      const namaBelanja = String(row[19] || row[18] || '').trim();
-      // Z6 (idx 25) - Uraian Transaksi / Pekerjaan
-      const uraianVal = String(row[25] || '').trim();
-      
-      // AA6 (idx 26) - Nilai Realisasi (Rp) with smart fallbacks
-      let nilaiVal = parseNumber(row[26]);
-      if (nilaiVal === 0) {
-        nilaiVal = parseNumber(row[19]); // T6 fallback
-      }
-      if (nilaiVal === 0) {
-        // Search adjacent numerical columns (U, V, W, X, Y)
-        for (const cIdx of [20, 21, 22, 23, 24, 27, 28]) {
-          const candidate = parseNumber(row[cIdx]);
-          if (candidate > 0) {
-            nilaiVal = candidate;
+      // 1. Locate valid Kode Sub Kegiatan in the row
+      let subRaw = '';
+      let subColIdx = -1;
+
+      // Check standard positions first: Q6 (idx 16) or M6 (idx 12)
+      if (isValidKodeSub(row[16])) {
+        subRaw = extractCode(row[16]);
+        subColIdx = 16;
+      } else if (isValidKodeSub(row[12])) {
+        subRaw = extractCode(row[12]);
+        subColIdx = 12;
+      } else {
+        // Search across all columns in the row for a valid Kode Sub Kegiatan
+        for (let c = 0; c < row.length; c++) {
+          if (isValidKodeSub(row[c])) {
+            subRaw = extractCode(row[c]);
+            subColIdx = c;
             break;
           }
         }
       }
 
-      // AD6 (idx 29) - Nama Rekanan / Penyedia
+      // If NO valid Kode Sub Kegiatan is found, skip this row (header, subtotal, or grand total)
+      if (!subRaw || !isValidKodeSub(subRaw)) continue;
+
+      // 2. Extract Kode Belanja
+      let belRaw = '';
+      if (row[18] && extractCode(row[18])) {
+        belRaw = extractCode(row[18]);
+      } else {
+        // Search for a budget code with 5+ dot segments (e.g. 5.1.02.01.01.0024)
+        for (let c = 0; c < row.length; c++) {
+          const cand = extractCode(row[c]);
+          if (cand && /^\d+(\.\d+){4,}$/.test(cand)) {
+            belRaw = cand;
+            break;
+          }
+        }
+      }
+
+      // 3. Extract Nilai Realisasi (Rp)
+      let nilaiVal = parseNumber(row[26]); // Primary: Col AA (26)
+      if (nilaiVal === 0) {
+        nilaiVal = parseNumber(row[19]); // Fallback: Col T (19)
+      }
+      if (nilaiVal === 0) {
+        // Search adjacent columns
+        for (const cIdx of [20, 21, 22, 23, 24, 25, 27, 28, 29, 30]) {
+          if (cIdx < row.length) {
+            const cand = parseNumber(row[cIdx]);
+            if (cand > 0) {
+              nilaiVal = cand;
+              break;
+            }
+          }
+        }
+      }
+      if (nilaiVal === 0) {
+        // Final fallback: scan any positive currency number in row (excluding year 2025/2026/2027)
+        for (let c = 0; c < row.length; c++) {
+          const cand = parseNumber(row[c]);
+          if (cand > 0 && cand !== selectedTahun && cand !== 2024 && cand !== 2025 && cand !== 2026 && cand !== 2027) {
+            nilaiVal = cand;
+            break;
+          }
+        }
+      }
+
+      // Skip if value is zero or non-positive
+      if (nilaiVal <= 0) continue;
+
+      // 4. Extract metadata fields
+      const namaSub = String(row[17] || row[14] || (subColIdx >= 0 && row[subColIdx + 1]) || '').trim();
+      const namaBelanja = String(row[19] || row[18] || '').trim();
+      const uraianVal = String(row[25] || row[24] || '').trim();
       const rekananVal = String(row[29] || '').trim();
-      // AE6 (idx 30) - Keterangan Rekanan / Bank / NPWP
       const ketVal = String(row[30] || '').trim();
-      // AO6 (idx 40) - Nomor SPM
+
       let spmVal = String(row[40] || '').trim();
       if (!spmVal) {
         const candidateAA = String(row[26] || '').trim();
@@ -353,17 +384,12 @@ export const parseRealisasiFromExcelData = (
           spmVal = candidateAA;
         }
       }
-      // AP6 (idx 41) - Nomor SP2D
+
       const sp2dVal = String(row[41] || '').trim();
-      // AQ6 (idx 42) - Tanggal SP2D
       const tglRaw = row[42] || row[39];
 
-      // Skip row if it's completely empty or header text
-      if (!subRaw && !belRaw && nilaiVal === 0 && !sp2dVal) continue;
-      if (String(subRaw).toLowerCase().includes('sub kegiatan') && String(belRaw).toLowerCase().includes('rekening')) continue;
-
       const { prog, keg, sub } = deriveCodesFromSub(subRaw);
-      const bel = extractCode(belRaw) || '5.1.02.01.01.0024';
+      const bel = belRaw || '5.1.02.01.01.0024';
       const parsedDate = parseExcelDate(tglRaw, selectedTahun);
       const yearToUse = parsedDate.year || selectedTahun;
 
@@ -376,8 +402,8 @@ export const parseRealisasiFromExcelData = (
         namaSub: namaSub || `Sub Kegiatan ${sub}`,
         kodeBelanja: bel,
         namaBelanja: namaBelanja || `Belanja ${bel}`,
-        noSP2D: sp2dVal || `SP2D-${yearToUse}-${idx - 4}`,
-        noSPM: spmVal || (sp2dVal ? sp2dVal.replace('SP2D', 'SPM') : `SPM-${yearToUse}-${idx - 4}`),
+        noSP2D: sp2dVal || `SP2D-${yearToUse}-${idx + 1}`,
+        noSPM: spmVal || (sp2dVal ? sp2dVal.replace('SP2D', 'SPM') : `SPM-${yearToUse}-${idx + 1}`),
         nilai: nilaiVal,
         uraian: uraianVal || 'Realisasi Keuangan',
         rekanan: rekananVal || 'PT Bank NTB Syariah',
@@ -387,7 +413,7 @@ export const parseRealisasiFromExcelData = (
     }
   }
 
-  // If positional format yielded nothing or wasn't detected, fallback to JSON header key matching
+  // If 2D sheet parsing yielded nothing or wasn't present, fallback to JSON header key matching
   if (results.length === 0 && sheetJson) {
     sheetJson.forEach((row, idx) => {
       const thnStr = findRowValueByKeys(row, ['tahun', 'thn', 'tahunanggaran', 'ta']);
@@ -397,6 +423,9 @@ export const parseRealisasiFromExcelData = (
       const kegRaw = findRowValueByKeys(row, ['kodekegiatan', 'kodekeg', 'kegiatan'], true);
       const subRaw = findRowValueByKeys(row, ['kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub'], true);
       const belRaw = findRowValueByKeys(row, ['kodebelanja', 'koderekening', 'rekening', 'kode', 'belanja'], true);
+
+      // Validate Kode Sub Kegiatan
+      if (subRaw && !isValidKodeSub(subRaw) && !isValidKodeSub(`5.${subRaw}`)) return;
 
       const { prog, keg, sub } = deriveCodesFromSub(subRaw || kegRaw || progRaw);
       const finalProg = extractCode(progRaw) || prog;
@@ -410,6 +439,9 @@ export const parseRealisasiFromExcelData = (
       const spmVal = findRowValueByKeys(row, ['nospm', 'spm', 'nomorspm']);
       const nilaiRaw = findRowValueByKeys(row, ['nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d']);
       const nilaiVal = parseNumber(nilaiRaw);
+
+      if (nilaiVal <= 0) return;
+
       const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian']);
       const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan']);
       const ketVal = findRowValueByKeys(row, ['keterangan', 'ket', 'catatan']);
