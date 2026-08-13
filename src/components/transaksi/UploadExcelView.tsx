@@ -56,7 +56,7 @@ export const UploadExcelView: React.FC = () => {
   const [fileName, setFileName] = useState<string>('');
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [overwriteMode, setOverwriteMode] = useState<boolean>(true);
+  const [overwriteMode, setOverwriteMode] = useState<boolean>(false);
   const [ignoreDuplicateWarnings, setIgnoreDuplicateWarnings] = useState<boolean>(false);
   const [showClearModal, setShowClearModal] = useState<boolean>(false);
   const [importResult, setImportResult] = useState<{
@@ -377,7 +377,7 @@ export const UploadExcelView: React.FC = () => {
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Kosongkan database jika ingin memulai import ulang file Excel tanpa terdeteksi duplikat.
+              Default mode akan <strong>menggabungkan (mengakumulasikan)</strong> data dari file Excel baru ke database tanpa menghapus data sebelumnya.
             </p>
           </div>
         </div>
@@ -390,7 +390,7 @@ export const UploadExcelView: React.FC = () => {
               onChange={e => setOverwriteMode(e.target.checked)}
               className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
             />
-            <span>Mode Timpa/Replace (Abaikan Peta Duplikat Database)</span>
+            <span>{overwriteMode ? 'Mode Timpa (Hapus data lama TA ini)' : 'Mode Akumulasi / Gabung Data (Aktif)'}</span>
           </label>
 
           <button
