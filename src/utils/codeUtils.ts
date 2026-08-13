@@ -164,26 +164,38 @@ export const isValidKodeSub = (val: any): boolean => {
   return /^\d+(\.\d+){2,}$/.test(code);
 };
 
+const INDO_MONTH_MAP: Record<string, number> = {
+  januari: 1, jan: 1, january: 1,
+  februari: 2, feb: 2, february: 2,
+  maret: 3, mar: 3, march: 3,
+  april: 4, apr: 4,
+  mei: 5, may: 5,
+  juni: 6, jun: 6, june: 6,
+  juli: 7, jul: 7, july: 7,
+  agustus: 8, agt: 8, aug: 8, august: 8,
+  september: 9, sep: 9, sept: 9,
+  oktober: 10, okt: 10, oct: 10, october: 10,
+  november: 11, nov: 11,
+  desember: 12, des: 12, dec: 12, december: 12
+};
+
 export const parseExcelDate = (val: any, fallbackYear: number): { isoDate: string; month: number; year: number } => {
-  const now = new Date();
-  if (!val) {
-    return {
-      isoDate: `${fallbackYear}-01-01`,
-      month: 1,
-      year: fallbackYear,
-    };
+  if (val === undefined || val === null || val === '') {
+    return { isoDate: `${fallbackYear}-01-01`, month: 1, year: fallbackYear };
   }
 
+  // 1. JS Date object
   if (val instanceof Date && !isNaN(val.getTime())) {
-    return {
-      isoDate: val.toISOString().split('T')[0],
-      month: val.getMonth() + 1,
-      year: val.getFullYear() || fallbackYear,
-    };
+    const y = val.getFullYear() || fallbackYear;
+    const m = val.getMonth() + 1;
+    const d = val.getDate();
+    const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    return { isoDate: iso, month: m, year: y };
   }
 
-  const num = typeof val === 'number' ? val : parseFloat(String(val));
-  if (!isNaN(num) && num > 20000 && num < 70000) {
+  // 2. Excel Serial Number (e.g. 35000 to 60000)
+  const num = typeof val === 'number' ? val : parseFloat(String(val).trim());
+  if (!isNaN(num) && num > 30000 && num < 70000) {
     const jsDate = new Date(Math.round((num - 25569) * 86400 * 1000));
     if (!isNaN(jsDate.getTime())) {
       const y = jsDate.getUTCFullYear() || fallbackYear;
@@ -194,27 +206,42 @@ export const parseExcelDate = (val: any, fallbackYear: number): { isoDate: strin
     }
   }
 
-  const str = String(val).trim();
+  const str = String(val).trim().toLowerCase();
   if (!str) {
-    return {
-      isoDate: `${fallbackYear}-01-01`,
-      month: 1,
-      year: fallbackYear,
-    };
+    return { isoDate: `${fallbackYear}-01-01`, month: 1, year: fallbackYear };
   }
 
-  const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (dmyMatch) {
-    const day = parseInt(dmyMatch[1], 10);
-    const month = parseInt(dmyMatch[2], 10);
-    const year = parseInt(dmyMatch[3], 10) || fallbackYear;
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      return { isoDate: iso, month, year };
+  // 3. Match Indonesian/English month names (e.g., "10 Februari 2026", "Februari 2026", "10-Feb-2026")
+  let foundMonth = 0;
+  for (const [mName, mNum] of Object.entries(INDO_MONTH_MAP)) {
+    const reg = new RegExp(`(?:^|\\b|_|\\/|\\-|\\.|\\s)${mName}(?:$|\\b|_|\\/|\\-|\\.|\\s)`, 'i');
+    if (reg.test(str)) {
+      foundMonth = mNum;
+      break;
     }
   }
 
-  const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (foundMonth > 0) {
+    const digits = str.match(/\d+/g) || [];
+    let year = fallbackYear;
+    let day = 15;
+
+    digits.forEach(numStr => {
+      const n = parseInt(numStr, 10);
+      if (n >= 2000 && n <= 2050) {
+        year = n;
+      } else if (n >= 1 && n <= 31 && day === 15) {
+        day = n;
+      }
+    });
+
+    const iso = `${year}-${String(foundMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return { isoDate: iso, month: foundMonth, year };
+  }
+
+  // 4. Standard Numeric Formats:
+  // 4a. YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+  const ymdMatch = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
   if (ymdMatch) {
     const year = parseInt(ymdMatch[1], 10) || fallbackYear;
     const month = parseInt(ymdMatch[2], 10);
@@ -225,19 +252,47 @@ export const parseExcelDate = (val: any, fallbackYear: number): { isoDate: strin
     }
   }
 
+  // 4b. DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+  const dmyMatch = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})/);
+  if (dmyMatch) {
+    const p1 = parseInt(dmyMatch[1], 10);
+    const p2 = parseInt(dmyMatch[2], 10);
+    const year = parseInt(dmyMatch[3], 10) || fallbackYear;
+
+    let day = p1;
+    let month = p2;
+
+    if (p1 <= 12 && p2 > 12) {
+      month = p1;
+      day = p2;
+    } else if (p1 > 12 && p2 <= 12) {
+      day = p1;
+      month = p2;
+    } else {
+      day = p1;
+      month = p2;
+    }
+
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      return { isoDate: iso, month, year };
+    }
+  }
+
+  // 4c. Standard JS Date fallback
   const d = new Date(str);
   if (!isNaN(d.getTime())) {
-    return {
-      isoDate: d.toISOString().split('T')[0],
-      month: d.getMonth() + 1,
-      year: d.getFullYear() || fallbackYear,
-    };
+    const y = d.getFullYear() || fallbackYear;
+    const m = d.getMonth() + 1;
+    const dayVal = d.getDate();
+    const iso = `${y}-${String(m).padStart(2, '0')}-${String(dayVal).padStart(2, '0')}`;
+    return { isoDate: iso, month: m, year: y };
   }
 
   return {
     isoDate: `${fallbackYear}-01-01`,
     month: 1,
-    year: fallbackYear,
+    year: fallbackYear
   };
 };
 
@@ -445,10 +500,49 @@ export const parseRealisasiFromExcelData = (
         }
       }
 
-      const tglRaw = row[42] || row[39];
+      const tglRaw = row[42] || row[39] || row[41] || row[40] || row[43] || row[44] || row[38] || row[37] || row[1] || row[2];
+      let parsedDate = parseExcelDate(tglRaw, selectedTahun);
+
+      if (parsedDate.month === 1) {
+        for (let c = 0; c < row.length; c++) {
+          if (!row[c]) continue;
+          const candDate = parseExcelDate(row[c], selectedTahun);
+          if (candDate.month > 1) {
+            parsedDate = candDate;
+            break;
+          }
+        }
+      }
+
+      if (parsedDate.month === 1) {
+        const fullRowText = row.map(cell => String(cell || '')).join(' ').toLowerCase();
+        if (fullRowText.includes('februari') || fullRowText.includes('feb') || fullRowText.includes('/02/') || fullRowText.includes('/0202/') || fullRowText.includes('-02-')) {
+          parsedDate = { isoDate: `${selectedTahun}-02-15`, month: 2, year: selectedTahun };
+        } else if (fullRowText.includes('maret') || fullRowText.includes('mar') || fullRowText.includes('/03/') || fullRowText.includes('/0303/') || fullRowText.includes('-03-')) {
+          parsedDate = { isoDate: `${selectedTahun}-03-15`, month: 3, year: selectedTahun };
+        } else if (fullRowText.includes('april') || fullRowText.includes('apr') || fullRowText.includes('/04/') || fullRowText.includes('/0404/') || fullRowText.includes('-04-')) {
+          parsedDate = { isoDate: `${selectedTahun}-04-15`, month: 4, year: selectedTahun };
+        } else if (fullRowText.includes('mei') || fullRowText.includes('may') || fullRowText.includes('/05/') || fullRowText.includes('/0505/') || fullRowText.includes('-05-')) {
+          parsedDate = { isoDate: `${selectedTahun}-05-15`, month: 5, year: selectedTahun };
+        } else if (fullRowText.includes('juni') || fullRowText.includes('jun') || fullRowText.includes('/06/') || fullRowText.includes('/0606/') || fullRowText.includes('-06-')) {
+          parsedDate = { isoDate: `${selectedTahun}-06-15`, month: 6, year: selectedTahun };
+        } else if (fullRowText.includes('juli') || fullRowText.includes('jul') || fullRowText.includes('/07/') || fullRowText.includes('/0707/') || fullRowText.includes('-07-')) {
+          parsedDate = { isoDate: `${selectedTahun}-07-15`, month: 7, year: selectedTahun };
+        } else if (fullRowText.includes('agustus') || fullRowText.includes('agt') || fullRowText.includes('aug') || fullRowText.includes('/08/') || fullRowText.includes('/0808/') || fullRowText.includes('-08-')) {
+          parsedDate = { isoDate: `${selectedTahun}-08-15`, month: 8, year: selectedTahun };
+        } else if (fullRowText.includes('september') || fullRowText.includes('sep') || fullRowText.includes('/09/') || fullRowText.includes('/0909/') || fullRowText.includes('-09-')) {
+          parsedDate = { isoDate: `${selectedTahun}-09-15`, month: 9, year: selectedTahun };
+        } else if (fullRowText.includes('oktober') || fullRowText.includes('okt') || fullRowText.includes('oct') || fullRowText.includes('/10/') || fullRowText.includes('/1010/') || fullRowText.includes('-10-')) {
+          parsedDate = { isoDate: `${selectedTahun}-10-15`, month: 10, year: selectedTahun };
+        } else if (fullRowText.includes('november') || fullRowText.includes('nov') || fullRowText.includes('/11/') || fullRowText.includes('/1111/') || fullRowText.includes('-11-')) {
+          parsedDate = { isoDate: `${selectedTahun}-11-15`, month: 11, year: selectedTahun };
+        } else if (fullRowText.includes('desember') || fullRowText.includes('des') || fullRowText.includes('dec') || fullRowText.includes('/12/') || fullRowText.includes('/1212/') || fullRowText.includes('-12-')) {
+          parsedDate = { isoDate: `${selectedTahun}-12-15`, month: 12, year: selectedTahun };
+        }
+      }
+
       const { prog, keg, sub } = deriveCodesFromSub(rowSubCode || activeSubCode);
       const bel = rowBelCode || activeBelCode || '5.1.02.01.01.0024';
-      const parsedDate = parseExcelDate(tglRaw, selectedTahun);
       const yearToUse = parsedDate.year || selectedTahun;
 
       results.push({
@@ -500,8 +594,35 @@ export const parseRealisasiFromExcelData = (
       const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian']);
       const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan']);
       const ketVal = findRowValueByKeys(row, ['keterangan', 'ket', 'catatan']);
-      const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d']);
-      const parsedDate = parseExcelDate(tglRaw, thn);
+      const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d', 'bulan', 'bln']);
+      let parsedDate = parseExcelDate(tglRaw, thn);
+
+      if (parsedDate.month === 1) {
+        const fullRowText = Object.values(row).map(val => String(val || '')).join(' ').toLowerCase();
+        if (fullRowText.includes('februari') || fullRowText.includes('feb') || fullRowText.includes('/02/') || fullRowText.includes('/0202/') || fullRowText.includes('-02-')) {
+          parsedDate = { isoDate: `${thn}-02-15`, month: 2, year: thn };
+        } else if (fullRowText.includes('maret') || fullRowText.includes('mar') || fullRowText.includes('/03/') || fullRowText.includes('/0303/') || fullRowText.includes('-03-')) {
+          parsedDate = { isoDate: `${thn}-03-15`, month: 3, year: thn };
+        } else if (fullRowText.includes('april') || fullRowText.includes('apr') || fullRowText.includes('/04/') || fullRowText.includes('/0404/') || fullRowText.includes('-04-')) {
+          parsedDate = { isoDate: `${thn}-04-15`, month: 4, year: thn };
+        } else if (fullRowText.includes('mei') || fullRowText.includes('may') || fullRowText.includes('/05/') || fullRowText.includes('/0505/') || fullRowText.includes('-05-')) {
+          parsedDate = { isoDate: `${thn}-05-15`, month: 5, year: thn };
+        } else if (fullRowText.includes('juni') || fullRowText.includes('jun') || fullRowText.includes('/06/') || fullRowText.includes('/0606/') || fullRowText.includes('-06-')) {
+          parsedDate = { isoDate: `${thn}-06-15`, month: 6, year: thn };
+        } else if (fullRowText.includes('juli') || fullRowText.includes('jul') || fullRowText.includes('/07/') || fullRowText.includes('/0707/') || fullRowText.includes('-07-')) {
+          parsedDate = { isoDate: `${thn}-07-15`, month: 7, year: thn };
+        } else if (fullRowText.includes('agustus') || fullRowText.includes('agt') || fullRowText.includes('aug') || fullRowText.includes('/08/') || fullRowText.includes('/0808/') || fullRowText.includes('-08-')) {
+          parsedDate = { isoDate: `${thn}-08-15`, month: 8, year: thn };
+        } else if (fullRowText.includes('september') || fullRowText.includes('sep') || fullRowText.includes('/09/') || fullRowText.includes('/0909/') || fullRowText.includes('-09-')) {
+          parsedDate = { isoDate: `${thn}-09-15`, month: 9, year: thn };
+        } else if (fullRowText.includes('oktober') || fullRowText.includes('okt') || fullRowText.includes('oct') || fullRowText.includes('/10/') || fullRowText.includes('/1010/') || fullRowText.includes('-10-')) {
+          parsedDate = { isoDate: `${thn}-10-15`, month: 10, year: thn };
+        } else if (fullRowText.includes('november') || fullRowText.includes('nov') || fullRowText.includes('/11/') || fullRowText.includes('/1111/') || fullRowText.includes('-11-')) {
+          parsedDate = { isoDate: `${thn}-11-15`, month: 11, year: thn };
+        } else if (fullRowText.includes('desember') || fullRowText.includes('des') || fullRowText.includes('dec') || fullRowText.includes('/12/') || fullRowText.includes('/1212/') || fullRowText.includes('-12-')) {
+          parsedDate = { isoDate: `${thn}-12-15`, month: 12, year: thn };
+        }
+      }
 
       results.push({
         rowNum: idx + 1,

@@ -201,22 +201,40 @@ export const UploadExcelView: React.FC = () => {
     row7[42] = `${selectedTahun}-02-10`;
     m6Data2D.push(row7);
 
-    // Row 8 Sample Data
+    // Row 8 Sample Data (Maret)
     const row8: any[] = [];
     row8[0] = 2;
-    row8[1] = selectedTahun; // Automatic based on selected year
+    row8[1] = selectedTahun;
     row8[16] = '5.01.01.2.01.01';
     row8[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
     row8[18] = '5.1.02.01.01.0025';
     row8[19] = 'Belanja Kertas dan Cover Cetakan Laporan';
-    row8[25] = 'Cetak Laporan Akuntabilitas Kinerja Instansi Pemerintah (LKjIP)';
+    row8[25] = 'Cetak Laporan Akuntabilitas Kinerja Instansi Pemerintah (LKjIP) Bulan Maret';
     row8[26] = 22500000;
     row8[29] = 'PT Bank NTB Syariah';
     row8[30] = 'Bank NTB Syariah Mataram';
-    row8[40] = `900/102/SPM-LS/KESBANG/${selectedTahun}`;
-    row8[41] = `900/102/SP2D-LS/KESBANG/${selectedTahun}`;
-    row8[42] = `${selectedTahun}-02-20`;
+    row8[40] = `900/0302/SPM-LS/KESBANG/${selectedTahun}`;
+    row8[41] = `900/0302/SP2D-LS/KESBANG/${selectedTahun}`;
+    row8[42] = `${selectedTahun}-03-18`;
     m6Data2D.push(row8);
+
+    // Row 9 Sample Data (April)
+    const row9: any[] = [];
+    row9[0] = 3;
+    row9[1] = selectedTahun;
+    row9[16] = '5.01.02.2.01.03';
+    row9[17] = 'Fasilitasi Pembinaan Kerukunan Umat Beragama';
+    row9[18] = '5.1.02.04.01.0001';
+    row9[19] = 'Belanja Makanan dan Minuman Rapat';
+    row9[20] = 0;
+    row9[25] = 'Belanja Makanan dan Minuman Kegiatan Pembinaan FKUB Bulan April';
+    row9[26] = 35000000;
+    row9[29] = 'PT Lombok Utama Catering';
+    row9[30] = 'Bank NTB Syariah Mataram';
+    row9[40] = `900/0401/SPM-LS/KESBANG/${selectedTahun}`;
+    row9[41] = `900/0401/SP2D-LS/KESBANG/${selectedTahun}`;
+    row9[42] = `15 April ${selectedTahun}`;
+    m6Data2D.push(row9);
 
     const wsM6 = XLSX.utils.aoa_to_sheet(m6Data2D);
     XLSX.utils.book_append_sheet(wb, wsM6, 'Template_Layout_Realisasi');
@@ -232,12 +250,44 @@ export const UploadExcelView: React.FC = () => {
         'Kode Belanja': '5.1.02.01.01.0024',
         'Nama Belanja': 'Belanja ATK',
         'Nilai Realisasi': 15000000,
-        'No SP2D': `900/1001/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SP2D': `900/0201/SP2D-LS/KESBANG/${selectedTahun}`,
         'Tanggal': `${selectedTahun}-02-10`,
-        'No SPM': `900/1001/SPM-LS/KESBANG/${selectedTahun}`,
-        Uraian: 'Pengadaan ATK Kegiatan Perencanaan',
+        'No SPM': `900/0201/SPM-LS/KESBANG/${selectedTahun}`,
+        Uraian: 'Pengadaan ATK Kegiatan Perencanaan Bulan Februari',
         Rekanan: 'CV Cahaya Gemilang',
         Keterangan: 'Bank NTB Syariah - NPWP 01.234.567.8-901.000'
+      },
+      {
+        Tahun: selectedTahun,
+        'Kode Program': '5.01.01',
+        'Kode Kegiatan': '5.01.01.2.01',
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan',
+        'Kode Belanja': '5.1.02.01.01.0025',
+        'Nama Belanja': 'Belanja Kertas',
+        'Nilai Realisasi': 22500000,
+        'No SP2D': `900/0301/SP2D-LS/KESBANG/${selectedTahun}`,
+        'Tanggal': `18 Maret ${selectedTahun}`,
+        'No SPM': `900/0301/SPM-LS/KESBANG/${selectedTahun}`,
+        Uraian: 'Cetak Laporan Kinerja Instansi Bulan Maret',
+        Rekanan: 'PT Bank NTB Syariah',
+        Keterangan: 'Bank NTB Syariah Mataram'
+      },
+      {
+        Tahun: selectedTahun,
+        'Kode Program': '5.01.02',
+        'Kode Kegiatan': '5.01.02.2.01',
+        'Kode Sub Kegiatan': '5.01.02.2.01.03',
+        'Nama Sub Kegiatan': 'Fasilitasi FKUB',
+        'Kode Belanja': '5.1.02.04.01.0001',
+        'Nama Belanja': 'Belanja Makan Minum Rapat',
+        'Nilai Realisasi': 35000000,
+        'No SP2D': `900/0401/SP2D-LS/KESBANG/${selectedTahun}`,
+        'Tanggal': `20/04/${selectedTahun}`,
+        'No SPM': `900/0401/SPM-LS/KESBANG/${selectedTahun}`,
+        Uraian: 'Belanja Jamuan Rapat FKUB Bulan April',
+        Rekanan: 'PT Lombok Utama Catering',
+        Keterangan: 'Bank NTB Syariah'
       }
     ];
     const wsStandard = XLSX.utils.json_to_sheet(cleanStandardData);

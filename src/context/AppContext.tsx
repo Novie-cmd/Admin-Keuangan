@@ -696,11 +696,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         const parsedDate = parseExcelDate(row.tanggal, rowTahun);
+        let finalMonth = parsedDate.month;
+        let finalIsoDate = parsedDate.isoDate;
+
+        if (finalMonth === 1) {
+          const rowText = `${row.tanggal || ''} ${row.sp2d || ''} ${row.spm || ''} ${row.uraian || ''} ${row.rekanan || ''}`.toLowerCase();
+          if (rowText.includes('februari') || rowText.includes('feb') || rowText.includes('/02/') || rowText.includes('/0202/') || rowText.includes('-02-')) {
+            finalMonth = 2;
+            finalIsoDate = `${rowTahun}-02-15`;
+          } else if (rowText.includes('maret') || rowText.includes('mar') || rowText.includes('/03/') || rowText.includes('/0303/') || rowText.includes('-03-')) {
+            finalMonth = 3;
+            finalIsoDate = `${rowTahun}-03-15`;
+          } else if (rowText.includes('april') || rowText.includes('apr') || rowText.includes('/04/') || rowText.includes('/0404/') || rowText.includes('-04-')) {
+            finalMonth = 4;
+            finalIsoDate = `${rowTahun}-04-15`;
+          } else if (rowText.includes('mei') || rowText.includes('may') || rowText.includes('/05/') || rowText.includes('/0505/') || rowText.includes('-05-')) {
+            finalMonth = 5;
+            finalIsoDate = `${rowTahun}-05-15`;
+          } else if (rowText.includes('juni') || rowText.includes('jun') || rowText.includes('/06/') || rowText.includes('/0606/') || rowText.includes('-06-')) {
+            finalMonth = 6;
+            finalIsoDate = `${rowTahun}-06-15`;
+          } else if (rowText.includes('juli') || rowText.includes('jul') || rowText.includes('/07/') || rowText.includes('/0707/') || rowText.includes('-07-')) {
+            finalMonth = 7;
+            finalIsoDate = `${rowTahun}-07-15`;
+          } else if (rowText.includes('agustus') || rowText.includes('agt') || rowText.includes('aug') || rowText.includes('/08/') || rowText.includes('/0808/') || rowText.includes('-08-')) {
+            finalMonth = 8;
+            finalIsoDate = `${rowTahun}-08-15`;
+          } else if (rowText.includes('september') || rowText.includes('sep') || rowText.includes('/09/') || rowText.includes('/0909/') || rowText.includes('-09-')) {
+            finalMonth = 9;
+            finalIsoDate = `${rowTahun}-09-15`;
+          } else if (rowText.includes('oktober') || rowText.includes('okt') || rowText.includes('oct') || rowText.includes('/10/') || rowText.includes('/1010/') || rowText.includes('-10-')) {
+            finalMonth = 10;
+            finalIsoDate = `${rowTahun}-10-15`;
+          } else if (rowText.includes('november') || rowText.includes('nov') || rowText.includes('/11/') || rowText.includes('/1111/') || rowText.includes('-11-')) {
+            finalMonth = 11;
+            finalIsoDate = `${rowTahun}-11-15`;
+          } else if (rowText.includes('desember') || rowText.includes('des') || rowText.includes('dec') || rowText.includes('/12/') || rowText.includes('/1212/') || rowText.includes('-12-')) {
+            finalMonth = 12;
+            finalIsoDate = `${rowTahun}-12-15`;
+          }
+        }
 
         newRealisasiItems.push({
           id: `REAL-${rowTahun}-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 6)}`,
-          tanggal: parsedDate.isoDate,
-          bulan: parsedDate.month,
+          tanggal: finalIsoDate,
+          bulan: finalMonth,
           tahun: rowTahun,
           kodeProgram: finalProg,
           kodeKegiatan: finalKeg,
