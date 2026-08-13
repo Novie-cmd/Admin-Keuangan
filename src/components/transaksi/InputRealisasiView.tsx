@@ -308,9 +308,9 @@ export const InputRealisasiView: React.FC = () => {
 
         const existingKeys = new Set(
           realisasiList
-            .filter(r => Number(r.tahun) !== Number(selectedTahun))
+            .filter(r => Number(r.tahun) === Number(selectedTahun))
             .map(r =>
-              makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+              makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian, r.tahun)
             )
         );
         const seenBatchKeys = new Set<string>();
@@ -318,7 +318,7 @@ export const InputRealisasiView: React.FC = () => {
         const errs: string[] = [];
 
         parsedResults.forEach((r, idx) => {
-          const key = makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian);
+          const key = makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian, r.tahun || selectedTahun);
           const isDup = key ? (existingKeys.has(key) || seenBatchKeys.has(key)) : false;
           if (key && !isDup) {
             seenBatchKeys.add(key);

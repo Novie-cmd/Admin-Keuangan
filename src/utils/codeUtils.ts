@@ -301,13 +301,15 @@ export const makeRealisasiCompositeKey = (
   kodeBelanja: string,
   kodeSub: string,
   nilai: number,
-  uraian: string
+  uraian: string,
+  tahun?: number
 ): string => {
   const cleanSp2d = (sp2d || '').trim().toLowerCase();
   const cleanBel = extractCode(kodeBelanja).toLowerCase();
   const cleanSub = extractCode(kodeSub).toLowerCase();
   const cleanUraian = (uraian || '').trim().toLowerCase();
-  return `${cleanSp2d}|${cleanBel}|${cleanSub}|${nilai}|${cleanUraian}`;
+  const thn = tahun ? String(tahun) : '';
+  return `${thn}|${cleanSp2d}|${cleanBel}|${cleanSub}|${nilai}|${cleanUraian}`;
 };
 
 export const deriveCodesFromSub = (subCodeRaw: string) => {

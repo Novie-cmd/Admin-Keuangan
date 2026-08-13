@@ -18,7 +18,10 @@ import {
   ArrowRight,
   RefreshCw,
   FileCheck,
-  Info
+  Info,
+  Trash2,
+  Database,
+  AlertCircle
 } from 'lucide-react';
 
 interface PreviewRow {
@@ -42,24 +45,44 @@ interface PreviewRow {
 }
 
 export const UploadExcelView: React.FC = () => {
-  const { selectedTahun, batchImportExcel, importLogs, realisasiList } = useApp();
+  const {
+    selectedTahun,
+    batchImportExcel,
+    importLogs,
+    realisasiList,
+    clearRealisasiDatabase
+  } = useApp();
 
   const [fileName, setFileName] = useState<string>('');
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [overwriteMode, setOverwriteMode] = useState<boolean>(true);
+  const [ignoreDuplicateWarnings, setIgnoreDuplicateWarnings] = useState<boolean>(false);
+  const [showClearModal, setShowClearModal] = useState<boolean>(false);
   const [importResult, setImportResult] = useState<{
     successCount: number;
     duplicateCount: number;
     errors: string[];
   } | null>(null);
 
+  const currentYearRealisasi = realisasiList.filter(
+    r => Number(r.tahun) === Number(selectedTahun)
+  );
+
   // Existing composite keys for instant duplicate detection in preview
   const existingKeySet = new Set(
-    realisasiList
-      .filter(r => Number(r.tahun) !== Number(selectedTahun))
-      .map(r =>
-        makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
-      )
+    overwriteMode
+      ? []
+      : currentYearRealisasi.map(r =>
+          makeRealisasiCompositeKey(
+            r.noSP2D,
+            r.kodeBelanja,
+            r.kodeSub,
+            r.nilai,
+            r.uraian,
+            r.tahun
+          )
+        )
   );
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,7 +108,15 @@ export const UploadExcelView: React.FC = () => {
         const seenBatchKeys = new Set<string>();
 
         const parsedRows: PreviewRow[] = rawResults.map(r => {
-          const key = makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian);
+          const rowThn = r.tahun || selectedTahun;
+          const key = makeRealisasiCompositeKey(
+            r.noSP2D,
+            r.kodeBelanja,
+            r.kodeSub,
+            r.nilai,
+            r.uraian,
+            rowThn
+          );
           const isDup = key ? (existingKeySet.has(key) || seenBatchKeys.has(key)) : false;
           if (key && !isDup) {
             seenBatchKeys.add(key);
@@ -93,11 +124,11 @@ export const UploadExcelView: React.FC = () => {
 
           let err = '';
           if (r.nilai <= 0) err = 'Nilai realisasi harus > 0.';
-          else if (isDup) err = 'Data Realisasi ini duplikat dengan database/file ini.';
+          else if (isDup && !overwriteMode) err = 'Data Realisasi ini duplikat dengan database/file ini.';
 
           return {
             rowNum: r.rowNum,
-            tahun: r.tahun || selectedTahun,
+            tahun: rowThn,
             program: r.kodeProgram,
             kegiatan: r.kodeKegiatan,
             sub: r.kodeSub,
@@ -130,7 +161,7 @@ export const UploadExcelView: React.FC = () => {
 
   const handleExecuteImport = () => {
     const validRows = previewData
-      .filter(r => r.isValid)
+      .filter(r => (ignoreDuplicateWarnings ? r.nilai > 0 : r.isValid))
       .map(r => ({
         tahun: r.tahun,
         kodeProgram: r.program,
@@ -151,7 +182,11 @@ export const UploadExcelView: React.FC = () => {
       return;
     }
 
-    const res = batchImportExcel(validRows, fileName || 'Data_Import_Realisasi.xlsx', true);
+    const res = batchImportExcel(
+      validRows,
+      fileName || 'Data_Import_Realisasi.xlsx',
+      overwriteMode
+    );
     setImportResult(res);
     setPreviewData([]);
   };
@@ -297,6 +332,9 @@ export const UploadExcelView: React.FC = () => {
   };
 
   const validCount = previewData.filter(r => r.isValid).length;
+  const executableCount = ignoreDuplicateWarnings
+    ? previewData.filter(r => r.nilai > 0).length
+    : validCount;
   const invalidCount = previewData.length - validCount;
 
   return (
@@ -321,6 +359,49 @@ export const UploadExcelView: React.FC = () => {
           <Download className="h-4 w-4" />
           <span>Unduh Format Excel</span>
         </button>
+      </div>
+
+      {/* DATABASE CONTROL PANEL & OVERWRITE SETTINGS */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-slate-800 p-2.5 text-emerald-400 border border-slate-700">
+            <Database className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white">
+                Status Database Realisasi TA {selectedTahun}:
+              </span>
+              <span className="rounded-full bg-emerald-950 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-800">
+                {currentYearRealisasi.length} Transaksi SP2D
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Kosongkan database jika ingin memulai import ulang file Excel tanpa terdeteksi duplikat.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+          <label className="flex items-center gap-2 text-xs text-slate-300 font-medium cursor-pointer bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 hover:border-slate-700">
+            <input
+              type="checkbox"
+              checked={overwriteMode}
+              onChange={e => setOverwriteMode(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
+            />
+            <span>Mode Timpa/Replace (Abaikan Peta Duplikat Database)</span>
+          </label>
+
+          <button
+            type="button"
+            onClick={() => setShowClearModal(true)}
+            className="flex items-center gap-1.5 rounded-xl border border-rose-800/80 bg-rose-950/60 px-3.5 py-2 text-xs font-bold text-rose-300 hover:bg-rose-900/80 hover:text-white transition shadow-sm"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Kosongkan Database</span>
+          </button>
+        </div>
       </div>
 
       {/* DROPZONE AREA */}
@@ -420,24 +501,38 @@ export const UploadExcelView: React.FC = () => {
       {/* PREVIEW & VALIDATION TABLE */}
       {previewData.length > 0 && (
         <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-2xl">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-800 pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-800 pb-3">
             <div>
               <h3 className="text-sm font-bold text-white">Pratinjau & Validasi Data Import</h3>
               <p className="text-xs text-slate-400">
                 Total: {previewData.length} baris | Valid:{' '}
-                <span className="text-emerald-400 font-bold">{validCount}</span> | Invalid/Duplikat:{' '}
+                <span className="text-emerald-400 font-bold">{validCount}</span> | Duplikat/Peringatan:{' '}
                 <span className="text-rose-400 font-bold">{invalidCount}</span>
               </p>
             </div>
 
-            <button
-              onClick={handleExecuteImport}
-              disabled={validCount === 0}
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md disabled:opacity-50"
-            >
-              <FileCheck className="h-4 w-4" />
-              <span>Eksekusi Import ({validCount} Data Valid)</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {invalidCount > 0 && (
+                <label className="flex items-center gap-2 text-xs text-amber-300 font-medium cursor-pointer bg-slate-950 border border-amber-900/50 rounded-xl px-3 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={ignoreDuplicateWarnings}
+                    onChange={e => setIgnoreDuplicateWarnings(e.target.checked)}
+                    className="h-4 w-4 rounded border-amber-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
+                  />
+                  <span>Abaikan Peringatan Duplikat & Import Semua ({previewData.filter(r => r.nilai > 0).length} Baris)</span>
+                </label>
+              )}
+
+              <button
+                onClick={handleExecuteImport}
+                disabled={executableCount === 0}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md disabled:opacity-50"
+              >
+                <FileCheck className="h-4 w-4" />
+                <span>Eksekusi Import ({executableCount} Data)</span>
+              </button>
+            </div>
           </div>
 
           <div className="max-h-96 overflow-x-auto overflow-y-auto rounded-xl border border-slate-800">
@@ -532,6 +627,70 @@ export const UploadExcelView: React.FC = () => {
           </table>
         </div>
       </div>
+      {/* CLEAR DATABASE CONFIRMATION MODAL */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-rose-900/80 bg-slate-900 p-6 shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+              <div className="rounded-xl bg-rose-950 p-2.5 text-rose-400 border border-rose-800">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Konfirmasi Kosongkan Database</h3>
+                <p className="text-xs text-rose-300">Penghapusan Transaksi Realisasi SP2D</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs text-slate-300">
+              <p className="font-bold text-rose-300">Peringatan Penting!</p>
+              <p>
+                Tindakan ini akan menghapus seluruh data transaksi Realisasi SP2D dari database lokal.
+                Setelah dikosongkan, Anda dapat mengunggah file Excel baru secara bersih tanpa terdeteksi sebagai duplikat.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  clearRealisasiDatabase(selectedTahun);
+                  setPreviewData([]);
+                  setShowClearModal(false);
+                  alert(`Berhasil mengosongkan seluruh data realisasi untuk Tahun Anggaran ${selectedTahun}.`);
+                }}
+                className="w-full rounded-xl bg-rose-600 hover:bg-rose-500 p-3 text-xs font-bold text-white transition flex items-center justify-between shadow-md"
+              >
+                <span>Hapus Data TA {selectedTahun} Saja ({currentYearRealisasi.length} Transaksi)</span>
+                <Trash2 className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  clearRealisasiDatabase();
+                  setPreviewData([]);
+                  setShowClearModal(false);
+                  alert('Berhasil mengosongkan seluruh database realisasi untuk semua Tahun Anggaran.');
+                }}
+                className="w-full rounded-xl bg-slate-800 hover:bg-rose-950 hover:text-rose-300 border border-slate-700 hover:border-rose-800 p-3 text-xs font-bold text-slate-300 transition flex items-center justify-between"
+              >
+                <span>Hapus Seluruh Data Realisasi (Semua Tahun)</span>
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowClearModal(false)}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-300 transition"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

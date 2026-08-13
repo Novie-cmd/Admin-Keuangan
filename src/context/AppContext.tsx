@@ -656,7 +656,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const existingKeys = new Set(
         baseList.map(r =>
-          makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian)
+          makeRealisasiCompositeKey(r.noSP2D, r.kodeBelanja, r.kodeSub, r.nilai, r.uraian, r.tahun)
         )
       );
 
@@ -687,7 +687,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const finalProg = cleanProg || angMatch?.kodeProgram || '5.01.01';
         const sp2dStr = (row.sp2d || '').trim();
 
-        const key = makeRealisasiCompositeKey(sp2dStr, finalBelanja, finalSub, row.nilai, row.uraian);
+        const key = makeRealisasiCompositeKey(sp2dStr, finalBelanja, finalSub, row.nilai, row.uraian, rowTahun);
 
         if (key && existingKeys.has(key)) {
           duplicateCount++;
