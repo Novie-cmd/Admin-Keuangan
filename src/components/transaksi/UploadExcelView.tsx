@@ -25,7 +25,11 @@ import {
   Plus,
   Layers,
   ArrowDown,
-  FileText
+  FileText,
+  Search,
+  Check,
+  Eye,
+  ArrowUpRight
 } from 'lucide-react';
 
 interface PreviewRow {
@@ -67,6 +71,7 @@ export const UploadExcelView: React.FC = () => {
     batchImportExcel,
     importLogs,
     realisasiList,
+    deleteRealisasi,
     clearRealisasiDatabase
   } = useApp();
 
@@ -76,6 +81,7 @@ export const UploadExcelView: React.FC = () => {
   const [overwriteMode, setOverwriteMode] = useState<boolean>(false);
   const [ignoreDuplicateWarnings, setIgnoreDuplicateWarnings] = useState<boolean>(false);
   const [showClearModal, setShowClearModal] = useState<boolean>(false);
+  const [dbSearchQuery, setDbSearchQuery] = useState<string>('');
   const [importResult, setImportResult] = useState<{
     successCount: number;
     duplicateCount: number;
@@ -88,6 +94,24 @@ export const UploadExcelView: React.FC = () => {
   const currentYearRealisasi = realisasiList.filter(
     r => Number(r.tahun) === Number(selectedTahun)
   );
+
+  const totalOtherYearsCount = realisasiList.length - currentYearRealisasi.length;
+  const totalRealisasiNominal = currentYearRealisasi.reduce((acc, r) => acc + (Number(r.nilai) || 0), 0);
+
+  // Filtered live database rows
+  const filteredDbRealisasi = currentYearRealisasi.filter(r => {
+    if (!dbSearchQuery.trim()) return true;
+    const q = dbSearchQuery.toLowerCase();
+    return (
+      (r.noSP2D && r.noSP2D.toLowerCase().includes(q)) ||
+      (r.noSPM && r.noSPM.toLowerCase().includes(q)) ||
+      (r.kodeBelanja && r.kodeBelanja.toLowerCase().includes(q)) ||
+      (r.kodeSub && r.kodeSub.toLowerCase().includes(q)) ||
+      (r.uraian && r.uraian.toLowerCase().includes(q)) ||
+      (r.rekanan && r.rekanan.toLowerCase().includes(q)) ||
+      (r.tanggal && r.tanggal.toLowerCase().includes(q))
+    );
+  });
 
   // Existing composite keys for instant duplicate detection in preview
   const existingKeySet = new Set(
@@ -467,9 +491,17 @@ export const UploadExcelView: React.FC = () => {
               <span className="rounded-full bg-emerald-950 px-2.5 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-800">
                 {currentYearRealisasi.length} Transaksi SP2D
               </span>
+              <span className="text-xs font-bold text-emerald-300 font-mono">
+                (Rp {totalRealisasiNominal.toLocaleString('id-ID')})
+              </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
               Mode <strong>Akumulasi & Append</strong> aktif: baris file baru akan disambungkan di baris terakhir (Row #{currentYearRealisasi.length + 1} ke bawah).
+              {totalOtherYearsCount > 0 && (
+                <span className="text-amber-400 ml-1">
+                  (Terdapat juga {totalOtherYearsCount} transaksi di TA lain).
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -534,13 +566,13 @@ export const UploadExcelView: React.FC = () => {
             Pilih File Excel Transaksi Realisasi Keuangan (.xlsx, .xls, .csv)
           </h2>
           <p className="mt-1 text-xs text-slate-400">
-            Dapat memilih satu atau beberapa file sekaligus. Sistem mendukung format SIPD/SIMDA (Urutan Kolom Q6-AQ6).
+            Dapat memilih satu atau beberapa file sekaligus. Sistem mendukung format SIPD/SIMDA (Urutan Kolom Q6-AQ6) maupun format tabel standar.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
           {/* Main Upload / New Batch */}
-          <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50">
+          <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50 transition">
             <UploadCloud className="h-4 w-4" />
             <span>{isProcessing ? 'Membaca File...' : 'Pilih File Excel (Bisa Multi-File)'}</span>
             <input
@@ -581,6 +613,33 @@ export const UploadExcelView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* CALLOUT REMINDER WHEN IN PREVIEW STAGE */}
+      {previewData.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/60 bg-amber-950/40 p-4 shadow-lg flex items-center justify-between flex-wrap gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-amber-900/80 p-2 text-amber-300 border border-amber-700">
+              <AlertCircle className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-amber-200">
+                Data Telah Selesai Dibaca: {previewData.length} Baris Data Berhasil Dideteksi!
+              </h4>
+              <p className="text-[11px] text-slate-300">
+                Data ini masih berada di <strong>Pratinjau Sementara</strong>. Klik tombol hijau <strong>"Eksekusi Import Berurutan"</strong> di bawah untuk menyimpan seluruhnya ke database.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleExecuteImport}
+            disabled={executableCount === 0}
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md disabled:opacity-50"
+          >
+            <FileCheck className="h-4 w-4" />
+            <span>Eksekusi Import ({executableCount} Data)</span>
+          </button>
+        </div>
+      )}
 
       {/* QUEUED FILES CARDS */}
       {fileQueue.length > 0 && (
@@ -629,15 +688,20 @@ export const UploadExcelView: React.FC = () => {
       {/* RESULT NOTIFICATION BANNER */}
       {importResult && (
         <div className="rounded-2xl border border-emerald-500 bg-emerald-950/60 p-5 shadow-2xl">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="h-6 w-6 text-emerald-400" />
-            <div>
-              <h3 className="text-sm font-bold text-white">Import Berhasil Selesai</h3>
-              <p className="text-xs text-emerald-200">
-                {importResult.successCount} Transaksi berhasil diimpor berurutan ke database realisasi.{' '}
-                {importResult.duplicateCount > 0 && `(${importResult.duplicateCount} Duplikat Diabaikan)`}
-              </p>
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+              <div>
+                <h3 className="text-sm font-bold text-white">Import Berhasil Disimpan ke Database</h3>
+                <p className="text-xs text-emerald-200">
+                  <strong>{importResult.successCount}</strong> Transaksi berhasil diimpor berurutan ke database realisasi TA {selectedTahun}.{' '}
+                  {importResult.duplicateCount > 0 && `(${importResult.duplicateCount} Duplikat Diabaikan)`}
+                </p>
+              </div>
             </div>
+            <span className="rounded-full bg-emerald-900/80 px-3 py-1 text-xs font-bold text-emerald-300 border border-emerald-600">
+              Database Kini: {currentYearRealisasi.length} Transaksi
+            </span>
           </div>
         </div>
       )}
@@ -751,6 +815,110 @@ export const UploadExcelView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* LIVE DATABASE REALISASI TABLE: DIRECT RESULT OF IMPORT */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-2xl space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-800 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Database className="h-4 w-4 text-emerald-400" />
+              <h3 className="text-sm font-bold text-white">
+                Daftar Transaksi Realisasi SP2D di Database (TA {selectedTahun})
+              </h3>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Total {currentYearRealisasi.length} transaksi tersimpan | Total Nominal: Rp {totalRealisasiNominal.toLocaleString('id-ID')}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Cari SP2D, Belanja, Uraian, Rekanan..."
+                value={dbSearchQuery}
+                onChange={e => setDbSearchQuery(e.target.value)}
+                className="rounded-xl border border-slate-700 bg-slate-950 pl-9 pr-3 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-emerald-500 focus:outline-none w-64"
+              />
+            </div>
+          </div>
+        </div>
+
+        {currentYearRealisasi.length === 0 ? (
+          <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-8 text-center space-y-2">
+            <Database className="mx-auto h-10 w-10 text-slate-600" />
+            <h4 className="text-xs font-bold text-slate-300">Belum Ada Data Realisasi untuk TA {selectedTahun}</h4>
+            <p className="text-[11px] text-slate-500 max-w-md mx-auto">
+              Silakan pilih file Excel di atas, lalu klik <strong>"Eksekusi Import Berurutan"</strong> untuk mengisi data ke dalam database.
+            </p>
+          </div>
+        ) : (
+          <div className="max-h-96 overflow-x-auto overflow-y-auto rounded-xl border border-slate-800">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-slate-950 text-slate-300 font-bold uppercase border-b border-slate-800">
+                <tr>
+                  <th className="px-3 py-2 text-center w-12">No</th>
+                  <th className="px-3 py-2">Tanggal</th>
+                  <th className="px-3 py-2">No. SP2D</th>
+                  <th className="px-3 py-2">Kode Rekening Belanja</th>
+                  <th className="px-3 py-2 text-right">Nilai Realisasi (Rp)</th>
+                  <th className="px-3 py-2">Uraian / Keterangan</th>
+                  <th className="px-3 py-2">Rekanan</th>
+                  <th className="px-3 py-2 text-center">Status</th>
+                  <th className="px-3 py-2 text-center w-16">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800 text-slate-300">
+                {filteredDbRealisasi.map((r, idx) => (
+                  <tr key={r.id} className="hover:bg-slate-800/50">
+                    <td className="px-3 py-2 text-center font-mono font-bold text-slate-400">
+                      {idx + 1}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-slate-300 whitespace-nowrap">
+                      {r.tanggal}
+                    </td>
+                    <td className="px-3 py-2 font-mono font-bold text-emerald-400 whitespace-nowrap">
+                      {r.noSP2D}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-slate-300 whitespace-nowrap">
+                      {r.kodeBelanja}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono font-bold text-white whitespace-nowrap">
+                      Rp {Number(r.nilai).toLocaleString('id-ID')}
+                    </td>
+                    <td className="px-3 py-2 max-w-xs truncate" title={r.uraian}>
+                      {r.uraian}
+                    </td>
+                    <td className="px-3 py-2 max-w-xs truncate text-slate-400" title={r.rekanan}>
+                      {r.rekanan}
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <span className="inline-flex items-center rounded-full bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-800">
+                        {r.statusValidation || 'Disetujui PPK'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`Hapus data realisasi SP2D "${r.noSP2D}"?`)) {
+                            deleteRealisasi(r.id);
+                          }
+                        }}
+                        className="rounded p-1 text-slate-500 hover:bg-rose-950 hover:text-rose-400 transition"
+                        title="Hapus baris ini"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* IMPORT LOGS AUDIT */}
       <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-xl">

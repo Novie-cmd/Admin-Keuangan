@@ -367,7 +367,106 @@ export const parseRealisasiFromExcelData = (
   let activeBelName = 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor';
 
   if (sheet2D && sheet2D.length > 0) {
-    for (let idx = 0; idx < sheet2D.length; idx++) {
+    // 1. Detect dynamic column headers if present in top 15 rows
+    let colSP2D = -1;
+    let colSPM = -1;
+    let colTanggal = -1;
+    let colSubCode = -1;
+    let colSubName = -1;
+    let colBelCode = -1;
+    let colBelName = -1;
+    let colNilai = -1;
+    let colUraian = -1;
+    let colRekanan = -1;
+    let colKet = -1;
+    let colTahun = -1;
+    let headerRowIndex = -1;
+
+    for (let r = 0; r < Math.min(sheet2D.length, 15); r++) {
+      const row = sheet2D[r];
+      if (!row || row.length === 0) continue;
+      let matchedHeaders = 0;
+
+      row.forEach((cell, cIdx) => {
+        const text = String(cell || '').trim().toLowerCase().replace(/[\s_\-()/.:]/g, '');
+        if (!text) return;
+
+        if (text.includes('sp2d') || text.includes('nosp2d') || text.includes('nomorsp2d')) {
+          colSP2D = cIdx;
+          matchedHeaders++;
+        } else if (text.includes('spm') || text.includes('nospm') || text.includes('nomorspm')) {
+          colSPM = cIdx;
+          matchedHeaders++;
+        } else if (text.includes('tanggal') || text.includes('tglsp2d') || text.includes('tgl')) {
+          colTanggal = cIdx;
+          matchedHeaders++;
+        } else if (
+          (text.includes('subkegiatan') || text.includes('kodesub') || text.includes('subkeg')) &&
+          (text.includes('kode') || !text.includes('nama'))
+        ) {
+          colSubCode = cIdx;
+          matchedHeaders++;
+        } else if (
+          text.includes('namasub') ||
+          (text.includes('subkegiatan') && text.includes('nama'))
+        ) {
+          colSubName = cIdx;
+          matchedHeaders++;
+        } else if (
+          (text.includes('belanja') || text.includes('rekening') || text.includes('koderek')) &&
+          (text.includes('kode') || !text.includes('nama'))
+        ) {
+          colBelCode = cIdx;
+          matchedHeaders++;
+        } else if (
+          text.includes('namabelanja') ||
+          text.includes('namarekening') ||
+          text.includes('uraianbelanja')
+        ) {
+          colBelName = cIdx;
+          matchedHeaders++;
+        } else if (
+          text.includes('nilai') ||
+          text.includes('realisasi') ||
+          text.includes('jumlah') ||
+          text.includes('total') ||
+          text.includes('cair') ||
+          text.includes('nominal')
+        ) {
+          colNilai = cIdx;
+          matchedHeaders++;
+        } else if (
+          text.includes('uraian') ||
+          text.includes('keperluan') ||
+          text.includes('keterangan') ||
+          text.includes('deskripsi')
+        ) {
+          colUraian = cIdx;
+          matchedHeaders++;
+        } else if (
+          text.includes('rekanan') ||
+          text.includes('penyedia') ||
+          text.includes('penerima') ||
+          text.includes('pihakketiga') ||
+          text.includes('perusahaan')
+        ) {
+          colRekanan = cIdx;
+          matchedHeaders++;
+        } else if (text.includes('tahun') || text.includes('thn') || text.includes('ta')) {
+          colTahun = cIdx;
+          matchedHeaders++;
+        }
+      });
+
+      if (matchedHeaders >= 3) {
+        headerRowIndex = r;
+        break;
+      }
+    }
+
+    const startRow = headerRowIndex >= 0 ? headerRowIndex + 1 : 0;
+
+    for (let idx = startRow; idx < sheet2D.length; idx++) {
       const row = sheet2D[idx];
       if (!row || row.length === 0) continue;
 
@@ -383,7 +482,9 @@ export const parseRealisasiFromExcelData = (
 
       // Check if row has explicit SP2D number
       let rowSp2d = '';
-      if (row[41] && String(row[41]).trim()) {
+      if (colSP2D >= 0 && row[colSP2D] && String(row[colSP2D]).trim()) {
+        rowSp2d = String(row[colSP2D]).trim();
+      } else if (row[41] && String(row[41]).trim()) {
         rowSp2d = String(row[41]).trim();
       } else {
         // Search across row cells for SP2D pattern
@@ -405,8 +506,10 @@ export const parseRealisasiFromExcelData = (
       let rowSubCode = '';
       let rowSubName = '';
 
-      // Check standard positions first: Q6 (16), M6 (12)
-      if (isValidKodeSub(row[16])) {
+      if (colSubCode >= 0 && isValidKodeSub(row[colSubCode])) {
+        rowSubCode = extractCode(row[colSubCode]);
+        rowSubName = colSubName >= 0 ? String(row[colSubName] || '').trim() : String(row[colSubCode + 1] || '').trim();
+      } else if (isValidKodeSub(row[16])) {
         rowSubCode = extractCode(row[16]);
         rowSubName = String(row[17] || '').trim();
       } else if (isValidKodeSub(row[12])) {
@@ -432,7 +535,10 @@ export const parseRealisasiFromExcelData = (
       let rowBelCode = '';
       let rowBelName = '';
 
-      if (row[18] && extractCode(row[18]) && /^\d+(\.\d+){4,}$/.test(extractCode(row[18]))) {
+      if (colBelCode >= 0 && row[colBelCode] && extractCode(row[colBelCode]) && /^\d+(\.\d+){4,}$/.test(extractCode(row[colBelCode]))) {
+        rowBelCode = extractCode(row[colBelCode]);
+        rowBelName = colBelName >= 0 ? String(row[colBelName] || '').trim() : String(row[colBelCode + 1] || '').trim();
+      } else if (row[18] && extractCode(row[18]) && /^\d+(\.\d+){4,}$/.test(extractCode(row[18]))) {
         rowBelCode = extractCode(row[18]);
         rowBelName = String(row[19] || '').trim();
       } else {
@@ -452,13 +558,19 @@ export const parseRealisasiFromExcelData = (
       }
 
       // 3. Extract Nilai Realisasi (Rp)
-      let nilaiVal = parseNumber(row[26]); // Primary: Col AA (26)
+      let nilaiVal = 0;
+      if (colNilai >= 0 && row[colNilai] !== undefined) {
+        nilaiVal = parseNumber(row[colNilai]);
+      }
+      if (nilaiVal === 0) {
+        nilaiVal = parseNumber(row[26]); // Primary SIPD: Col AA (26)
+      }
       if (nilaiVal === 0) {
         nilaiVal = parseNumber(row[19]); // Col T (19)
       }
       if (nilaiVal === 0) {
         // Search adjacent & common value columns
-        for (const cIdx of [18, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15]) {
+        for (const cIdx of [18, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15]) {
           if (cIdx < row.length) {
             const cand = parseNumber(row[cIdx]);
             if (cand > 0 && cand !== selectedTahun && cand !== 2024 && cand !== 2025 && cand !== 2026 && cand !== 2027) {
@@ -487,11 +599,28 @@ export const parseRealisasiFromExcelData = (
       const namaSub = rowSubName || activeSubName || `Sub Kegiatan ${activeSubCode}`;
       const namaBel = rowBelName || activeBelName || `Belanja ${activeBelCode}`;
 
-      const uraianVal = String(row[25] || row[24] || '').trim();
-      const rekananVal = String(row[29] || '').trim();
-      const ketVal = String(row[30] || '').trim();
+      let uraianVal = '';
+      if (colUraian >= 0 && row[colUraian]) {
+        uraianVal = String(row[colUraian]).trim();
+      } else {
+        uraianVal = String(row[25] || row[24] || '').trim();
+      }
 
-      let spmVal = String(row[40] || '').trim();
+      let rekananVal = '';
+      if (colRekanan >= 0 && row[colRekanan]) {
+        rekananVal = String(row[colRekanan]).trim();
+      } else {
+        rekananVal = String(row[29] || '').trim();
+      }
+
+      let ketVal = String(row[30] || '').trim();
+
+      let spmVal = '';
+      if (colSPM >= 0 && row[colSPM]) {
+        spmVal = String(row[colSPM]).trim();
+      } else {
+        spmVal = String(row[40] || '').trim();
+      }
       if (!spmVal) {
         for (let c = 0; c < row.length; c++) {
           const strCell = String(row[c] || '').trim();
@@ -502,7 +631,13 @@ export const parseRealisasiFromExcelData = (
         }
       }
 
-      const tglRaw = row[42] || row[39] || row[41] || row[40] || row[43] || row[44] || row[38] || row[37] || row[1] || row[2];
+      let tglRaw: any = null;
+      if (colTanggal >= 0 && row[colTanggal]) {
+        tglRaw = row[colTanggal];
+      } else {
+        tglRaw = row[42] || row[39] || row[41] || row[40] || row[43] || row[44] || row[38] || row[37] || row[1] || row[2];
+      }
+
       let parsedDate = parseExcelDate(tglRaw, selectedTahun);
 
       if (parsedDate.month === 1) {
@@ -545,7 +680,7 @@ export const parseRealisasiFromExcelData = (
 
       const { prog, keg, sub } = deriveCodesFromSub(rowSubCode || activeSubCode);
       const bel = rowBelCode || activeBelCode || '5.1.02.01.01.0024';
-      const yearToUse = parsedDate.year || selectedTahun;
+      const yearToUse = selectedTahun; // Always bind to the active budget year so it shows up immediately
 
       results.push({
         rowNum: idx + 1,
@@ -570,8 +705,7 @@ export const parseRealisasiFromExcelData = (
   // Fallback to sheetJson if sheet2D is empty or yielded no rows
   if (results.length === 0 && sheetJson) {
     sheetJson.forEach((row, idx) => {
-      const thnStr = findRowValueByKeys(row, ['tahun', 'thn', 'tahunanggaran', 'ta']);
-      const thn = parseInt(thnStr || String(selectedTahun), 10) || selectedTahun;
+      const thn = selectedTahun;
 
       const progRaw = findRowValueByKeys(row, ['kodeprogram', 'kodeprog', 'program'], true);
       const kegRaw = findRowValueByKeys(row, ['kodekegiatan', 'kodekeg', 'kegiatan'], true);
@@ -586,17 +720,17 @@ export const parseRealisasiFromExcelData = (
 
       const namaSub = findRowValueByKeys(row, ['namasubkegiatan', 'namasub', 'subkegiatan']) || activeSubName;
       const namaBel = findRowValueByKeys(row, ['namabelanja', 'uraianbelanja', 'namarekening', 'rekening']) || activeBelName;
-      const sp2dVal = findRowValueByKeys(row, ['nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls']);
+      const sp2dVal = findRowValueByKeys(row, ['nosp2d', 'sp2d', 'nomorsp2d', 'nomorsp2dls', 'nobukti', 'nomorbukti']);
       const spmVal = findRowValueByKeys(row, ['nospm', 'spm', 'nomorspm']);
-      const nilaiRaw = findRowValueByKeys(row, ['nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d']);
+      const nilaiRaw = findRowValueByKeys(row, ['nilairealisasi', 'nilai', 'realisasi', 'jumlah', 'nilaisp2d', 'total', 'debet', 'kredit']);
       const nilaiVal = parseNumber(nilaiRaw);
 
       if (nilaiVal <= 0) return;
 
-      const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian']);
-      const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan']);
+      const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian', 'keperluan', 'deskripsi']);
+      const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan', 'pihakketiga', 'perusahaan']);
       const ketVal = findRowValueByKeys(row, ['keterangan', 'ket', 'catatan']);
-      const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d', 'bulan', 'bln']);
+      const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d', 'bulan', 'bln', 'tgl_sp2d']);
       let parsedDate = parseExcelDate(tglRaw, thn);
 
       if (parsedDate.month === 1) {

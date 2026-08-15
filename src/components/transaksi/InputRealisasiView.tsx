@@ -729,25 +729,32 @@ export const InputRealisasiView: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
               {currentRealisasi
-                .filter(
-                  r =>
-                    r.noSP2D.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    r.uraian.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    r.rekanan.toLowerCase().includes(searchTerm.toLowerCase())
-                )
+                .filter(r => {
+                  if (!searchTerm.trim()) return true;
+                  const q = searchTerm.toLowerCase();
+                  return (
+                    (r.noSP2D || '').toLowerCase().includes(q) ||
+                    (r.noSPM || '').toLowerCase().includes(q) ||
+                    (r.kodeBelanja || '').toLowerCase().includes(q) ||
+                    (r.kodeSub || '').toLowerCase().includes(q) ||
+                    (r.uraian || '').toLowerCase().includes(q) ||
+                    (r.rekanan || '').toLowerCase().includes(q) ||
+                    (r.tanggal || '').toLowerCase().includes(q)
+                  );
+                })
                 .map((r, idx) => (
                   <tr key={r.id} className="hover:bg-slate-800/50">
                     <td className="px-3 py-3 text-center font-mono font-bold text-slate-400">
                       {idx + 1}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold text-teal-300">{r.noSP2D}</td>
-                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{r.tanggal}</td>
-                    <td className="px-4 py-3 font-mono text-emerald-400">{r.kodeBelanja}</td>
-                    <td className="px-4 py-3 font-medium text-white max-w-xs">{r.uraian}</td>
+                    <td className="px-4 py-3 font-mono font-bold text-teal-300">{r.noSP2D || '-'}</td>
+                    <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{r.tanggal || '-'}</td>
+                    <td className="px-4 py-3 font-mono text-emerald-400">{r.kodeBelanja || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-white max-w-xs">{r.uraian || '-'}</td>
                     <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
-                      Rp {r.nilai.toLocaleString('id-ID')}
+                      Rp {(Number(r.nilai) || 0).toLocaleString('id-ID')}
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{r.rekanan}</td>
+                    <td className="px-4 py-3 text-slate-300">{r.rekanan || '-'}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
