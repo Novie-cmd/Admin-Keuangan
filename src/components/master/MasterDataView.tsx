@@ -105,15 +105,19 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   const [deletingOpd, setDeletingOpd] = useState<OPD | null>(null);
 
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
+  const [origProgramKey, setOrigProgramKey] = useState<{ kode: string; tahun: number } | null>(null);
   const [deletingProgram, setDeletingProgram] = useState<Program | null>(null);
 
   const [editingKegiatan, setEditingKegiatan] = useState<Kegiatan | null>(null);
+  const [origKegiatanKey, setOrigKegiatanKey] = useState<{ kode: string; tahun: number } | null>(null);
   const [deletingKegiatan, setDeletingKegiatan] = useState<Kegiatan | null>(null);
 
   const [editingSub, setEditingSub] = useState<SubKegiatan | null>(null);
+  const [origSubKey, setOrigSubKey] = useState<{ kode: string; tahun: number } | null>(null);
   const [deletingSub, setDeletingSub] = useState<SubKegiatan | null>(null);
 
   const [editingBelanja, setEditingBelanja] = useState<Belanja | null>(null);
+  const [origBelanjaKey, setOrigBelanjaKey] = useState<{ kode: string; tahun?: number } | null>(null);
   const [deletingBelanja, setDeletingBelanja] = useState<Belanja | null>(null);
 
   const [editingSumberDana, setEditingSumberDana] = useState<SumberDana | null>(null);
@@ -243,8 +247,11 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   const handleSaveEditProgram = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProgram) return;
-    updateProgram(editingProgram.kodeProgram, editingProgram.tahun, editingProgram);
+    const oldKode = origProgramKey?.kode || editingProgram.kodeProgram;
+    const oldTahun = origProgramKey?.tahun || editingProgram.tahun;
+    updateProgram(oldKode, oldTahun, editingProgram);
     setEditingProgram(null);
+    setOrigProgramKey(null);
   };
   const handleConfirmDeleteProgram = () => {
     if (!deletingProgram) return;
@@ -256,8 +263,11 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   const handleSaveEditKegiatan = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingKegiatan) return;
-    updateKegiatan(editingKegiatan.kodeKegiatan, editingKegiatan.tahun, editingKegiatan);
+    const oldKode = origKegiatanKey?.kode || editingKegiatan.kodeKegiatan;
+    const oldTahun = origKegiatanKey?.tahun || editingKegiatan.tahun;
+    updateKegiatan(oldKode, oldTahun, editingKegiatan);
     setEditingKegiatan(null);
+    setOrigKegiatanKey(null);
   };
   const handleConfirmDeleteKegiatan = () => {
     if (!deletingKegiatan) return;
@@ -269,8 +279,11 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   const handleSaveEditSub = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSub) return;
-    updateSubKegiatan(editingSub.kodeSub, editingSub.tahun, editingSub);
+    const oldKode = origSubKey?.kode || editingSub.kodeSub;
+    const oldTahun = origSubKey?.tahun || editingSub.tahun;
+    updateSubKegiatan(oldKode, oldTahun, editingSub);
     setEditingSub(null);
+    setOrigSubKey(null);
   };
   const handleConfirmDeleteSub = () => {
     if (!deletingSub) return;
@@ -282,8 +295,11 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   const handleSaveEditBelanja = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBelanja) return;
-    updateBelanja(editingBelanja.kodeBelanja, editingBelanja.tahun, editingBelanja);
+    const oldKode = origBelanjaKey?.kode || editingBelanja.kodeBelanja;
+    const oldTahun = origBelanjaKey?.tahun || editingBelanja.tahun || selectedTahun;
+    updateBelanja(oldKode, oldTahun, editingBelanja);
     setEditingBelanja(null);
+    setOrigBelanjaKey(null);
   };
   const handleConfirmDeleteBelanja = () => {
     if (!deletingBelanja) return;
@@ -294,13 +310,19 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
   // Sumber Dana handlers
   const handleSaveEditSumberDana = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingSumberDana || !editingSumberDana.id) return;
-    updateSumberDana(editingSumberDana.id, editingSumberDana);
+    if (!editingSumberDana) return;
+    const targetKey = editingSumberDana.id || editingSumberDana.kodeSumber;
+    if (!targetKey) return;
+    updateSumberDana(targetKey, editingSumberDana);
     setEditingSumberDana(null);
   };
   const handleConfirmDeleteSumberDana = () => {
-    if (!deletingSumberDana || !deletingSumberDana.id) return;
-    deleteSumberDana(deletingSumberDana.id);
+    if (!editingSumberDana && !deletingSumberDana) return;
+    const target = deletingSumberDana || editingSumberDana;
+    if (!target) return;
+    const targetKey = target.id || target.kodeSumber;
+    if (!targetKey) return;
+    deleteSumberDana(targetKey);
     setDeletingSumberDana(null);
   };
   const handleSaveAddSumberDana = (e: React.FormEvent) => {
@@ -1058,7 +1080,10 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setEditingProgram(p)}
+                            onClick={() => {
+                              setEditingProgram({ ...p });
+                              setOrigProgramKey({ kode: p.kodeProgram, tahun: p.tahun });
+                            }}
                             className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
                             title="Edit Program"
                           >
@@ -1139,7 +1164,10 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setEditingKegiatan(k)}
+                            onClick={() => {
+                              setEditingKegiatan({ ...k });
+                              setOrigKegiatanKey({ kode: k.kodeKegiatan, tahun: k.tahun });
+                            }}
                             className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
                             title="Edit Kegiatan"
                           >
@@ -1220,7 +1248,10 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setEditingSub(s)}
+                            onClick={() => {
+                              setEditingSub({ ...s });
+                              setOrigSubKey({ kode: s.kodeSub, tahun: s.tahun });
+                            }}
                             className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
                             title="Edit Sub Kegiatan"
                           >
@@ -1302,7 +1333,10 @@ export const MasterDataView: React.FC<MasterDataViewProps> = ({ initialSubTab = 
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={() => setEditingBelanja(b)}
+                            onClick={() => {
+                              setEditingBelanja({ ...b });
+                              setOrigBelanjaKey({ kode: b.kodeBelanja, tahun: b.tahun });
+                            }}
                             className="rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-600/40 p-1.5 text-amber-300 transition"
                             title="Edit Belanja"
                           >

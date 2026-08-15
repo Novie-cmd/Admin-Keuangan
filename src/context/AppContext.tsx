@@ -750,12 +750,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateTahun = (id: string, updated: Partial<TahunAnggaran>) => {
-    setTahunList(prev => prev.map(t => (t.id === id ? { ...t, ...updated } : t)));
-    logActivity(`Memperbarui Master Tahun Anggaran ID: ${id}`);
+    setTahunList(prev => prev.map(t => (t.id === id || String(t.tahun) === String(updated.tahun || id) ? { ...t, ...updated } : t)));
+    logActivity(`Memperbarui Master Tahun Anggaran: ${id}`);
   };
 
   const deleteTahun = (id: string) => {
-    setTahunList(prev => prev.filter(t => t.id !== id));
+    setTahunList(prev => prev.filter(t => t.id !== id && String(t.tahun) !== String(id)));
     logActivity(`Menghapus Master Tahun Anggaran ID: ${id}`);
   };
 
@@ -765,12 +765,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProgram = (oldKode: string, oldTahun: number, updated: Partial<Program>) => {
-    setPrograms(prev => prev.map(p => (p.kodeProgram === oldKode && p.tahun === oldTahun ? { ...p, ...updated } : p)));
-    logActivity(`Memperbarui Program Master: ${oldKode}`);
+    const targetTahun = Number(oldTahun);
+    setPrograms(prev =>
+      prev.map(p =>
+        (p.kodeProgram === oldKode || (updated.kodeProgram && p.kodeProgram === updated.kodeProgram)) &&
+        Number(p.tahun) === targetTahun
+          ? { ...p, ...updated }
+          : p
+      )
+    );
+    // Cascade update to Kegiatan and SubKegiatan if kodeProgram changed
+    if (updated.kodeProgram && updated.kodeProgram !== oldKode) {
+      setKegiatanList(prev =>
+        prev.map(k => (k.kodeProgram === oldKode && Number(k.tahun) === targetTahun ? { ...k, kodeProgram: updated.kodeProgram! } : k))
+      );
+      setSubKegiatanList(prev =>
+        prev.map(s => (s.kodeProgram === oldKode && Number(s.tahun) === targetTahun ? { ...s, kodeProgram: updated.kodeProgram! } : s))
+      );
+    }
+    logActivity(`Memperbarui Program Master: ${oldKode} -> ${updated.kodeProgram || oldKode}`);
   };
 
   const deleteProgram = (kodeProgram: string, tahun: number) => {
-    setPrograms(prev => prev.filter(p => !(p.kodeProgram === kodeProgram && p.tahun === tahun)));
+    const targetTahun = Number(tahun);
+    setPrograms(prev => prev.filter(p => !(p.kodeProgram === kodeProgram && Number(p.tahun) === targetTahun)));
     logActivity(`Menghapus Program Master: ${kodeProgram}`);
   };
 
@@ -791,12 +809,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateKegiatan = (oldKode: string, oldTahun: number, updated: Partial<Kegiatan>) => {
-    setKegiatanList(prev => prev.map(k => (k.kodeKegiatan === oldKode && k.tahun === oldTahun ? { ...k, ...updated } : k)));
-    logActivity(`Memperbarui Kegiatan Master: ${oldKode}`);
+    const targetTahun = Number(oldTahun);
+    setKegiatanList(prev =>
+      prev.map(k =>
+        (k.kodeKegiatan === oldKode || (updated.kodeKegiatan && k.kodeKegiatan === updated.kodeKegiatan)) &&
+        Number(k.tahun) === targetTahun
+          ? { ...k, ...updated }
+          : k
+      )
+    );
+    // Cascade update to SubKegiatan if kodeKegiatan changed
+    if (updated.kodeKegiatan && updated.kodeKegiatan !== oldKode) {
+      setSubKegiatanList(prev =>
+        prev.map(s => (s.kodeKegiatan === oldKode && Number(s.tahun) === targetTahun ? { ...s, kodeKegiatan: updated.kodeKegiatan! } : s))
+      );
+    }
+    logActivity(`Memperbarui Kegiatan Master: ${oldKode} -> ${updated.kodeKegiatan || oldKode}`);
   };
 
   const deleteKegiatan = (kodeKegiatan: string, tahun: number) => {
-    setKegiatanList(prev => prev.filter(k => !(k.kodeKegiatan === kodeKegiatan && Number(k.tahun) === Number(tahun))));
+    const targetTahun = Number(tahun);
+    setKegiatanList(prev => prev.filter(k => !(k.kodeKegiatan === kodeKegiatan && Number(k.tahun) === targetTahun)));
     logActivity(`Menghapus Kegiatan Master: ${kodeKegiatan}`);
   };
 
@@ -817,12 +850,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateSubKegiatan = (oldKode: string, oldTahun: number, updated: Partial<SubKegiatan>) => {
-    setSubKegiatanList(prev => prev.map(s => (s.kodeSub === oldKode && s.tahun === oldTahun ? { ...s, ...updated } : s)));
-    logActivity(`Memperbarui Sub Kegiatan Master: ${oldKode}`);
+    const targetTahun = Number(oldTahun);
+    setSubKegiatanList(prev =>
+      prev.map(s =>
+        (s.kodeSub === oldKode || (updated.kodeSub && s.kodeSub === updated.kodeSub)) &&
+        Number(s.tahun) === targetTahun
+          ? { ...s, ...updated }
+          : s
+      )
+    );
+    logActivity(`Memperbarui Sub Kegiatan Master: ${oldKode} -> ${updated.kodeSub || oldKode}`);
   };
 
   const deleteSubKegiatan = (kodeSub: string, tahun: number) => {
-    setSubKegiatanList(prev => prev.filter(s => !(s.kodeSub === kodeSub && Number(s.tahun) === Number(tahun))));
+    const targetTahun = Number(tahun);
+    setSubKegiatanList(prev => prev.filter(s => !(s.kodeSub === kodeSub && Number(s.tahun) === targetTahun)));
     logActivity(`Menghapus Sub Kegiatan Master: ${kodeSub}`);
   };
 
@@ -843,12 +885,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateBelanja = (oldKode: string, oldTahun: number, updated: Partial<Belanja>) => {
-    setBelanjaList(prev => prev.map(b => (b.kodeBelanja === oldKode && (b.tahun === oldTahun || !b.tahun) ? { ...b, ...updated } : b)));
-    logActivity(`Memperbarui Belanja Master: ${oldKode}`);
+    const targetTahun = oldTahun ? Number(oldTahun) : undefined;
+    setBelanjaList(prev =>
+      prev.map(b => {
+        const matchesKode = b.kodeBelanja === oldKode || (updated.kodeBelanja && b.kodeBelanja === updated.kodeBelanja);
+        const matchesTahun = targetTahun !== undefined ? (!b.tahun || Number(b.tahun) === targetTahun) : true;
+        return matchesKode && matchesTahun ? { ...b, ...updated } : b;
+      })
+    );
+    logActivity(`Memperbarui Belanja Master: ${oldKode} -> ${updated.kodeBelanja || oldKode}`);
   };
 
   const deleteBelanja = (kodeBelanja: string, tahun?: number) => {
-    setBelanjaList(prev => prev.filter(b => !(b.kodeBelanja === kodeBelanja && (tahun ? Number(b.tahun) === Number(tahun) : true))));
+    const targetTahun = tahun ? Number(tahun) : undefined;
+    setBelanjaList(prev =>
+      prev.filter(b => {
+        const matchesKode = b.kodeBelanja === kodeBelanja;
+        const matchesTahun = targetTahun !== undefined && b.tahun ? Number(b.tahun) === targetTahun : true;
+        return !(matchesKode && matchesTahun);
+      })
+    );
     logActivity(`Menghapus Belanja Master: ${kodeBelanja}`);
   };
 
@@ -969,14 +1025,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logActivity(`Menambah Sumber Dana: ${fullSd.namaSumber}`);
   };
 
-  const updateSumberDana = (id: string, updated: Partial<SumberDana>) => {
-    setSumberDanaList(prev => prev.map(sd => (sd.id === id ? { ...sd, ...updated } : sd)));
-    logActivity(`Memperbarui Sumber Dana ID: ${id}`);
+  const updateSumberDana = (idOrKode: string, updated: Partial<SumberDana>) => {
+    setSumberDanaList(prev =>
+      prev.map(sd =>
+        (sd.id === idOrKode || sd.kodeSumber === idOrKode || (updated.kodeSumber && sd.kodeSumber === updated.kodeSumber))
+          ? { ...sd, ...updated }
+          : sd
+      )
+    );
+    logActivity(`Memperbarui Sumber Dana: ${idOrKode}`);
   };
 
-  const deleteSumberDana = (id: string) => {
-    setSumberDanaList(prev => prev.filter(sd => sd.id !== id));
-    logActivity(`Menghapus Sumber Dana ID: ${id}`);
+  const deleteSumberDana = (idOrKode: string) => {
+    setSumberDanaList(prev => prev.filter(sd => sd.id !== idOrKode && sd.kodeSumber !== idOrKode));
+    logActivity(`Menghapus Sumber Dana: ${idOrKode}`);
   };
 
   const clearSumberDanaDatabase = () => {
