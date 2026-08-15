@@ -578,7 +578,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id,
       statusValidation: currentUser.role === 'PPK' || currentUser.role === 'Administrator' ? 'Disetujui PPK' : 'Draft'
     };
-    setRealisasiList(prev => [fullReal, ...prev]);
+    setRealisasiList(prev => [...prev, fullReal]);
     logActivity(`Menginput Realisasi Baru No SP2D: ${fullReal.noSP2D} Nilai: Rp ${fullReal.nilai.toLocaleString('id-ID')}`);
   };
 
@@ -761,7 +761,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         successCount++;
       });
 
-      return [...newRealisasiItems, ...baseList];
+      // Append new items below the existing list to maintain sequential order (File 1 -> File 2 below File 1)
+      return [...baseList, ...newRealisasiItems];
     });
 
     const importLogEntry: ImportLog = {

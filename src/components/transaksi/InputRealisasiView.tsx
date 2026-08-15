@@ -385,7 +385,7 @@ export const InputRealisasiView: React.FC = () => {
         tanggal: r.tanggal
       })),
       importedFileName || 'Import_Realisasi_SP2D.xlsx',
-      true
+      false
     );
 
     setImportSuccessMsg(
@@ -716,6 +716,7 @@ export const InputRealisasiView: React.FC = () => {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider border-b border-slate-800">
               <tr>
+                <th className="px-3 py-3 text-center w-12">No.</th>
                 <th className="px-4 py-3">No. SP2D</th>
                 <th className="px-4 py-3">Tanggal</th>
                 <th className="px-4 py-3">Kode Belanja</th>
@@ -734,8 +735,11 @@ export const InputRealisasiView: React.FC = () => {
                     r.uraian.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     r.rekanan.toLowerCase().includes(searchTerm.toLowerCase())
                 )
-                .map(r => (
+                .map((r, idx) => (
                   <tr key={r.id} className="hover:bg-slate-800/50">
+                    <td className="px-3 py-3 text-center font-mono font-bold text-slate-400">
+                      {idx + 1}
+                    </td>
                     <td className="px-4 py-3 font-mono font-bold text-teal-300">{r.noSP2D}</td>
                     <td className="px-4 py-3 text-slate-300 whitespace-nowrap">{r.tanggal}</td>
                     <td className="px-4 py-3 font-mono text-emerald-400">{r.kodeBelanja}</td>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import * as XLSX from 'xlsx';
 import {
@@ -21,11 +21,19 @@ import {
   Info,
   Trash2,
   Database,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Layers,
+  ArrowDown,
+  FileText
 } from 'lucide-react';
 
 interface PreviewRow {
-  rowNum: number;
+  globalRowNum: number;
+  fileIndex: number;
+  sourceFileName: string;
+  localRowNum: number;
+  dbTargetRowNum: number;
   tahun: number;
   program: string;
   kegiatan: string;
@@ -44,6 +52,15 @@ interface PreviewRow {
   validationError?: string;
 }
 
+interface QueuedFileInfo {
+  index: number;
+  fileName: string;
+  totalRows: number;
+  validRows: number;
+  startGlobalRow: number;
+  endGlobalRow: number;
+}
+
 export const UploadExcelView: React.FC = () => {
   const {
     selectedTahun,
@@ -53,8 +70,8 @@ export const UploadExcelView: React.FC = () => {
     clearRealisasiDatabase
   } = useApp();
 
-  const [fileName, setFileName] = useState<string>('');
   const [previewData, setPreviewData] = useState<PreviewRow[]>([]);
+  const [fileQueue, setFileQueue] = useState<QueuedFileInfo[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [overwriteMode, setOverwriteMode] = useState<boolean>(false);
   const [ignoreDuplicateWarnings, setIgnoreDuplicateWarnings] = useState<boolean>(false);
@@ -64,6 +81,9 @@ export const UploadExcelView: React.FC = () => {
     duplicateCount: number;
     errors: string[];
   } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const appendFileInputRef = useRef<HTMLInputElement>(null);
 
   const currentYearRealisasi = realisasiList.filter(
     r => Number(r.tahun) === Number(selectedTahun)
@@ -85,18 +105,46 @@ export const UploadExcelView: React.FC = () => {
         )
   );
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Process files sequentially
+  const processFiles = async (
+    files: FileList | File[],
+    append: boolean = false
+  ) => {
+    if (!files || files.length === 0) return;
 
-    setFileName(file.name);
     setIsProcessing(true);
     setImportResult(null);
 
-    const reader = new FileReader();
-    reader.onload = evt => {
-      try {
-        const buffer = evt.target?.result;
+    try {
+      const fileListArray = Array.from(files);
+      let existingRows = append ? [...previewData] : [];
+      let currentFileQueue: QueuedFileInfo[] = append ? [...fileQueue] : [];
+      const seenBatchKeys = new Set<string>();
+
+      // Populate seen keys from existing preview data if appending
+      if (append) {
+        existingRows.forEach(r => {
+          const k = makeRealisasiCompositeKey(
+            r.sp2d,
+            r.belanja,
+            r.sub,
+            r.nilai,
+            r.uraian,
+            r.tahun
+          );
+          if (k) seenBatchKeys.add(k);
+        });
+      }
+
+      const startingFileIndex = append ? currentFileQueue.length + 1 : 1;
+      let runningGlobalRowNum = existingRows.length;
+      const baseDbCount = overwriteMode ? 0 : currentYearRealisasi.length;
+
+      for (let fIdx = 0; fIdx < fileListArray.length; fIdx++) {
+        const file = fileListArray[fIdx];
+        const actualFileNumber = startingFileIndex + fIdx;
+
+        const buffer = await file.arrayBuffer();
         const workbook = XLSX.read(buffer, { type: 'array' });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
@@ -105,9 +153,10 @@ export const UploadExcelView: React.FC = () => {
         const sheetJson: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
 
         const rawResults = parseRealisasiFromExcelData(sheet2D, sheetJson, selectedTahun);
-        const seenBatchKeys = new Set<string>();
+        const startRowForFile = runningGlobalRowNum + 1;
 
-        const parsedRows: PreviewRow[] = rawResults.map(r => {
+        const fileParsedRows: PreviewRow[] = rawResults.map(r => {
+          runningGlobalRowNum++;
           const rowThn = r.tahun || selectedTahun;
           const key = makeRealisasiCompositeKey(
             r.noSP2D,
@@ -124,10 +173,14 @@ export const UploadExcelView: React.FC = () => {
 
           let err = '';
           if (r.nilai <= 0) err = 'Nilai realisasi harus > 0.';
-          else if (isDup && !overwriteMode) err = 'Data Realisasi ini duplikat dengan database/file ini.';
+          else if (isDup && !overwriteMode) err = 'Data Realisasi ini duplikat dengan database/file sebelumnya.';
 
           return {
-            rowNum: r.rowNum,
+            globalRowNum: runningGlobalRowNum,
+            fileIndex: actualFileNumber,
+            sourceFileName: file.name,
+            localRowNum: r.rowNum,
+            dbTargetRowNum: baseDbCount + runningGlobalRowNum,
             tahun: rowThn,
             program: r.kodeProgram,
             kegiatan: r.kodeKegiatan,
@@ -147,16 +200,46 @@ export const UploadExcelView: React.FC = () => {
           };
         });
 
-        setPreviewData(parsedRows);
-      } catch (error) {
-        console.error('Failed to parse Excel file:', error);
-        alert('Gagal membaca file Excel. Pastikan format file .xlsx / .csv valid.');
-      } finally {
-        setIsProcessing(false);
-      }
-    };
+        existingRows = [...existingRows, ...fileParsedRows];
 
-    reader.readAsArrayBuffer(file);
+        currentFileQueue.push({
+          index: actualFileNumber,
+          fileName: file.name,
+          totalRows: fileParsedRows.length,
+          validRows: fileParsedRows.filter(r => r.isValid).length,
+          startGlobalRow: startRowForFile,
+          endGlobalRow: runningGlobalRowNum
+        });
+      }
+
+      setPreviewData(existingRows);
+      setFileQueue(currentFileQueue);
+    } catch (error) {
+      console.error('Failed to parse Excel files:', error);
+      alert('Gagal membaca file Excel. Pastikan format file .xlsx / .xls / .csv valid.');
+    } finally {
+      setIsProcessing(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (appendFileInputRef.current) appendFileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFiles(e.target.files, false);
+    }
+  };
+
+  const handleAppendFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFiles(e.target.files, true);
+    }
+  };
+
+  const handleClearPreview = () => {
+    setPreviewData([]);
+    setFileQueue([]);
+    setImportResult(null);
   };
 
   const handleExecuteImport = () => {
@@ -182,13 +265,22 @@ export const UploadExcelView: React.FC = () => {
       return;
     }
 
+    const summaryFileName =
+      fileQueue.length === 1
+        ? fileQueue[0].fileName
+        : fileQueue.length > 1
+        ? `${fileQueue.length} File Berurutan (${fileQueue.map(f => f.fileName).join(', ')})`
+        : 'Data_Import_Realisasi.xlsx';
+
     const res = batchImportExcel(
       validRows,
-      fileName || 'Data_Import_Realisasi.xlsx',
+      summaryFileName,
       overwriteMode
     );
+
     setImportResult(res);
     setPreviewData([]);
+    setFileQueue([]);
   };
 
   const downloadSampleTemplate = () => {
@@ -222,7 +314,7 @@ export const UploadExcelView: React.FC = () => {
     // Row 7 Sample Data
     const row7: any[] = [];
     row7[0] = 1;
-    row7[1] = selectedTahun; // Automatic based on selected year
+    row7[1] = selectedTahun;
     row7[16] = '5.01.01.2.01.01';
     row7[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
     row7[18] = '5.1.02.01.01.0024';
@@ -344,10 +436,10 @@ export const UploadExcelView: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <UploadCloud className="h-5 w-5 text-emerald-400" />
-            <h1 className="text-xl font-bold text-white">Upload & Import File Excel</h1>
+            <h1 className="text-xl font-bold text-white">Upload & Import File Excel Berurutan</h1>
           </div>
           <p className="text-xs text-slate-400">
-            Import Massal Transaksi Realisasi Keuangan dengan Validasi Deteksi Duplikat Otomatis (.xlsx, .xls, .csv)
+            Pola Import Berurutan: File pertama diimpor, lalu file kedua diletakkan di bawah baris akhir file pertama, dan seterusnya.
           </p>
         </div>
 
@@ -361,10 +453,10 @@ export const UploadExcelView: React.FC = () => {
         </button>
       </div>
 
-      {/* DATABASE CONTROL PANEL & OVERWRITE SETTINGS */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      {/* DATABASE STATUS & CONFIG BANNER */}
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="rounded-xl bg-slate-800 p-2.5 text-emerald-400 border border-slate-700">
+          <div className="rounded-xl bg-emerald-950 p-2.5 text-emerald-400 border border-emerald-800/80">
             <Database className="h-5 w-5" />
           </div>
           <div>
@@ -377,7 +469,7 @@ export const UploadExcelView: React.FC = () => {
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Default mode akan <strong>menggabungkan (mengakumulasikan)</strong> data dari file Excel baru ke database tanpa menghapus data sebelumnya.
+              Mode <strong>Akumulasi & Append</strong> aktif: baris file baru akan disambungkan di baris terakhir (Row #{currentYearRealisasi.length + 1} ke bawah).
             </p>
           </div>
         </div>
@@ -390,7 +482,7 @@ export const UploadExcelView: React.FC = () => {
               onChange={e => setOverwriteMode(e.target.checked)}
               className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 focus:ring-emerald-500"
             />
-            <span>{overwriteMode ? 'Mode Timpa (Hapus data lama TA ini)' : 'Mode Akumulasi / Gabung Data (Aktif)'}</span>
+            <span>{overwriteMode ? 'Mode Timpa (Hapus data lama TA ini)' : 'Mode Sambung Berurutan (Append)'}</span>
           </label>
 
           <button
@@ -404,83 +496,135 @@ export const UploadExcelView: React.FC = () => {
         </div>
       </div>
 
+      {/* SEQUENTIAL WORKFLOW BANNER */}
+      <div className="rounded-2xl border border-teal-900/60 bg-teal-950/30 p-4">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-teal-900/50 p-2 text-teal-300 border border-teal-800 mt-0.5">
+            <Layers className="h-5 w-5" />
+          </div>
+          <div className="space-y-1 text-xs">
+            <h3 className="font-bold text-teal-200">
+              Pola Penyusunan Baris Berurutan (Sequential Row Stacking)
+            </h3>
+            <p className="text-slate-300 leading-relaxed">
+              Anda dapat mengunggah satu atau beberapa file Excel sekaligus (misalnya file SP2D per bulan). Sistem akan menyusun baris secara berurutan:
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-1 font-mono text-[11px]">
+              <span className="rounded-lg bg-slate-900 px-2.5 py-1 border border-slate-800 text-teal-300">
+                📄 File 1 (Atas)
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 text-teal-400" />
+              <span className="rounded-lg bg-slate-900 px-2.5 py-1 border border-slate-800 text-emerald-300">
+                📄 File 2 (Di Bawah Akhir File 1)
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 text-teal-400" />
+              <span className="rounded-lg bg-slate-900 px-2.5 py-1 border border-slate-800 text-amber-300">
+                📄 File 3 (Di Bawah Akhir File 2)
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* DROPZONE AREA */}
       <div className="rounded-2xl border-2 border-dashed border-emerald-600/40 bg-slate-900/80 p-6 text-center shadow-xl space-y-4">
         <FileSpreadsheet className="mx-auto h-12 w-12 text-emerald-400" />
         <div>
           <h2 className="text-sm font-bold text-white">
-            Pilih File Excel Transaksi Realisasi Keuangan (.xlsx / .csv)
+            Pilih File Excel Transaksi Realisasi Keuangan (.xlsx, .xls, .csv)
           </h2>
           <p className="mt-1 text-xs text-slate-400">
-            Sistem mendukung format <span className="text-emerald-300 font-semibold">SIPD/SIMDA (Urutan Kolom Q6-AQ6)</span> maupun format header standar.
+            Dapat memilih satu atau beberapa file sekaligus. Sistem mendukung format SIPD/SIMDA (Urutan Kolom Q6-AQ6).
           </p>
         </div>
 
-        {/* INFO COLUMN MAPPER */}
-        <div className="mx-auto max-w-3xl rounded-xl border border-slate-800 bg-slate-950/80 p-3 text-left text-xs">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold mb-1.5">
-            <Info className="h-4 w-4" />
-            <span>Pemetaan Otomatis Kolom Excel Import Realisasi:</span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-[11px] text-slate-300 font-mono">
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">Tahun:</span> Otomatis ({selectedTahun})
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">Q6:</span> Kode Sub Kegiatan
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">R6:</span> Nama Sub Kegiatan
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">S6:</span> Kode Rekening Belanja
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">T6:</span> Nama Rekening Belanja
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">AA6:</span> Nilai Realisasi (Rp)
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">AP6:</span> Nomor SP2D
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">AQ6:</span> Tanggal SP2D
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">AO6:</span> Nomor SPM
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">Z6:</span> Uraian Transaksi
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">AD6:</span> Nama Rekanan
-            </div>
-            <div className="bg-slate-900 p-1.5 rounded border border-slate-800">
-              <span className="text-emerald-400 font-bold">AE6:</span> Keterangan Rekanan
-            </div>
-          </div>
-        </div>
-
-        <div>
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+          {/* Main Upload / New Batch */}
           <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-lg shadow-emerald-950/50">
-            <span>{isProcessing ? 'Membaca File...' : 'Pilih File Excel dari Komputer'}</span>
+            <UploadCloud className="h-4 w-4" />
+            <span>{isProcessing ? 'Membaca File...' : 'Pilih File Excel (Bisa Multi-File)'}</span>
             <input
               type="file"
+              multiple
               accept=".xlsx, .xls, .csv"
               onChange={handleFileUpload}
+              ref={fileInputRef}
               className="hidden"
               id="input-excel-file"
             />
           </label>
 
-          {fileName && (
-            <p className="mt-3 text-xs font-semibold text-emerald-300">
-              File Terpilih: {fileName}
-            </p>
+          {/* Append File to Existing Queue */}
+          {previewData.length > 0 && (
+            <label className="inline-flex items-center gap-2 cursor-pointer rounded-xl border border-teal-600/60 bg-teal-950/50 px-5 py-2.5 text-xs font-bold text-teal-300 hover:bg-teal-900/60 hover:border-teal-500">
+              <Plus className="h-4 w-4" />
+              <span>Tambah File Berikutnya di Bawah</span>
+              <input
+                type="file"
+                multiple
+                accept=".xlsx, .xls, .csv"
+                onChange={handleAppendFileUpload}
+                ref={appendFileInputRef}
+                className="hidden"
+                id="input-append-excel-file"
+              />
+            </label>
+          )}
+
+          {previewData.length > 0 && (
+            <button
+              onClick={handleClearPreview}
+              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white"
+            >
+              Reset Pratinjau
+            </button>
           )}
         </div>
       </div>
+
+      {/* QUEUED FILES CARDS */}
+      {fileQueue.length > 0 && (
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              <Layers className="h-4 w-4 text-emerald-400" />
+              <span>Urutan File Dalam Antrean Import ({fileQueue.length} File):</span>
+            </h3>
+            <span className="text-xs text-emerald-400 font-mono font-bold">
+              Total {previewData.length} Baris Data
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {fileQueue.map((file, idx) => (
+              <div
+                key={`${file.index}_${file.fileName}`}
+                className="rounded-xl border border-slate-800 bg-slate-950 p-3 flex flex-col justify-between"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-950 text-[10px] font-bold text-emerald-400 border border-emerald-800">
+                      {file.index}
+                    </span>
+                    <span className="text-xs font-bold text-white truncate max-w-[180px]" title={file.fileName}>
+                      {file.fileName}
+                    </span>
+                  </div>
+                  <span className="rounded bg-slate-900 px-2 py-0.5 text-[10px] font-mono text-emerald-400 border border-slate-800">
+                    {file.validRows} valid
+                  </span>
+                </div>
+                <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between border-t border-slate-900 pt-2 font-mono">
+                  <span>Baris #{file.startGlobalRow} s/d #{file.endGlobalRow}</span>
+                  <span className="text-teal-400 font-bold">
+                    ➔ Posisi Database: #{ (overwriteMode ? 0 : currentYearRealisasi.length) + file.startGlobalRow }
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* RESULT NOTIFICATION BANNER */}
       {importResult && (
@@ -490,7 +634,7 @@ export const UploadExcelView: React.FC = () => {
             <div>
               <h3 className="text-sm font-bold text-white">Import Berhasil Selesai</h3>
               <p className="text-xs text-emerald-200">
-                {importResult.successCount} Transaksi berhasil diimpor ke database realisasi.{' '}
+                {importResult.successCount} Transaksi berhasil diimpor berurutan ke database realisasi.{' '}
                 {importResult.duplicateCount > 0 && `(${importResult.duplicateCount} Duplikat Diabaikan)`}
               </p>
             </div>
@@ -503,7 +647,7 @@ export const UploadExcelView: React.FC = () => {
         <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-2xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-slate-800 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-white">Pratinjau & Validasi Data Import</h3>
+              <h3 className="text-sm font-bold text-white">Pratinjau Urutan Baris Data Import</h3>
               <p className="text-xs text-slate-400">
                 Total: {previewData.length} baris | Valid:{' '}
                 <span className="text-emerald-400 font-bold">{validCount}</span> | Duplikat/Peringatan:{' '}
@@ -520,7 +664,7 @@ export const UploadExcelView: React.FC = () => {
                     onChange={e => setIgnoreDuplicateWarnings(e.target.checked)}
                     className="h-4 w-4 rounded border-amber-700 bg-slate-900 text-amber-500 focus:ring-amber-500"
                   />
-                  <span>Abaikan Peringatan Duplikat & Import Semua ({previewData.filter(r => r.nilai > 0).length} Baris)</span>
+                  <span>Abaikan Duplikat & Import Semua ({previewData.filter(r => r.nilai > 0).length} Baris)</span>
                 </label>
               )}
 
@@ -530,7 +674,7 @@ export const UploadExcelView: React.FC = () => {
                 className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-500 shadow-md disabled:opacity-50"
               >
                 <FileCheck className="h-4 w-4" />
-                <span>Eksekusi Import ({executableCount} Data)</span>
+                <span>Eksekusi Import Berurutan ({executableCount} Data)</span>
               </button>
             </div>
           </div>
@@ -539,26 +683,41 @@ export const UploadExcelView: React.FC = () => {
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-slate-950 text-slate-300 font-bold uppercase border-b border-slate-800">
                 <tr>
-                  <th className="px-3 py-2">Row</th>
+                  <th className="px-3 py-2 text-center w-12">No</th>
+                  <th className="px-3 py-2">Sumber File</th>
+                  <th className="px-3 py-2">Posisi DB</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">No. SP2D</th>
                   <th className="px-3 py-2">Belanja</th>
                   <th className="px-3 py-2 text-right">Nilai (Rp)</th>
                   <th className="px-3 py-2">Uraian / Rekanan</th>
-                  <th className="px-3 py-2">Keterangan Validasi</th>
+                  <th className="px-3 py-2">Keterangan</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 text-slate-300">
                 {previewData.map(r => (
                   <tr
-                    key={r.rowNum}
+                    key={`${r.fileIndex}_${r.globalRowNum}_${r.sp2d}`}
                     className={
                       r.isValid
                         ? 'hover:bg-slate-800/50'
                         : 'bg-rose-950/30 hover:bg-rose-950/50 text-rose-200'
                     }
                   >
-                    <td className="px-3 py-2 font-mono text-slate-400">{r.rowNum}</td>
+                    <td className="px-3 py-2 text-center font-mono font-bold text-slate-400">
+                      {r.globalRowNum}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span className="inline-flex items-center gap-1 rounded bg-slate-950 px-2 py-0.5 text-[10px] font-medium text-slate-300 border border-slate-800">
+                        <FileText className="h-3 w-3 text-teal-400" />
+                        <span className="truncate max-w-[120px]" title={r.sourceFileName}>
+                          File #{r.fileIndex} (Baris {r.localRowNum})
+                        </span>
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 font-mono text-teal-400 font-semibold">
+                      Row #{r.dbTargetRowNum}
+                    </td>
                     <td className="px-3 py-2">
                       {r.isValid ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-800">
@@ -566,7 +725,7 @@ export const UploadExcelView: React.FC = () => {
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-rose-950 px-2 py-0.5 text-[10px] font-bold text-rose-300 border border-rose-800">
-                          <XCircle className="h-3 w-3" /> Error
+                          <XCircle className="h-3 w-3" /> Peringatan
                         </span>
                       )}
                     </td>
@@ -582,7 +741,7 @@ export const UploadExcelView: React.FC = () => {
                       {r.validationError ? (
                         <span className="text-rose-400 font-semibold">{r.validationError}</span>
                       ) : (
-                        <span className="text-emerald-400">Siap Diimpor</span>
+                        <span className="text-emerald-400">Siap Disambung</span>
                       )}
                     </td>
                   </tr>
@@ -627,6 +786,7 @@ export const UploadExcelView: React.FC = () => {
           </table>
         </div>
       </div>
+
       {/* CLEAR DATABASE CONFIRMATION MODAL */}
       {showClearModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
@@ -644,8 +804,8 @@ export const UploadExcelView: React.FC = () => {
             <div className="space-y-2 text-xs text-slate-300">
               <p className="font-bold text-rose-300">Peringatan Penting!</p>
               <p>
-                Tindakan ini akan menghapus seluruh data transaksi Realisasi SP2D dari database lokal.
-                Setelah dikosongkan, Anda dapat mengunggah file Excel baru secara bersih tanpa terdeteksi sebagai duplikat.
+                Tindakan ini akan menghapus data transaksi Realisasi SP2D dari database lokal.
+                Setelah dikosongkan, Anda dapat mengunggah file Excel baru mulai dari Baris 1 secara bersih.
               </p>
             </div>
 
@@ -655,6 +815,7 @@ export const UploadExcelView: React.FC = () => {
                 onClick={() => {
                   clearRealisasiDatabase(selectedTahun);
                   setPreviewData([]);
+                  setFileQueue([]);
                   setShowClearModal(false);
                   alert(`Berhasil mengosongkan seluruh data realisasi untuk Tahun Anggaran ${selectedTahun}.`);
                 }}
@@ -669,6 +830,7 @@ export const UploadExcelView: React.FC = () => {
                 onClick={() => {
                   clearRealisasiDatabase();
                   setPreviewData([]);
+                  setFileQueue([]);
                   setShowClearModal(false);
                   alert('Berhasil mengosongkan seluruh database realisasi untuk semua Tahun Anggaran.');
                 }}
