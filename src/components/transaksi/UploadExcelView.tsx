@@ -310,11 +310,92 @@ export const UploadExcelView: React.FC = () => {
   const downloadSampleTemplate = () => {
     const wb = XLSX.utils.book_new();
 
-    // 1. Sheet Layout Q6-AQ6
+    // 1. Sheet Clean Standard Format (DATABASE_REALISASI_SP2D)
+    const cleanStandardData = [
+      {
+        No: 1,
+        Tahun: selectedTahun,
+        Tanggal: `${selectedTahun}-01-15`,
+        'No SP2D': `900/0101/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/0101/SPM-LS/KESBANG/${selectedTahun}`,
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
+        'Kode Belanja': '5.1.02.01.01.0024',
+        'Nama Belanja': 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor',
+        'Nilai Realisasi (Rp)': 12500000,
+        'Uraian Realisasi': 'Pembayaran Pengadaan ATK dan Cetak Laporan Perencanaan Bulan Januari',
+        'Nama Rekanan / Penyedia': 'CV Cahaya Gemilang',
+        'Keterangan / Bank': 'Bank NTB Syariah - NPWP 01.234.567.8-901.000'
+      },
+      {
+        No: 2,
+        Tahun: selectedTahun,
+        Tanggal: `${selectedTahun}-01-25`,
+        'No SP2D': `900/0102/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/0102/SPM-LS/KESBANG/${selectedTahun}`,
+        'Kode Sub Kegiatan': '5.01.01.2.02.01',
+        'Nama Sub Kegiatan': 'Penyediaan Gaji dan Tunjangan ASN',
+        'Kode Belanja': '5.1.01.02.01.0001',
+        'Nama Belanja': 'Belanja Tambahan Penghasilan berdasarkan Beban Kerja PNS',
+        'Nilai Realisasi (Rp)': 450000000,
+        'Uraian Realisasi': 'Pembayaran TPP ASN Bakesbangpoldagri NTB Bulan Januari',
+        'Nama Rekanan / Penyedia': 'Bendahara Pengeluaran Bakesbangpoldagri',
+        'Keterangan / Bank': 'Bank NTB Syariah'
+      },
+      {
+        No: 3,
+        Tahun: selectedTahun,
+        Tanggal: `${selectedTahun}-02-10`,
+        'No SP2D': `900/0201/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/0201/SPM-LS/KESBANG/${selectedTahun}`,
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
+        'Kode Belanja': '5.1.02.01.01.0024',
+        'Nama Belanja': 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor',
+        'Nilai Realisasi (Rp)': 15000000,
+        'Uraian Realisasi': 'Pengadaan ATK Kegiatan Perencanaan Bulan Februari',
+        'Nama Rekanan / Penyedia': 'CV Cahaya Gemilang',
+        'Keterangan / Bank': 'Bank NTB Syariah'
+      },
+      {
+        No: 4,
+        Tahun: selectedTahun,
+        Tanggal: `${selectedTahun}-03-18`,
+        'No SP2D': `900/0301/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/0301/SPM-LS/KESBANG/${selectedTahun}`,
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
+        'Kode Belanja': '5.1.02.01.01.0025',
+        'Nama Belanja': 'Belanja Kertas dan Cover Cetakan Laporan',
+        'Nilai Realisasi (Rp)': 22500000,
+        'Uraian Realisasi': 'Cetak Laporan Kinerja Instansi Bulan Maret',
+        'Nama Rekanan / Penyedia': 'PT Percetakan Grafika NTB',
+        'Keterangan / Bank': 'Bank NTB Syariah Mataram'
+      },
+      {
+        No: 5,
+        Tahun: selectedTahun,
+        Tanggal: `${selectedTahun}-04-20`,
+        'No SP2D': `900/0401/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/0401/SPM-LS/KESBANG/${selectedTahun}`,
+        'Kode Sub Kegiatan': '5.01.02.2.01.03',
+        'Nama Sub Kegiatan': 'Fasilitasi Forum Kerukunan Umat Beragama (FKUB)',
+        'Kode Belanja': '5.1.02.04.01.0001',
+        'Nama Belanja': 'Belanja Jasa Tenaga Ahli / Narasumber',
+        'Nilai Realisasi (Rp)': 35000000,
+        'Uraian Realisasi': 'Honorarium dan Fasilitasi Kegiatan Pembinaan FKUB Bulan April',
+        'Nama Rekanan / Penyedia': 'Forum Kerukunan Umat Beragama NTB',
+        'Keterangan / Bank': 'Bank NTB Syariah'
+      }
+    ];
+    const wsStandard = XLSX.utils.json_to_sheet(cleanStandardData);
+    XLSX.utils.book_append_sheet(wb, wsStandard, 'DATABASE_REALISASI_SP2D');
+
+    // 2. Sheet Layout Q6-AQ6 (SIPD NTB Standar)
     const m6Data2D: any[][] = [
       ['PEMERINTAH PROVINSI NUSA TENGGARA BARAT'],
       ['BADAN KESATUAN BANGSA DAN POLITIK DALAM NEGERI (BAKESBANGPOLDAGRI)'],
-      [`TEMPLATE IMPLEMENTASI IMPORT REALISASI SP2D - TAHUN ANGGARAN ${selectedTahun}`],
+      [`TEMPLATE IMPLEMENTASI IMPORT REALISASI SP2D SIPD - TAHUN ANGGARAN ${selectedTahun}`],
       ['Format Urutan Kolom: Q6 (Kode Sub) | R6 (Nama Sub) | S6 (Kode Belanja) | T6 (Nama Belanja) | AA6 (Nilai Realisasi) | AP6 (No SP2D) | AQ6 (Tanggal SP2D) | AO6 (No SPM) | Z6 (Uraian) | AD6 (Rekanan) | AE6 (Keterangan)'],
       [''],
       [] // Row 6 (index 5)
@@ -335,116 +416,133 @@ export const UploadExcelView: React.FC = () => {
     m6Data2D[5][41] = 'Nomor SP2D'; // Col AP (index 41)
     m6Data2D[5][42] = 'Tanggal SP2D'; // Col AQ (index 42)
 
-    // Row 7 Sample Data
-    const row7: any[] = [];
-    row7[0] = 1;
-    row7[1] = selectedTahun;
-    row7[16] = '5.01.01.2.01.01';
-    row7[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
-    row7[18] = '5.1.02.01.01.0024';
-    row7[19] = 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor';
-    row7[25] = 'Pembayaran Pengadaan ATK dan Cetak Laporan Triwulan I BAKESBANGPOLDAGRI';
-    row7[26] = 15000000;
-    row7[29] = 'CV Cahaya Gemilang';
-    row7[30] = 'Bank NTB Syariah - NPWP 01.234.567.8-901.000';
-    row7[40] = `900/101/SPM-LS/KESBANG/${selectedTahun}`;
-    row7[41] = `900/101/SP2D-LS/KESBANG/${selectedTahun}`;
-    row7[42] = `${selectedTahun}-02-10`;
-    m6Data2D.push(row7);
-
-    // Row 8 Sample Data (Maret)
-    const row8: any[] = [];
-    row8[0] = 2;
-    row8[1] = selectedTahun;
-    row8[16] = '5.01.01.2.01.01';
-    row8[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
-    row8[18] = '5.1.02.01.01.0025';
-    row8[19] = 'Belanja Kertas dan Cover Cetakan Laporan';
-    row8[25] = 'Cetak Laporan Akuntabilitas Kinerja Instansi Pemerintah (LKjIP) Bulan Maret';
-    row8[26] = 22500000;
-    row8[29] = 'PT Bank NTB Syariah';
-    row8[30] = 'Bank NTB Syariah Mataram';
-    row8[40] = `900/0302/SPM-LS/KESBANG/${selectedTahun}`;
-    row8[41] = `900/0302/SP2D-LS/KESBANG/${selectedTahun}`;
-    row8[42] = `${selectedTahun}-03-18`;
-    m6Data2D.push(row8);
-
-    // Row 9 Sample Data (April)
-    const row9: any[] = [];
-    row9[0] = 3;
-    row9[1] = selectedTahun;
-    row9[16] = '5.01.02.2.01.03';
-    row9[17] = 'Fasilitasi Pembinaan Kerukunan Umat Beragama';
-    row9[18] = '5.1.02.04.01.0001';
-    row9[19] = 'Belanja Makanan dan Minuman Rapat';
-    row9[20] = 0;
-    row9[25] = 'Belanja Makanan dan Minuman Kegiatan Pembinaan FKUB Bulan April';
-    row9[26] = 35000000;
-    row9[29] = 'PT Lombok Utama Catering';
-    row9[30] = 'Bank NTB Syariah Mataram';
-    row9[40] = `900/0401/SPM-LS/KESBANG/${selectedTahun}`;
-    row9[41] = `900/0401/SP2D-LS/KESBANG/${selectedTahun}`;
-    row9[42] = `15 April ${selectedTahun}`;
-    m6Data2D.push(row9);
+    // Sample Row
+    const rowSample: any[] = [];
+    rowSample[0] = 1;
+    rowSample[1] = selectedTahun;
+    rowSample[16] = '5.01.01.2.01.01';
+    rowSample[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
+    rowSample[18] = '5.1.02.01.01.0024';
+    rowSample[19] = 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor';
+    rowSample[25] = 'Pembayaran Pengadaan ATK dan Cetak Laporan Triwulan I';
+    rowSample[26] = 15000000;
+    rowSample[29] = 'CV Cahaya Gemilang';
+    rowSample[30] = 'Bank NTB Syariah - NPWP 01.234.567.8-901.000';
+    rowSample[40] = `900/101/SPM-LS/KESBANG/${selectedTahun}`;
+    rowSample[41] = `900/101/SP2D-LS/KESBANG/${selectedTahun}`;
+    rowSample[42] = `${selectedTahun}-01-20`;
+    m6Data2D.push(rowSample);
 
     const wsM6 = XLSX.utils.aoa_to_sheet(m6Data2D);
-    XLSX.utils.book_append_sheet(wb, wsM6, 'Template_Layout_Realisasi');
+    XLSX.utils.book_append_sheet(wb, wsM6, 'FORMAT_SIPD_Q6_AQ6');
 
-    // 2. Sheet Clean Standard Format
-    const cleanStandardData = [
+    // 3. Sheet Master Pagu Anggaran (MASTER_PAGU_DPA)
+    const masterPaguData = [
       {
-        Tahun: selectedTahun,
         'Kode Program': '5.01.01',
+        'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
         'Kode Kegiatan': '5.01.01.2.01',
+        'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Sub Kegiatan': '5.01.01.2.01.01',
-        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Belanja': '5.1.02.01.01.0024',
-        'Nama Belanja': 'Belanja ATK',
-        'Nilai Realisasi': 15000000,
-        'No SP2D': `900/0201/SP2D-LS/KESBANG/${selectedTahun}`,
-        'Tanggal': `${selectedTahun}-02-10`,
-        'No SPM': `900/0201/SPM-LS/KESBANG/${selectedTahun}`,
-        Uraian: 'Pengadaan ATK Kegiatan Perencanaan Bulan Februari',
-        Rekanan: 'CV Cahaya Gemilang',
-        Keterangan: 'Bank NTB Syariah - NPWP 01.234.567.8-901.000'
+        'Nama Belanja': 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor',
+        'Pagu Anggaran (Rp)': 120000000
       },
       {
-        Tahun: selectedTahun,
         'Kode Program': '5.01.01',
+        'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
         'Kode Kegiatan': '5.01.01.2.01',
+        'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Sub Kegiatan': '5.01.01.2.01.01',
-        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Belanja': '5.1.02.01.01.0025',
-        'Nama Belanja': 'Belanja Kertas',
-        'Nilai Realisasi': 22500000,
-        'No SP2D': `900/0301/SP2D-LS/KESBANG/${selectedTahun}`,
-        'Tanggal': `18 Maret ${selectedTahun}`,
-        'No SPM': `900/0301/SPM-LS/KESBANG/${selectedTahun}`,
-        Uraian: 'Cetak Laporan Kinerja Instansi Bulan Maret',
-        Rekanan: 'PT Bank NTB Syariah',
-        Keterangan: 'Bank NTB Syariah Mataram'
+        'Nama Belanja': 'Belanja Kertas dan Cover Cetakan Laporan',
+        'Pagu Anggaran (Rp)': 85000000
       },
       {
-        Tahun: selectedTahun,
+        'Kode Program': '5.01.01',
+        'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
+        'Kode Kegiatan': '5.01.01.2.02',
+        'Nama Kegiatan': 'Administrasi Keuangan Perangkat Daerah',
+        'Kode Sub Kegiatan': '5.01.01.2.02.01',
+        'Nama Sub Kegiatan': 'Penyediaan Gaji dan Tunjangan ASN',
+        'Kode Belanja': '5.1.01.02.01.0001',
+        'Nama Belanja': 'Belanja Tambahan Penghasilan berdasarkan Beban Kerja PNS',
+        'Pagu Anggaran (Rp)': 5400000000
+      },
+      {
         'Kode Program': '5.01.02',
+        'Nama Program': 'PROGRAM PENGUATAN IDEOLOGI PANCASILA DAN KARAKTER KEBANGSAAN',
         'Kode Kegiatan': '5.01.02.2.01',
+        'Nama Kegiatan': 'Perumusan Kebijakan Teknis dan Pemantapan Wawasan Kebangsaan',
         'Kode Sub Kegiatan': '5.01.02.2.01.03',
-        'Nama Sub Kegiatan': 'Fasilitasi FKUB',
+        'Nama Sub Kegiatan': 'Fasilitasi Forum Kerukunan Umat Beragama (FKUB)',
         'Kode Belanja': '5.1.02.04.01.0001',
-        'Nama Belanja': 'Belanja Makan Minum Rapat',
-        'Nilai Realisasi': 35000000,
-        'No SP2D': `900/0401/SP2D-LS/KESBANG/${selectedTahun}`,
-        'Tanggal': `20/04/${selectedTahun}`,
-        'No SPM': `900/0401/SPM-LS/KESBANG/${selectedTahun}`,
-        Uraian: 'Belanja Jamuan Rapat FKUB Bulan April',
-        Rekanan: 'PT Lombok Utama Catering',
-        Keterangan: 'Bank NTB Syariah'
+        'Nama Belanja': 'Belanja Jasa Tenaga Ahli / Narasumber',
+        'Pagu Anggaran (Rp)': 320000000
       }
     ];
-    const wsStandard = XLSX.utils.json_to_sheet(cleanStandardData);
-    XLSX.utils.book_append_sheet(wb, wsStandard, 'Format_Standar_Sederhana');
+    const wsPagu = XLSX.utils.json_to_sheet(masterPaguData);
+    XLSX.utils.book_append_sheet(wb, wsPagu, 'MASTER_PAGU_DPA');
 
-    XLSX.writeFile(wb, `Template_Import_Realisasi_Q6_AQ6_NTB_${selectedTahun}.xlsx`);
+    // 4. Sheet Panduan & Petunjuk
+    const petunjukData = [
+      {
+        'No': 1,
+        'Nama Kolom': 'Tanggal',
+        'Format Data': 'YYYY-MM-DD atau DD/MM/YYYY',
+        'Contoh': `${selectedTahun}-01-15`,
+        'Keterangan': 'Tanggal terbitnya SP2D / SPM. Menentukan filter bulan pada Laporan Bulanan (misal: 01 = Januari).'
+      },
+      {
+        'No': 2,
+        'Nama Kolom': 'No SP2D',
+        'Format Data': 'Teks / String',
+        'Contoh': `900/0101/SP2D-LS/KESBANG/${selectedTahun}`,
+        'Keterangan': 'Nomor Surat Perintah Pencairan Dana resmi dari BPKAD Provinsi NTB.'
+      },
+      {
+        'No': 3,
+        'Nama Kolom': 'Kode Sub Kegiatan',
+        'Format Data': 'Format Titik: X.XX.XX.X.XX.XX',
+        'Contoh': '5.01.01.2.01.01',
+        'Keterangan': 'Kode Sub Kegiatan sesuai DPA BAKESBANGPOLDAGRI NTB.'
+      },
+      {
+        'No': 4,
+        'Nama Kolom': 'Kode Belanja',
+        'Format Data': 'Format Titik: X.X.XX.XX.XX.XXXX',
+        'Contoh': '5.1.02.01.01.0024',
+        'Keterangan': 'Kode rekening belanja standar 12 digit SIPD.'
+      },
+      {
+        'No': 5,
+        'Nama Kolom': 'Nilai Realisasi (Rp)',
+        'Format Data': 'Angka Numerik murni (tanpa Rp dan titik ribuan)',
+        'Contoh': 15000000,
+        'Keterangan': 'Jumlah nominal pencairan SP2D yang terealisasi.'
+      },
+      {
+        'No': 6,
+        'Nama Kolom': 'Uraian Realisasi',
+        'Format Data': 'Teks / String',
+        'Contoh': 'Pembayaran belanja ATK dan penggandaan rapat koordinasi',
+        'Keterangan': 'Deskripsi rincian pekerjaan atau belanja keperluan.'
+      },
+      {
+        'No': 7,
+        'Nama Kolom': 'Nama Rekanan / Penyedia',
+        'Format Data': 'Teks / String',
+        'Contoh': 'CV Cahaya Gemilang',
+        'Keterangan': 'Pihak ketiga/rekanan penerima pembayaran atau bendahara.'
+      }
+    ];
+    const wsPetunjuk = XLSX.utils.json_to_sheet(petunjukData);
+    XLSX.utils.book_append_sheet(wb, wsPetunjuk, 'PANDUAN_PENGISIAN');
+
+    const fileName = `DATABASE_SPREADSHEET_MASTER_SIMKEU_TA_${selectedTahun}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const validCount = previewData.filter(r => r.isValid).length;
@@ -469,11 +567,12 @@ export const UploadExcelView: React.FC = () => {
 
         <button
           onClick={downloadSampleTemplate}
-          className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-bold text-emerald-400 hover:border-emerald-500 hover:bg-slate-800"
+          className="flex items-center gap-2 rounded-xl border border-emerald-600/60 bg-emerald-950/40 px-4 py-2 text-xs font-bold text-emerald-300 hover:border-emerald-500 hover:bg-emerald-900/60 shadow transition"
           id="btn-download-template"
+          title="Unduh Master Template Spreadsheet Database (Multi-Sheet: Realisasi, Pagu DPA, SIPD NTB & Panduan)"
         >
           <Download className="h-4 w-4" />
-          <span>Unduh Format Excel</span>
+          <span>Unduh Database Spreadsheet (.xlsx)</span>
         </button>
       </div>
 
