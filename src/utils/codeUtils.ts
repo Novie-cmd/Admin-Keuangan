@@ -632,51 +632,14 @@ export const parseRealisasiFromExcelData = (
       }
 
       let tglRaw: any = null;
-      if (colTanggal >= 0 && row[colTanggal]) {
+      if (colTanggal >= 0 && row[colTanggal] !== undefined && row[colTanggal] !== null && String(row[colTanggal]).trim()) {
         tglRaw = row[colTanggal];
       } else {
-        tglRaw = row[42] || row[39] || row[41] || row[40] || row[43] || row[44] || row[38] || row[37] || row[1] || row[2];
+        // In standard SIPD layout: AQ (col 42) is Tanggal SP2D, AN (col 39) is Tanggal SPM
+        tglRaw = row[42] || row[39] || row[40] || row[41] || row[43] || row[44] || row[38] || row[37] || row[1] || row[2];
       }
 
-      let parsedDate = parseExcelDate(tglRaw, selectedTahun);
-
-      if (parsedDate.month === 1) {
-        for (let c = 0; c < row.length; c++) {
-          if (!row[c]) continue;
-          const candDate = parseExcelDate(row[c], selectedTahun);
-          if (candDate.month > 1) {
-            parsedDate = candDate;
-            break;
-          }
-        }
-      }
-
-      if (parsedDate.month === 1) {
-        const fullRowText = row.map(cell => String(cell || '')).join(' ').toLowerCase();
-        if (fullRowText.includes('februari') || fullRowText.includes('feb') || fullRowText.includes('/02/') || fullRowText.includes('/0202/') || fullRowText.includes('-02-')) {
-          parsedDate = { isoDate: `${selectedTahun}-02-15`, month: 2, year: selectedTahun };
-        } else if (fullRowText.includes('maret') || fullRowText.includes('mar') || fullRowText.includes('/03/') || fullRowText.includes('/0303/') || fullRowText.includes('-03-')) {
-          parsedDate = { isoDate: `${selectedTahun}-03-15`, month: 3, year: selectedTahun };
-        } else if (fullRowText.includes('april') || fullRowText.includes('apr') || fullRowText.includes('/04/') || fullRowText.includes('/0404/') || fullRowText.includes('-04-')) {
-          parsedDate = { isoDate: `${selectedTahun}-04-15`, month: 4, year: selectedTahun };
-        } else if (fullRowText.includes('mei') || fullRowText.includes('may') || fullRowText.includes('/05/') || fullRowText.includes('/0505/') || fullRowText.includes('-05-')) {
-          parsedDate = { isoDate: `${selectedTahun}-05-15`, month: 5, year: selectedTahun };
-        } else if (fullRowText.includes('juni') || fullRowText.includes('jun') || fullRowText.includes('/06/') || fullRowText.includes('/0606/') || fullRowText.includes('-06-')) {
-          parsedDate = { isoDate: `${selectedTahun}-06-15`, month: 6, year: selectedTahun };
-        } else if (fullRowText.includes('juli') || fullRowText.includes('jul') || fullRowText.includes('/07/') || fullRowText.includes('/0707/') || fullRowText.includes('-07-')) {
-          parsedDate = { isoDate: `${selectedTahun}-07-15`, month: 7, year: selectedTahun };
-        } else if (fullRowText.includes('agustus') || fullRowText.includes('agt') || fullRowText.includes('aug') || fullRowText.includes('/08/') || fullRowText.includes('/0808/') || fullRowText.includes('-08-')) {
-          parsedDate = { isoDate: `${selectedTahun}-08-15`, month: 8, year: selectedTahun };
-        } else if (fullRowText.includes('september') || fullRowText.includes('sep') || fullRowText.includes('/09/') || fullRowText.includes('/0909/') || fullRowText.includes('-09-')) {
-          parsedDate = { isoDate: `${selectedTahun}-09-15`, month: 9, year: selectedTahun };
-        } else if (fullRowText.includes('oktober') || fullRowText.includes('okt') || fullRowText.includes('oct') || fullRowText.includes('/10/') || fullRowText.includes('/1010/') || fullRowText.includes('-10-')) {
-          parsedDate = { isoDate: `${selectedTahun}-10-15`, month: 10, year: selectedTahun };
-        } else if (fullRowText.includes('november') || fullRowText.includes('nov') || fullRowText.includes('/11/') || fullRowText.includes('/1111/') || fullRowText.includes('-11-')) {
-          parsedDate = { isoDate: `${selectedTahun}-11-15`, month: 11, year: selectedTahun };
-        } else if (fullRowText.includes('desember') || fullRowText.includes('des') || fullRowText.includes('dec') || fullRowText.includes('/12/') || fullRowText.includes('/1212/') || fullRowText.includes('-12-')) {
-          parsedDate = { isoDate: `${selectedTahun}-12-15`, month: 12, year: selectedTahun };
-        }
-      }
+      const parsedDate = parseExcelDate(tglRaw, selectedTahun);
 
       const { prog, keg, sub } = deriveCodesFromSub(rowSubCode || activeSubCode);
       const bel = rowBelCode || activeBelCode || '5.1.02.01.01.0024';
@@ -730,35 +693,8 @@ export const parseRealisasiFromExcelData = (
       const uraianVal = findRowValueByKeys(row, ['uraian', 'keterangan', 'uraianrealisasi', 'rincian', 'keperluan', 'deskripsi']);
       const rekananVal = findRowValueByKeys(row, ['penyedia', 'rekanan', 'penerima', 'namarekanan', 'pihakketiga', 'perusahaan']);
       const ketVal = findRowValueByKeys(row, ['keterangan', 'ket', 'catatan']);
-      const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d', 'bulan', 'bln', 'tgl_sp2d']);
-      let parsedDate = parseExcelDate(tglRaw, thn);
-
-      if (parsedDate.month === 1) {
-        const fullRowText = Object.values(row).map(val => String(val || '')).join(' ').toLowerCase();
-        if (fullRowText.includes('februari') || fullRowText.includes('feb') || fullRowText.includes('/02/') || fullRowText.includes('/0202/') || fullRowText.includes('-02-')) {
-          parsedDate = { isoDate: `${thn}-02-15`, month: 2, year: thn };
-        } else if (fullRowText.includes('maret') || fullRowText.includes('mar') || fullRowText.includes('/03/') || fullRowText.includes('/0303/') || fullRowText.includes('-03-')) {
-          parsedDate = { isoDate: `${thn}-03-15`, month: 3, year: thn };
-        } else if (fullRowText.includes('april') || fullRowText.includes('apr') || fullRowText.includes('/04/') || fullRowText.includes('/0404/') || fullRowText.includes('-04-')) {
-          parsedDate = { isoDate: `${thn}-04-15`, month: 4, year: thn };
-        } else if (fullRowText.includes('mei') || fullRowText.includes('may') || fullRowText.includes('/05/') || fullRowText.includes('/0505/') || fullRowText.includes('-05-')) {
-          parsedDate = { isoDate: `${thn}-05-15`, month: 5, year: thn };
-        } else if (fullRowText.includes('juni') || fullRowText.includes('jun') || fullRowText.includes('/06/') || fullRowText.includes('/0606/') || fullRowText.includes('-06-')) {
-          parsedDate = { isoDate: `${thn}-06-15`, month: 6, year: thn };
-        } else if (fullRowText.includes('juli') || fullRowText.includes('jul') || fullRowText.includes('/07/') || fullRowText.includes('/0707/') || fullRowText.includes('-07-')) {
-          parsedDate = { isoDate: `${thn}-07-15`, month: 7, year: thn };
-        } else if (fullRowText.includes('agustus') || fullRowText.includes('agt') || fullRowText.includes('aug') || fullRowText.includes('/08/') || fullRowText.includes('/0808/') || fullRowText.includes('-08-')) {
-          parsedDate = { isoDate: `${thn}-08-15`, month: 8, year: thn };
-        } else if (fullRowText.includes('september') || fullRowText.includes('sep') || fullRowText.includes('/09/') || fullRowText.includes('/0909/') || fullRowText.includes('-09-')) {
-          parsedDate = { isoDate: `${thn}-09-15`, month: 9, year: thn };
-        } else if (fullRowText.includes('oktober') || fullRowText.includes('okt') || fullRowText.includes('oct') || fullRowText.includes('/10/') || fullRowText.includes('/1010/') || fullRowText.includes('-10-')) {
-          parsedDate = { isoDate: `${thn}-10-15`, month: 10, year: thn };
-        } else if (fullRowText.includes('november') || fullRowText.includes('nov') || fullRowText.includes('/11/') || fullRowText.includes('/1111/') || fullRowText.includes('-11-')) {
-          parsedDate = { isoDate: `${thn}-11-15`, month: 11, year: thn };
-        } else if (fullRowText.includes('desember') || fullRowText.includes('des') || fullRowText.includes('dec') || fullRowText.includes('/12/') || fullRowText.includes('/1212/') || fullRowText.includes('-12-')) {
-          parsedDate = { isoDate: `${thn}-12-15`, month: 12, year: thn };
-        }
-      }
+      const tglRaw = findRowValueByKeys(row, ['tanggal', 'tgl', 'tanggalsp2d', 'bulan', 'bln', 'tgl_sp2d', 'tglspm']);
+      const parsedDate = parseExcelDate(tglRaw, thn);
 
       results.push({
         rowNum: idx + 1,

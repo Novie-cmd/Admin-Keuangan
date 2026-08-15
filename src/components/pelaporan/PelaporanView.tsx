@@ -312,6 +312,7 @@ interface RealisasiDetailFilter {
   kodeBelanja?: string;
   kodeKegiatan?: string;
   kodeProgram?: string;
+  bulan?: number;
 }
 
 interface RealisasiDetailModalProps {
@@ -334,6 +335,16 @@ const RealisasiDetailModal: React.FC<RealisasiDetailModalProps> = ({
   const [modalSearch, setModalSearch] = useState('');
 
   const matchingRealisasi = currentRealisasi.filter(r => {
+    if (filter.bulan !== undefined && filter.bulan !== null) {
+      let m = Number(r.bulan);
+      if (!m || isNaN(m)) {
+        if (r.tanggal) {
+          const parts = r.tanggal.split('-');
+          if (parts.length >= 2) m = parseInt(parts[1], 10);
+        }
+      }
+      if (m !== filter.bulan) return false;
+    }
     if (filter.kodeSub && !isCodeEqual(r.kodeSub, filter.kodeSub)) return false;
     if (filter.kodeBelanja && !isCodeEqual(r.kodeBelanja, filter.kodeBelanja)) return false;
     if (filter.kodeKegiatan && !isCodeEqual(r.kodeKegiatan, filter.kodeKegiatan)) return false;
@@ -2447,42 +2458,52 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
             </div>
 
             {/* RINCIAN TRANSAKSI BULAN YBS JIKA BULAN DIPILIH */}
-            {filterBulan !== 'all' && (
-              <div className="mt-6 space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-800 print:bg-slate-50">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <h4 className="text-xs font-bold uppercase text-emerald-400 print:text-slate-900 flex items-center gap-2">
-                    <Info className="h-4 w-4 text-emerald-400 print:hidden" />
-                    <span>Daftar Transaksi SP2D - Bulan {monthNames[Number(filterBulan) - 1]} TA {selectedTahun}</span>
-                  </h4>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    {currentRealisasi.filter(r => Number(r.bulan) === Number(filterBulan)).length} Transaksi Terdaftar
-                  </span>
-                </div>
+            {filterBulan !== 'all' && (() => {
+              const bulanSelectedTransactions = currentRealisasi.filter(r => {
+                let m = Number(r.bulan);
+                if (!m || isNaN(m)) {
+                  if (r.tanggal) {
+                    const parts = r.tanggal.split('-');
+                    if (parts.length >= 2) m = parseInt(parts[1], 10);
+                  }
+                }
+                return m === Number(filterBulan);
+              });
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead className="bg-slate-900 print:bg-slate-200 text-slate-400 print:text-slate-900 font-bold uppercase">
-                      <tr>
-                        <th className="p-2.5 w-8 text-center">No</th>
-                        <th className="p-2.5">Tanggal</th>
-                        <th className="p-2.5">No SP2D</th>
-                        <th className="p-2.5">Kode Belanja</th>
-                        <th className="p-2.5">Uraian Transaksi</th>
-                        <th className="p-2.5 text-right">Nilai SP2D (Rp)</th>
-                        <th className="p-2.5">Rekanan</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800 print:divide-slate-300">
-                      {currentRealisasi.filter(r => Number(r.bulan) === Number(filterBulan)).length === 0 ? (
+              return (
+                <div className="mt-6 space-y-3 bg-slate-950 p-4 rounded-2xl border border-slate-800 print:bg-slate-50">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h4 className="text-xs font-bold uppercase text-emerald-400 print:text-slate-900 flex items-center gap-2">
+                      <Info className="h-4 w-4 text-emerald-400 print:hidden" />
+                      <span>Daftar Transaksi SP2D - Bulan {monthNames[Number(filterBulan) - 1]} TA {selectedTahun}</span>
+                    </h4>
+                    <span className="text-[11px] text-slate-400 font-mono">
+                      {bulanSelectedTransactions.length} Transaksi Terdaftar
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead className="bg-slate-900 print:bg-slate-200 text-slate-400 print:text-slate-900 font-bold uppercase">
                         <tr>
-                          <td colSpan={7} className="p-4 text-center text-slate-500">
-                            Tidak ada transaksi SP2D yang tercatat pada Bulan {monthNames[Number(filterBulan) - 1]}.
-                          </td>
+                          <th className="p-2.5 w-8 text-center">No</th>
+                          <th className="p-2.5">Tanggal</th>
+                          <th className="p-2.5">No SP2D</th>
+                          <th className="p-2.5">Kode Belanja</th>
+                          <th className="p-2.5">Uraian Transaksi</th>
+                          <th className="p-2.5 text-right">Nilai SP2D (Rp)</th>
+                          <th className="p-2.5">Rekanan</th>
                         </tr>
-                      ) : (
-                        currentRealisasi
-                          .filter(r => Number(r.bulan) === Number(filterBulan))
-                          .map((r, i) => (
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 print:divide-slate-300">
+                        {bulanSelectedTransactions.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="p-4 text-center text-slate-500">
+                              Tidak ada transaksi SP2D yang tercatat pada Bulan {monthNames[Number(filterBulan) - 1]}.
+                            </td>
+                          </tr>
+                        ) : (
+                          bulanSelectedTransactions.map((r, i) => (
                             <tr key={r.id || i} className="hover:bg-slate-900/60">
                               <td className="p-2.5 text-center font-mono text-slate-500">{i + 1}</td>
                               <td className="p-2.5 font-mono text-slate-300 print:text-slate-900">{r.tanggal}</td>
@@ -2495,12 +2516,13 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
                               <td className="p-2.5 text-slate-400 print:text-slate-900">{r.rekanan || '-'}</td>
                             </tr>
                           ))
-                      )}
-                    </tbody>
-                  </table>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
