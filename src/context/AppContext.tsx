@@ -172,28 +172,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const STORAGE_KEY = 'BFMS_NTB_STORE_V1';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load initial or local stored data with clean migration
+  // Load initial or local stored data
   const loadStoredData = () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-
-        // Clean up any injected dummy anggaran (e.g. ANG-2026-* or ANG-2025-08) if present
-        if (Array.isArray(parsed.anggaranList)) {
-          parsed.anggaranList = parsed.anggaranList.filter(
-            (a: Anggaran) => !a.id.startsWith('ANG-2026-') && a.id !== 'ANG-2025-08'
-          );
-        }
-
-        // Clean up any injected dummy realisasi (e.g. REAL-2026-013) if present
-        if (Array.isArray(parsed.realisasiList)) {
-          parsed.realisasiList = parsed.realisasiList.filter(
-            (r: Realisasi) => r.id !== 'REAL-2026-013'
-          );
-        }
-
-        return parsed;
+        return JSON.parse(stored);
       }
     } catch (err) {
       console.error('Failed to load local storage:', err);
@@ -692,17 +676,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // Auto lookup parent code structure from existing anggaranList or default
         const angMatch = anggaranList.find(a =>
-          isCodeEqual(a.kodeBelanja, cleanBelanja) && (isCodeEqual(a.kodeSub, cleanSub) || !cleanSub) && Number(a.tahun) === rowTahun
-        ) || anggaranList.find(a =>
           isCodeEqual(a.kodeBelanja, cleanBelanja) && Number(a.tahun) === rowTahun
         ) || anggaranList.find(a =>
           isCodeEqual(a.kodeBelanja, cleanBelanja)
         );
 
         const finalBelanja = cleanBelanja || angMatch?.kodeBelanja || '5.1.02.01.01.0024';
-        const finalSub = cleanSub || angMatch?.kodeSub || '8.01.01.2.01.01';
-        const finalKeg = cleanKeg || angMatch?.kodeKegiatan || (angMatch ? angMatch.kodeKegiatan : '8.01.01.2.01');
-        const finalProg = cleanProg || angMatch?.kodeProgram || (angMatch ? angMatch.kodeProgram : '8.01.01');
+        const finalSub = cleanSub || angMatch?.kodeSub || '5.01.01.2.01.01';
+        const finalKeg = cleanKeg || angMatch?.kodeKegiatan || '5.01.01.2.01';
+        const finalProg = cleanProg || angMatch?.kodeProgram || '5.01.01';
         const sp2dStr = (row.sp2d || '').trim();
 
         const key = makeRealisasiCompositeKey(sp2dStr, finalBelanja, finalSub, row.nilai, row.uraian, rowTahun);

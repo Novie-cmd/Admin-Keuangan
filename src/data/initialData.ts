@@ -86,255 +86,119 @@ export const INITIAL_OPD_LIST: OPD[] = [INITIAL_OPD];
 
 export const INITIAL_PROGRAMS: Program[] = [
   {
-    kodeProgram: '8.01.01',
+    kodeProgram: '5.01.01',
     namaProgram: 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.02',
-    namaProgram: 'PROGRAM PENGUATAN IDEOLOGI PANCASILA DAN KARAKTER KEBANGSAAN',
+    kodeProgram: '5.01.02',
+    namaProgram: 'PROGRAM BINA IDEOLOGI PANCASILA DAN WAWASAN KEBANGSAAN',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.03',
-    namaProgram: 'PROGRAM PENINGKATAN PERAN PARTAI POLITIK DAN LEMBAGA PENDIDIKAN POLITIK DAN PENGEMBANGAN ETIKA SERTA BUDAYA POLITIK',
+    kodeProgram: '5.01.03',
+    namaProgram: 'PROGRAM PENYELENGGARAAN POLITIK DALAM NEGERI DAN KEWASPADAAN DINI',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.04',
-    namaProgram: 'PROGRAM PEMBERDAYAAN DAN PENGAWASAN ORGANISASI KEMASYARAKATAN',
-    tahun: 2025
-  },
-  {
-    kodeProgram: '8.01.05',
-    namaProgram: 'PROGRAM PEMBINAAN DAN PENGEMBANGAN KETAHANAN EKONOMI, SOSIAL, DAN BUDAYA',
-    tahun: 2025
-  },
-  {
-    kodeProgram: '8.01.06',
-    namaProgram: 'PROGRAM PENINGKATAN KEWASPADAAN NASIONAL DAN PENINGKATAN KUALITAS DAN FASILITASI PENANGANAN KONFLIK SOSIAL',
+    kodeProgram: '5.01.04',
+    namaProgram: 'PROGRAM PEMBINAAN KERUKUNAN UMAT BERAGAMA DAN ORGANISASI MASYARAKAT',
     tahun: 2025
   },
   // 2026
   {
-    kodeProgram: '8.01.01',
+    kodeProgram: '5.01.01',
     namaProgram: 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
     tahun: 2026
   },
   {
-    kodeProgram: '8.01.02',
-    namaProgram: 'PROGRAM PENGUATAN IDEOLOGI PANCASILA DAN KARAKTER KEBANGSAAN',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.03',
-    namaProgram: 'PROGRAM PENINGKATAN PERAN PARTAI POLITIK DAN LEMBAGA PENDIDIKAN POLITIK DAN PENGEMBANGAN ETIKA SERTA BUDAYA POLITIK',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.04',
-    namaProgram: 'PROGRAM PEMBERDAYAAN DAN PENGAWASAN ORGANISASI KEMASYARAKATAN',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.05',
-    namaProgram: 'PROGRAM PEMBINAAN DAN PENGEMBANGAN KETAHANAN EKONOMI, SOSIAL, DAN BUDAYA',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.06',
-    namaProgram: 'PROGRAM PENINGKATAN KEWASPADAAN NASIONAL DAN PENINGKATAN KUALITAS DAN FASILITASI PENANGANAN KONFLIK SOSIAL',
+    kodeProgram: '5.01.02',
+    namaProgram: 'PROGRAM BINA IDEOLOGI PANCASILA DAN WAWASAN KEBANGSAAN',
     tahun: 2026
   }
 ];
 
 export const INITIAL_KEGIATAN: Kegiatan[] = [
   {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.01',
     namaKegiatan: 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
     namaKegiatan: 'Administrasi Keuangan Perangkat Daerah',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.06',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.06',
     namaKegiatan: 'Pengadaan Barang Milik Daerah Penunjang Urusan Pemerintah Daerah',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
     namaKegiatan: 'Perumusan Kebijakan Teknis dan Pelaksanaan Ideologi Pancasila dan Wawasan Kebangsaan',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
+    kodeProgram: '5.01.03',
+    kodeKegiatan: '5.01.03.2.01',
     namaKegiatan: 'Fasilitasi Organisasi Politik dan Pendidikan Politik Masyarakat NTB',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
+    kodeProgram: '5.01.04',
+    kodeKegiatan: '5.01.04.2.01',
     namaKegiatan: 'Pemberdayaan dan Pengawasan Organisasi Kemasyarakatan serta FKUB',
     tahun: 2025
-  },
-  {
-    kodeProgram: '8.01.06',
-    kodeKegiatan: '8.01.06.1.01',
-    namaKegiatan: 'Perumusan Kebijakan Teknis dan Pelaksanaan Pemantapan Kewaspadaan Nasional dan Penanganan Konflik Sosial',
-    tahun: 2025
-  },
-  // 2026
-  {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    namaKegiatan: 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    namaKegiatan: 'Administrasi Keuangan Perangkat Daerah',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.06',
-    namaKegiatan: 'Pengadaan Barang Milik Daerah Penunjang Urusan Pemerintah Daerah',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    namaKegiatan: 'Perumusan Kebijakan Teknis dan Pelaksanaan Ideologi Pancasila dan Wawasan Kebangsaan',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
-    namaKegiatan: 'Fasilitasi Organisasi Politik dan Pendidikan Politik Masyarakat NTB',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
-    namaKegiatan: 'Pemberdayaan dan Pengawasan Organisasi Kemasyarakatan serta FKUB',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.06',
-    kodeKegiatan: '8.01.06.1.01',
-    namaKegiatan: 'Perumusan Kebijakan Teknis dan Pelaksanaan Pemantapan Kewaspadaan Nasional dan Penanganan Konflik Sosial',
-    tahun: 2026
   }
 ];
 
 export const INITIAL_SUBKEGIATAN: SubKegiatan[] = [
   {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    kodeSub: '8.01.01.2.01.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.01',
+    kodeSub: '5.01.01.2.01.01',
     namaSub: 'Penyusunan Dokumen Perencanaan Perangkat Daerah (Renstra, Renja, RKA)',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     namaSub: 'Penyediaan Gaji dan Tunjangan ASN Kesbangpoldagri',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.06',
-    kodeSub: '8.01.01.2.06.02',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.06',
+    kodeSub: '5.01.01.2.06.02',
     namaSub: 'Pengadaan Sarana dan Prasarana Peralatan Kantor',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     namaSub: 'Pelaksanaan Pembinaan Paskibraka dan Pembaruan Nilai-Nilai Kebangsaan',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
-    kodeSub: '8.01.03.2.01.02',
+    kodeProgram: '5.01.03',
+    kodeKegiatan: '5.01.03.2.01',
+    kodeSub: '5.01.03.2.01.02',
     namaSub: 'Monitoring Evaluasi Penyelenggaraan Pemilu dan Pilkada Serentak NTB',
     tahun: 2025
   },
   {
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
-    kodeSub: '8.01.04.2.01.01',
+    kodeProgram: '5.01.04',
+    kodeKegiatan: '5.01.04.2.01',
+    kodeSub: '5.01.04.2.01.01',
     namaSub: 'Fasilitasi Forum Kerukunan Umat Beragama (FKUB) dan Dialog Tokoh Masyarakat',
     tahun: 2025
-  },
-  {
-    kodeProgram: '8.01.06',
-    kodeKegiatan: '8.01.06.1.01',
-    kodeSub: '8.01.06.1.01.0006',
-    namaSub: 'Pelaksanaan Forum Koordinasi Pimpinan Daerah Provinsi',
-    tahun: 2025
-  },
-  // 2026
-  {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    kodeSub: '8.01.01.2.01.01',
-    namaSub: 'Penyusunan Dokumen Perencanaan Perangkat Daerah (Renstra, Renja, RKA)',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
-    namaSub: 'Penyediaan Gaji dan Tunjangan ASN Kesbangpoldagri',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.06',
-    kodeSub: '8.01.01.2.06.02',
-    namaSub: 'Pengadaan Sarana dan Prasarana Peralatan Kantor',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
-    namaSub: 'Pelaksanaan Pembinaan Paskibraka dan Pembaruan Nilai-Nilai Kebangsaan',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
-    kodeSub: '8.01.03.2.01.02',
-    namaSub: 'Monitoring Evaluasi Penyelenggaraan Pemilu dan Pilkada Serentak NTB',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
-    kodeSub: '8.01.04.2.01.01',
-    namaSub: 'Fasilitasi Forum Kerukunan Umat Beragama (FKUB) dan Dialog Tokoh Masyarakat',
-    tahun: 2026
-  },
-  {
-    kodeProgram: '8.01.06',
-    kodeKegiatan: '8.01.06.1.01',
-    kodeSub: '8.01.06.1.01.0006',
-    namaSub: 'Pelaksanaan Forum Koordinasi Pimpinan Daerah Provinsi',
-    tahun: 2026
   }
 ];
 
@@ -439,13 +303,12 @@ export const INITIAL_REKANAN: Rekanan[] = [
 ];
 
 export const INITIAL_ANGGARAN: Anggaran[] = [
-  // 2025
   {
     id: 'ANG-2025-01',
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     namaBelanja: 'Belanja Gaji Pokok PNS/PNSD',
     pagu: 22000000000,
@@ -459,9 +322,9 @@ export const INITIAL_ANGGARAN: Anggaran[] = [
   {
     id: 'ANG-2025-02',
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    kodeSub: '8.01.01.2.01.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.01',
+    kodeSub: '5.01.01.2.01.01',
     kodeBelanja: '5.1.02.01.01.0024',
     namaBelanja: 'Belanja Alat/Bahan untuk Kegiatan Kantor - ATK',
     pagu: 1500000000,
@@ -475,9 +338,9 @@ export const INITIAL_ANGGARAN: Anggaran[] = [
   {
     id: 'ANG-2025-03',
     tahun: 2025,
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     kodeBelanja: '5.1.02.04.01.0001',
     namaBelanja: 'Belanja Perjalanan Dinas Dalam Daerah Kab/Kota NTB',
     pagu: 4800000000,
@@ -491,9 +354,9 @@ export const INITIAL_ANGGARAN: Anggaran[] = [
   {
     id: 'ANG-2025-04',
     tahun: 2025,
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     kodeBelanja: '5.1.02.01.01.0052',
     namaBelanja: 'Belanja Makanan dan Minuman Rapat / Operasional Lapangan',
     pagu: 3500000000,
@@ -507,9 +370,9 @@ export const INITIAL_ANGGARAN: Anggaran[] = [
   {
     id: 'ANG-2025-05',
     tahun: 2025,
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
-    kodeSub: '8.01.03.2.01.02',
+    kodeProgram: '5.01.03',
+    kodeKegiatan: '5.01.03.2.01',
+    kodeSub: '5.01.03.2.01.02',
     kodeBelanja: '5.1.02.04.01.0003',
     namaBelanja: 'Belanja Perjalanan Dinas Luar Daerah (Jakarta/Surakarta)',
     pagu: 5200000000,
@@ -523,9 +386,9 @@ export const INITIAL_ANGGARAN: Anggaran[] = [
   {
     id: 'ANG-2025-06',
     tahun: 2025,
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
-    kodeSub: '8.01.04.2.01.01',
+    kodeProgram: '5.01.04',
+    kodeKegiatan: '5.01.04.2.01',
+    kodeSub: '5.01.04.2.01.01',
     kodeBelanja: '5.1.05.01.01.0002',
     namaBelanja: 'Belanja Hibah Uang kepada Badan/Lembaga/Ormas Terdaftar NTB',
     pagu: 18500000000,
@@ -539,9 +402,9 @@ export const INITIAL_ANGGARAN: Anggaran[] = [
   {
     id: 'ANG-2025-07',
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.06',
-    kodeSub: '8.01.01.2.06.02',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.06',
+    kodeSub: '5.01.01.2.06.02',
     kodeBelanja: '5.2.02.08.01.0005',
     namaBelanja: 'Belanja Modal Personal Computer / Laptop Operasional',
     pagu: 2400000000,
@@ -560,9 +423,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-01-28',
     bulan: 1,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1830000000,
     noSP2D: '900/0123/SP2D-LS/KESBANG/2025',
@@ -577,9 +440,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-02-14',
     bulan: 2,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    kodeSub: '8.01.01.2.01.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.01',
+    kodeSub: '5.01.01.2.01.01',
     kodeBelanja: '5.1.02.01.01.0024',
     nilai: 240000000,
     noSP2D: '900/0245/SP2D-GU/KESBANG/2025',
@@ -594,9 +457,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-02-25',
     bulan: 2,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1835000000,
     noSP2D: '900/0312/SP2D-LS/KESBANG/2025',
@@ -611,9 +474,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-03-18',
     bulan: 3,
     tahun: 2025,
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     kodeBelanja: '5.1.02.01.01.0052',
     nilai: 450000000,
     noSP2D: '900/0418/SP2D-LS/KESBANG/2025',
@@ -628,9 +491,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-03-27',
     bulan: 3,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1840000000,
     noSP2D: '900/0510/SP2D-LS/KESBANG/2025',
@@ -645,9 +508,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-04-12',
     bulan: 4,
     tahun: 2025,
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
-    kodeSub: '8.01.04.2.01.01',
+    kodeProgram: '5.01.04',
+    kodeKegiatan: '5.01.04.2.01',
+    kodeSub: '5.01.04.2.01.01',
     kodeBelanja: '5.1.05.01.01.0002',
     nilai: 5500000000,
     noSP2D: '900/0620/SP2D-LS/KESBANG/2025',
@@ -662,9 +525,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-04-28',
     bulan: 4,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1838000000,
     noSP2D: '900/0711/SP2D-LS/KESBANG/2025',
@@ -679,9 +542,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-05-15',
     bulan: 5,
     tahun: 2025,
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     kodeBelanja: '5.1.02.04.01.0001',
     nilai: 1250000000,
     noSP2D: '900/0830/SP2D-LS/KESBANG/2025',
@@ -696,9 +559,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-05-28',
     bulan: 5,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1842000000,
     noSP2D: '900/0912/SP2D-LS/KESBANG/2025',
@@ -713,9 +576,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-06-19',
     bulan: 6,
     tahun: 2025,
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
-    kodeSub: '8.01.03.2.01.02',
+    kodeProgram: '5.01.03',
+    kodeKegiatan: '5.01.03.2.01',
+    kodeSub: '5.01.03.2.01.02',
     kodeBelanja: '5.1.02.04.01.0003',
     nilai: 1680000000,
     noSP2D: '900/1015/SP2D-LS/KESBANG/2025',
@@ -730,9 +593,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-06-27',
     bulan: 6,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1845000000,
     noSP2D: '900/1102/SP2D-LS/KESBANG/2025',
@@ -747,9 +610,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-07-10',
     bulan: 7,
     tahun: 2025,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.06',
-    kodeSub: '8.01.01.2.06.02',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.06',
+    kodeSub: '5.01.01.2.06.02',
     kodeBelanja: '5.2.02.08.01.0005',
     nilai: 1200000000,
     noSP2D: '900/1210/SP2D-LS/KESBANG/2025',
@@ -764,9 +627,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2025-07-25',
     bulan: 7,
     tahun: 2025,
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
-    kodeSub: '8.01.04.2.01.01',
+    kodeProgram: '5.01.04',
+    kodeKegiatan: '5.01.04.2.01',
+    kodeSub: '5.01.04.2.01.01',
     kodeBelanja: '5.1.05.01.01.0002',
     nilai: 8700000000,
     noSP2D: '900/1325/SP2D-LS/KESBANG/2025',
@@ -776,15 +639,15 @@ export const INITIAL_REALISASI: Realisasi[] = [
     operator: 'Ahmad Subadri, S.STP',
     statusValidation: 'Disetujui PPK'
   },
-  // Realisasi 2026 (Total: Rp 14.864.888.381)
+  // Realisasi 2026 (Total: Rp 13.264.888.381)
   {
     id: 'REAL-2026-001',
     tanggal: '2026-01-20',
     bulan: 1,
     tahun: 2026,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    kodeSub: '8.01.01.2.01.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.01',
+    kodeSub: '5.01.01.2.01.01',
     kodeBelanja: '5.1.02.01.01.0024',
     nilai: 1117922844,
     noSP2D: '900/0101/SP2D-LS/KESBANG/2026',
@@ -799,9 +662,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-02-18',
     bulan: 2,
     tahun: 2026,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    kodeSub: '8.01.01.2.01.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.01',
+    kodeSub: '5.01.01.2.01.01',
     kodeBelanja: '5.1.02.01.01.0024',
     nilai: 1050000000,
     noSP2D: '900/0202/SP2D-LS/KESBANG/2026',
@@ -816,9 +679,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-03-22',
     bulan: 3,
     tahun: 2026,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1120000000,
     noSP2D: '900/0303/SP2D-LS/KESBANG/2026',
@@ -833,9 +696,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-04-15',
     bulan: 4,
     tahun: 2026,
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     kodeBelanja: '5.1.02.04.01.0001',
     nilai: 1080000000,
     noSP2D: '900/0404/SP2D-LS/KESBANG/2026',
@@ -850,9 +713,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-05-19',
     bulan: 5,
     tahun: 2026,
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     kodeBelanja: '5.1.02.01.01.0052',
     nilai: 1150000000,
     noSP2D: '900/0505/SP2D-LS/KESBANG/2026',
@@ -867,9 +730,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-06-25',
     bulan: 6,
     tahun: 2026,
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
-    kodeSub: '8.01.03.2.01.02',
+    kodeProgram: '5.01.03',
+    kodeKegiatan: '5.01.03.2.01',
+    kodeSub: '5.01.03.2.01.02',
     kodeBelanja: '5.1.02.04.01.0003',
     nilai: 1200000000,
     noSP2D: '900/0606/SP2D-LS/KESBANG/2026',
@@ -884,9 +747,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-07-21',
     bulan: 7,
     tahun: 2026,
-    kodeProgram: '8.01.04',
-    kodeKegiatan: '8.01.04.2.01',
-    kodeSub: '8.01.04.2.01.01',
+    kodeProgram: '5.01.04',
+    kodeKegiatan: '5.01.04.2.01',
+    kodeSub: '5.01.04.2.01.01',
     kodeBelanja: '5.1.05.01.01.0002',
     nilai: 1100000000,
     noSP2D: '900/0707/SP2D-LS/KESBANG/2026',
@@ -901,9 +764,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-08-14',
     bulan: 8,
     tahun: 2026,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.06',
-    kodeSub: '8.01.01.2.06.02',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.06',
+    kodeSub: '5.01.01.2.06.02',
     kodeBelanja: '5.2.02.08.01.0005',
     nilai: 1140000000,
     noSP2D: '900/0808/SP2D-LS/KESBANG/2026',
@@ -918,9 +781,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-09-28',
     bulan: 9,
     tahun: 2026,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.01',
-    kodeSub: '8.01.01.2.01.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.01',
+    kodeSub: '5.01.01.2.01.01',
     kodeBelanja: '5.1.02.01.01.0024',
     nilai: 1090000000,
     noSP2D: '900/0909/SP2D-LS/KESBANG/2026',
@@ -935,9 +798,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-10-16',
     bulan: 10,
     tahun: 2026,
-    kodeProgram: '8.01.02',
-    kodeKegiatan: '8.01.02.2.01',
-    kodeSub: '8.01.02.2.01.03',
+    kodeProgram: '5.01.02',
+    kodeKegiatan: '5.01.02.2.01',
+    kodeSub: '5.01.02.2.01.03',
     kodeBelanja: '5.1.02.04.01.0001',
     nilai: 1080000000,
     noSP2D: '900/1010/SP2D-LS/KESBANG/2026',
@@ -952,9 +815,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-11-20',
     bulan: 11,
     tahun: 2026,
-    kodeProgram: '8.01.03',
-    kodeKegiatan: '8.01.03.2.01',
-    kodeSub: '8.01.03.2.01.02',
+    kodeProgram: '5.01.03',
+    kodeKegiatan: '5.01.03.2.01',
+    kodeSub: '5.01.03.2.01.02',
     kodeBelanja: '5.1.02.04.01.0003',
     nilai: 1060000000,
     noSP2D: '900/1111/SP2D-LS/KESBANG/2026',
@@ -969,9 +832,9 @@ export const INITIAL_REALISASI: Realisasi[] = [
     tanggal: '2026-12-18',
     bulan: 12,
     tahun: 2026,
-    kodeProgram: '8.01.01',
-    kodeKegiatan: '8.01.01.2.02',
-    kodeSub: '8.01.01.2.02.01',
+    kodeProgram: '5.01.01',
+    kodeKegiatan: '5.01.01.2.02',
+    kodeSub: '5.01.01.2.02.01',
     kodeBelanja: '5.1.01.01.01.0001',
     nilai: 1076965537,
     noSP2D: '900/1212/SP2D-LS/KESBANG/2026',

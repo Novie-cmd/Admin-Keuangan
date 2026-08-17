@@ -318,10 +318,6 @@ export const UploadExcelView: React.FC = () => {
         Tanggal: `${selectedTahun}-01-15`,
         'No SP2D': `900/0101/SP2D-LS/KESBANG/${selectedTahun}`,
         'No SPM': `900/0101/SPM-LS/KESBANG/${selectedTahun}`,
-        'Kode Program': '5.01.01',
-        'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
-        'Kode Kegiatan': '5.01.01.2.01',
-        'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Sub Kegiatan': '5.01.01.2.01.01',
         'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Belanja': '5.1.02.01.01.0024',
@@ -337,10 +333,6 @@ export const UploadExcelView: React.FC = () => {
         Tanggal: `${selectedTahun}-01-25`,
         'No SP2D': `900/0102/SP2D-LS/KESBANG/${selectedTahun}`,
         'No SPM': `900/0102/SPM-LS/KESBANG/${selectedTahun}`,
-        'Kode Program': '5.01.01',
-        'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
-        'Kode Kegiatan': '5.01.01.2.02',
-        'Nama Kegiatan': 'Administrasi Keuangan Perangkat Daerah',
         'Kode Sub Kegiatan': '5.01.01.2.02.01',
         'Nama Sub Kegiatan': 'Penyediaan Gaji dan Tunjangan ASN',
         'Kode Belanja': '5.1.01.02.01.0001',
@@ -356,10 +348,6 @@ export const UploadExcelView: React.FC = () => {
         Tanggal: `${selectedTahun}-02-10`,
         'No SP2D': `900/0201/SP2D-LS/KESBANG/${selectedTahun}`,
         'No SPM': `900/0201/SPM-LS/KESBANG/${selectedTahun}`,
-        'Kode Program': '5.01.01',
-        'Nama Program': 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI',
-        'Kode Kegiatan': '5.01.01.2.01',
-        'Nama Kegiatan': 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Sub Kegiatan': '5.01.01.2.01.01',
         'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
         'Kode Belanja': '5.1.02.01.01.0024',
@@ -368,17 +356,47 @@ export const UploadExcelView: React.FC = () => {
         'Uraian Realisasi': 'Pengadaan ATK Kegiatan Perencanaan Bulan Februari',
         'Nama Rekanan / Penyedia': 'CV Cahaya Gemilang',
         'Keterangan / Bank': 'Bank NTB Syariah'
+      },
+      {
+        No: 4,
+        Tahun: selectedTahun,
+        Tanggal: `${selectedTahun}-03-18`,
+        'No SP2D': `900/0301/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/0301/SPM-LS/KESBANG/${selectedTahun}`,
+        'Kode Sub Kegiatan': '5.01.01.2.01.01',
+        'Nama Sub Kegiatan': 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah',
+        'Kode Belanja': '5.1.02.01.01.0025',
+        'Nama Belanja': 'Belanja Kertas dan Cover Cetakan Laporan',
+        'Nilai Realisasi (Rp)': 22500000,
+        'Uraian Realisasi': 'Cetak Laporan Kinerja Instansi Bulan Maret',
+        'Nama Rekanan / Penyedia': 'PT Percetakan Grafika NTB',
+        'Keterangan / Bank': 'Bank NTB Syariah Mataram'
+      },
+      {
+        No: 5,
+        Tahun: selectedTahun,
+        Tanggal: `${selectedTahun}-04-20`,
+        'No SP2D': `900/0401/SP2D-LS/KESBANG/${selectedTahun}`,
+        'No SPM': `900/0401/SPM-LS/KESBANG/${selectedTahun}`,
+        'Kode Sub Kegiatan': '5.01.02.2.01.03',
+        'Nama Sub Kegiatan': 'Fasilitasi Forum Kerukunan Umat Beragama (FKUB)',
+        'Kode Belanja': '5.1.02.04.01.0001',
+        'Nama Belanja': 'Belanja Jasa Tenaga Ahli / Narasumber',
+        'Nilai Realisasi (Rp)': 35000000,
+        'Uraian Realisasi': 'Honorarium dan Fasilitasi Kegiatan Pembinaan FKUB Bulan April',
+        'Nama Rekanan / Penyedia': 'Forum Kerukunan Umat Beragama NTB',
+        'Keterangan / Bank': 'Bank NTB Syariah'
       }
     ];
     const wsStandard = XLSX.utils.json_to_sheet(cleanStandardData);
     XLSX.utils.book_append_sheet(wb, wsStandard, 'DATABASE_REALISASI_SP2D');
 
-    // 2. Sheet Layout M, O, Q, S, AA (SIPD NTB Standar)
+    // 2. Sheet Layout Q6-AQ6 (SIPD NTB Standar)
     const m6Data2D: any[][] = [
       ['PEMERINTAH PROVINSI NUSA TENGGARA BARAT'],
       ['BADAN KESATUAN BANGSA DAN POLITIK DALAM NEGERI (BAKESBANGPOLDAGRI)'],
       [`TEMPLATE IMPLEMENTASI IMPORT REALISASI SP2D SIPD - TAHUN ANGGARAN ${selectedTahun}`],
-      ['Format Urutan Kolom: M (Kode Program) | O (Kode Kegiatan) | Q (Kode Sub Kegiatan) | S (Kode Rekening Belanja) | AA (Nilai Realisasi) | AP (No SP2D) | AQ (Tanggal SP2D)'],
+      ['Format Urutan Kolom: Q6 (Kode Sub) | R6 (Nama Sub) | S6 (Kode Belanja) | T6 (Nama Belanja) | AA6 (Nilai Realisasi) | AP6 (No SP2D) | AQ6 (Tanggal SP2D) | AO6 (No SPM) | Z6 (Uraian) | AD6 (Rekanan) | AE6 (Keterangan)'],
       [''],
       [] // Row 6 (index 5)
     ];
@@ -386,10 +404,6 @@ export const UploadExcelView: React.FC = () => {
     // Populate Row 6 Header
     m6Data2D[5][0] = 'No';
     m6Data2D[5][1] = 'Tahun';
-    m6Data2D[5][12] = 'Kode Program'; // Col M (index 12)
-    m6Data2D[5][13] = 'Nama Program'; // Col N (index 13)
-    m6Data2D[5][14] = 'Kode Kegiatan'; // Col O (index 14)
-    m6Data2D[5][15] = 'Nama Kegiatan'; // Col P (index 15)
     m6Data2D[5][16] = 'Kode Sub Kegiatan'; // Col Q (index 16)
     m6Data2D[5][17] = 'Nama Sub Kegiatan'; // Col R (index 17)
     m6Data2D[5][18] = 'Kode Rekening Belanja'; // Col S (index 18)
@@ -406,10 +420,6 @@ export const UploadExcelView: React.FC = () => {
     const rowSample: any[] = [];
     rowSample[0] = 1;
     rowSample[1] = selectedTahun;
-    rowSample[12] = '5.01.01';
-    rowSample[13] = 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI';
-    rowSample[14] = '5.01.01.2.01';
-    rowSample[15] = 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah';
     rowSample[16] = '5.01.01.2.01.01';
     rowSample[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
     rowSample[18] = '5.1.02.01.01.0024';
@@ -424,7 +434,7 @@ export const UploadExcelView: React.FC = () => {
     m6Data2D.push(rowSample);
 
     const wsM6 = XLSX.utils.aoa_to_sheet(m6Data2D);
-    XLSX.utils.book_append_sheet(wb, wsM6, 'FORMAT_SIPD_M_O_Q_S_AA');
+    XLSX.utils.book_append_sheet(wb, wsM6, 'FORMAT_SIPD_Q6_AQ6');
 
     // 3. Sheet Master Pagu Anggaran (MASTER_PAGU_DPA)
     const masterPaguData = [
