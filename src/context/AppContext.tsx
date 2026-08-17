@@ -172,106 +172,25 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const STORAGE_KEY = 'BFMS_NTB_STORE_V1';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Helper to normalize any 5.01 prefix to 8.01 canonical prefix
-  const normalizeCode801 = (code?: string): string => {
-    if (!code) return '';
-    let c = code.trim();
-    if (c.startsWith('5.01')) {
-      c = '8.01' + c.slice(4);
-    }
-    return c;
-  };
-
-  // Load initial or local stored data with automatic migration and canonical normalization
+  // Load initial or local stored data with clean migration
   const loadStoredData = () => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        
-        // Normalize programs
-        if (Array.isArray(parsed.programs)) {
-          parsed.programs = parsed.programs.map((p: Program) => ({
-            ...p,
-            kodeProgram: normalizeCode801(p.kodeProgram)
-          }));
-          // Ensure all initial programs are present
-          INITIAL_PROGRAMS.forEach(initP => {
-            if (!parsed.programs.some((p: Program) => p.tahun === initP.tahun && isCodeEqual(p.kodeProgram, initP.kodeProgram))) {
-              parsed.programs.push(initP);
-            }
-          });
-        }
 
-        // Normalize kegiatan
-        if (Array.isArray(parsed.kegiatanList)) {
-          parsed.kegiatanList = parsed.kegiatanList.map((k: Kegiatan) => ({
-            ...k,
-            kodeProgram: normalizeCode801(k.kodeProgram),
-            kodeKegiatan: normalizeCode801(k.kodeKegiatan)
-          }));
-          // Ensure all initial kegiatan are present
-          INITIAL_KEGIATAN.forEach(initK => {
-            if (!parsed.kegiatanList.some((k: Kegiatan) => k.tahun === initK.tahun && isCodeEqual(k.kodeKegiatan, initK.kodeKegiatan))) {
-              parsed.kegiatanList.push(initK);
-            }
-          });
-        }
-
-        // Normalize subKegiatan
-        if (Array.isArray(parsed.subKegiatanList)) {
-          parsed.subKegiatanList = parsed.subKegiatanList.map((s: SubKegiatan) => ({
-            ...s,
-            kodeProgram: normalizeCode801(s.kodeProgram),
-            kodeKegiatan: normalizeCode801(s.kodeKegiatan),
-            kodeSub: normalizeCode801(s.kodeSub)
-          }));
-          // Ensure all initial subkegiatan are present
-          INITIAL_SUBKEGIATAN.forEach(initS => {
-            if (!parsed.subKegiatanList.some((s: SubKegiatan) => s.tahun === initS.tahun && isCodeEqual(s.kodeSub, initS.kodeSub))) {
-              parsed.subKegiatanList.push(initS);
-            }
-          });
-        }
-
-        // Normalize anggaranList
+        // Clean up any injected dummy anggaran (e.g. ANG-2026-* or ANG-2025-08) if present
         if (Array.isArray(parsed.anggaranList)) {
-          parsed.anggaranList = parsed.anggaranList.map((a: Anggaran) => ({
-            ...a,
-            kodeProgram: normalizeCode801(a.kodeProgram),
-            kodeKegiatan: normalizeCode801(a.kodeKegiatan),
-            kodeSub: normalizeCode801(a.kodeSub)
-          }));
-
-          // Ensure 2026 and initial anggaran are aligned
-          INITIAL_ANGGARAN.forEach(initA => {
-            const exists = parsed.anggaranList.some(
-              (a: Anggaran) => a.tahun === initA.tahun &&
-                isCodeEqual(a.kodeSub, initA.kodeSub) &&
-                isCodeEqual(a.kodeBelanja, initA.kodeBelanja)
-            );
-            if (!exists) {
-              parsed.anggaranList.push(initA);
-            }
-          });
+          parsed.anggaranList = parsed.anggaranList.filter(
+            (a: Anggaran) => !a.id.startsWith('ANG-2026-') && a.id !== 'ANG-2025-08'
+          );
         }
 
-        // Normalize realisasiList
+        // Clean up any injected dummy realisasi (e.g. REAL-2026-013) if present
         if (Array.isArray(parsed.realisasiList)) {
-          parsed.realisasiList = parsed.realisasiList.map((r: Realisasi) => ({
-            ...r,
-            kodeProgram: normalizeCode801(r.kodeProgram),
-            kodeKegiatan: normalizeCode801(r.kodeKegiatan),
-            kodeSub: normalizeCode801(r.kodeSub)
-          }));
-
-          // Ensure initial realisasi 2026 rows exist if missing
-          INITIAL_REALISASI.forEach(initR => {
-            const exists = parsed.realisasiList.some((r: Realisasi) => r.id === initR.id || (r.noSP2D === initR.noSP2D && r.tahun === initR.tahun));
-            if (!exists) {
-              parsed.realisasiList.push(initR);
-            }
-          });
+          parsed.realisasiList = parsed.realisasiList.filter(
+            (r: Realisasi) => r.id !== 'REAL-2026-013'
+          );
         }
 
         return parsed;
