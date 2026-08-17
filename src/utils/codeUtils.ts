@@ -10,6 +10,27 @@ export const extractCode = (val: any): string => {
   return str;
 };
 
+export const normalizeCodeSegments = (val: any): string => {
+  const code = extractCode(val).trim();
+  if (!code) return '';
+  const parts = code.split('.');
+  // Check if first segment is 5 or 8 and second segment is 01 or 1 (Urusan Kesbangpol Permendagri 90/SIPD)
+  const isKesbangUrusan = (parts[0] === '5' || parts[0] === '8') && (parts[1] === '01' || parts[1] === '1');
+
+  const normParts = parts.map((p, idx) => {
+    const cleanP = p.trim();
+    if (/^\d+$/.test(cleanP)) {
+      const num = parseInt(cleanP, 10);
+      if (idx === 0 && isKesbangUrusan) {
+        return '8';
+      }
+      return String(num);
+    }
+    return cleanP.toLowerCase();
+  });
+  return normParts.join('.');
+};
+
 export const getCanonicalCode = (val: any): string => {
   const code = extractCode(val).trim();
   if (!code) return '';
@@ -33,20 +54,28 @@ export const isCodeEqual = (a: any, b: any): boolean => {
   const normB = normalizeCode(b);
   if (normA === normB) return true;
 
-  // Check canonical equivalent for Kesbangpol Urusan (8.01 <-> 5.01)
+  // 1. Normalized numeric segments comparison (removes leading zeros: 0001 == 01 == 1, 5.01 <-> 8.01)
+  const segA = normalizeCodeSegments(a);
+  const segB = normalizeCodeSegments(b);
+  if (segA && segB && segA === segB) return true;
+
+  // 2. Canonical Kesbangpol equivalence (5.01 <-> 8.01)
   const canA = getCanonicalCode(a).toLowerCase();
   const canB = getCanonicalCode(b).toLowerCase();
-  if (canA && canB && canA === canB) return true;
+  if (canA && canB && (canA === canB || normalizeCodeSegments(canA) === normalizeCodeSegments(canB))) return true;
 
-  // Suffix matching for hierarchical sub-activities / activities (e.g. 5.01.01.2.01.01 vs 8.01.01.2.01.01)
-  const partsA = normA.split('.');
-  const partsB = normB.split('.');
+  // 3. Handle trailing zeros in activity / sub-activity (e.g. 8.1.1.2.1 vs 8.1.1.2.1.0)
+  const cleanSegA = segA.replace(/\.0+$/, '');
+  const cleanSegB = segB.replace(/\.0+$/, '');
+  if (cleanSegA && cleanSegB && cleanSegA === cleanSegB) return true;
+
+  // 4. Suffix matching for hierarchical codes
+  const partsA = segA.split('.');
+  const partsB = segB.split('.');
   if (partsA.length >= 3 && partsB.length >= 3 && partsA.length === partsB.length) {
     const restA = partsA.slice(1).join('.');
     const restB = partsB.slice(1).join('.');
-    if (restA === restB && ((partsA[0] === '5' && partsB[0] === '8') || (partsA[0] === '8' && partsB[0] === '5'))) {
-      return true;
-    }
+    if (restA === restB) return true;
   }
 
   return false;
@@ -346,7 +375,7 @@ export const makeRealisasiCompositeKey = (
 };
 
 export const deriveCodesFromSub = (subCodeRaw: string) => {
-  const clean = extractCode(subCodeRaw) || '8.01.01.2.01.01';
+  const clean = getCanonicalCode(extractCode(subCodeRaw)) || '8.01.01.2.01.01';
   const parts = clean.split('.');
 
   let prog = '8.01.01';

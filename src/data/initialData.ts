@@ -150,85 +150,165 @@ export const INITIAL_PROGRAMS: Program[] = [
 
 export const INITIAL_KEGIATAN: Kegiatan[] = [
   {
-    kodeProgram: '5.01.01',
-    kodeKegiatan: '5.01.01.2.01',
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.01',
     namaKegiatan: 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.01',
-    kodeKegiatan: '5.01.01.2.02',
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.02',
     namaKegiatan: 'Administrasi Keuangan Perangkat Daerah',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.01',
-    kodeKegiatan: '5.01.01.2.06',
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.06',
     namaKegiatan: 'Pengadaan Barang Milik Daerah Penunjang Urusan Pemerintah Daerah',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.02',
-    kodeKegiatan: '5.01.02.2.01',
+    kodeProgram: '8.01.02',
+    kodeKegiatan: '8.01.02.2.01',
     namaKegiatan: 'Perumusan Kebijakan Teknis dan Pelaksanaan Ideologi Pancasila dan Wawasan Kebangsaan',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.03',
-    kodeKegiatan: '5.01.03.2.01',
+    kodeProgram: '8.01.03',
+    kodeKegiatan: '8.01.03.2.01',
     namaKegiatan: 'Fasilitasi Organisasi Politik dan Pendidikan Politik Masyarakat NTB',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.04',
-    kodeKegiatan: '5.01.04.2.01',
+    kodeProgram: '8.01.04',
+    kodeKegiatan: '8.01.04.2.01',
     namaKegiatan: 'Pemberdayaan dan Pengawasan Organisasi Kemasyarakatan serta FKUB',
     tahun: 2025
+  },
+  // 2026
+  {
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.01',
+    namaKegiatan: 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.02',
+    namaKegiatan: 'Administrasi Keuangan Perangkat Daerah',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.06',
+    namaKegiatan: 'Pengadaan Barang Milik Daerah Penunjang Urusan Pemerintah Daerah',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.02',
+    kodeKegiatan: '8.01.02.2.01',
+    namaKegiatan: 'Perumusan Kebijakan Teknis dan Pelaksanaan Ideologi Pancasila dan Wawasan Kebangsaan',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.03',
+    kodeKegiatan: '8.01.03.2.01',
+    namaKegiatan: 'Fasilitasi Organisasi Politik dan Pendidikan Politik Masyarakat NTB',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.04',
+    kodeKegiatan: '8.01.04.2.01',
+    namaKegiatan: 'Pemberdayaan dan Pengawasan Organisasi Kemasyarakatan serta FKUB',
+    tahun: 2026
   }
 ];
 
 export const INITIAL_SUBKEGIATAN: SubKegiatan[] = [
   {
-    kodeProgram: '5.01.01',
-    kodeKegiatan: '5.01.01.2.01',
-    kodeSub: '5.01.01.2.01.01',
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.01',
+    kodeSub: '8.01.01.2.01.01',
     namaSub: 'Penyusunan Dokumen Perencanaan Perangkat Daerah (Renstra, Renja, RKA)',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.01',
-    kodeKegiatan: '5.01.01.2.02',
-    kodeSub: '5.01.01.2.02.01',
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.02',
+    kodeSub: '8.01.01.2.02.01',
     namaSub: 'Penyediaan Gaji dan Tunjangan ASN Kesbangpoldagri',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.01',
-    kodeKegiatan: '5.01.01.2.06',
-    kodeSub: '5.01.01.2.06.02',
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.06',
+    kodeSub: '8.01.01.2.06.02',
     namaSub: 'Pengadaan Sarana dan Prasarana Peralatan Kantor',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.02',
-    kodeKegiatan: '5.01.02.2.01',
-    kodeSub: '5.01.02.2.01.03',
+    kodeProgram: '8.01.02',
+    kodeKegiatan: '8.01.02.2.01',
+    kodeSub: '8.01.02.2.01.03',
     namaSub: 'Pelaksanaan Pembinaan Paskibraka dan Pembaruan Nilai-Nilai Kebangsaan',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.03',
-    kodeKegiatan: '5.01.03.2.01',
-    kodeSub: '5.01.03.2.01.02',
+    kodeProgram: '8.01.03',
+    kodeKegiatan: '8.01.03.2.01',
+    kodeSub: '8.01.03.2.01.02',
     namaSub: 'Monitoring Evaluasi Penyelenggaraan Pemilu dan Pilkada Serentak NTB',
     tahun: 2025
   },
   {
-    kodeProgram: '5.01.04',
-    kodeKegiatan: '5.01.04.2.01',
-    kodeSub: '5.01.04.2.01.01',
+    kodeProgram: '8.01.04',
+    kodeKegiatan: '8.01.04.2.01',
+    kodeSub: '8.01.04.2.01.01',
     namaSub: 'Fasilitasi Forum Kerukunan Umat Beragama (FKUB) dan Dialog Tokoh Masyarakat',
     tahun: 2025
+  },
+  // 2026
+  {
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.01',
+    kodeSub: '8.01.01.2.01.01',
+    namaSub: 'Penyusunan Dokumen Perencanaan Perangkat Daerah (Renstra, Renja, RKA)',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.02',
+    kodeSub: '8.01.01.2.02.01',
+    namaSub: 'Penyediaan Gaji dan Tunjangan ASN Kesbangpoldagri',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.01',
+    kodeKegiatan: '8.01.01.2.06',
+    kodeSub: '8.01.01.2.06.02',
+    namaSub: 'Pengadaan Sarana dan Prasarana Peralatan Kantor',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.02',
+    kodeKegiatan: '8.01.02.2.01',
+    kodeSub: '8.01.02.2.01.03',
+    namaSub: 'Pelaksanaan Pembinaan Paskibraka dan Pembaruan Nilai-Nilai Kebangsaan',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.03',
+    kodeKegiatan: '8.01.03.2.01',
+    kodeSub: '8.01.03.2.01.02',
+    namaSub: 'Monitoring Evaluasi Penyelenggaraan Pemilu dan Pilkada Serentak NTB',
+    tahun: 2026
+  },
+  {
+    kodeProgram: '8.01.04',
+    kodeKegiatan: '8.01.04.2.01',
+    kodeSub: '8.01.04.2.01.01',
+    namaSub: 'Fasilitasi Forum Kerukunan Umat Beragama (FKUB) dan Dialog Tokoh Masyarakat',
+    tahun: 2026
   }
 ];
 
