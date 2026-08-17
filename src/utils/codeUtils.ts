@@ -361,6 +361,10 @@ export const parseRealisasiFromExcelData = (
   }[] = [];
 
   // Sticky Context Variables for hierarchical/grouped Excel sheets
+  let activeProgCode = '5.01.01';
+  let activeProgName = 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI';
+  let activeKegCode = '5.01.01.2.01';
+  let activeKegName = 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah';
   let activeSubCode = '5.01.01.2.01.01';
   let activeSubName = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
   let activeBelCode = '5.1.02.01.01.0024';
@@ -371,6 +375,10 @@ export const parseRealisasiFromExcelData = (
     let colSP2D = -1;
     let colSPM = -1;
     let colTanggal = -1;
+    let colProgCode = -1;
+    let colProgName = -1;
+    let colKegCode = -1;
+    let colKegName = -1;
     let colSubCode = -1;
     let colSubName = -1;
     let colBelCode = -1;
@@ -399,6 +407,29 @@ export const parseRealisasiFromExcelData = (
           matchedHeaders++;
         } else if (text.includes('tanggal') || text.includes('tglsp2d') || text.includes('tgl')) {
           colTanggal = cIdx;
+          matchedHeaders++;
+        } else if (
+          (text.includes('kodeprogram') || text.includes('kodeprog') || (text.includes('program') && text.includes('kode'))) &&
+          !text.includes('kegiatan') && !text.includes('sub')
+        ) {
+          colProgCode = cIdx;
+          matchedHeaders++;
+        } else if (
+          text.includes('namaprogram') || text.includes('namaprog') || (text.includes('program') && text.includes('nama'))
+        ) {
+          colProgName = cIdx;
+          matchedHeaders++;
+        } else if (
+          (text.includes('kodekegiatan') || text.includes('kodekeg') || (text.includes('kegiatan') && text.includes('kode'))) &&
+          !text.includes('sub')
+        ) {
+          colKegCode = cIdx;
+          matchedHeaders++;
+        } else if (
+          (text.includes('namakegiatan') || text.includes('namakeg') || (text.includes('kegiatan') && text.includes('nama'))) &&
+          !text.includes('sub')
+        ) {
+          colKegName = cIdx;
           matchedHeaders++;
         } else if (
           (text.includes('subkegiatan') || text.includes('kodesub') || text.includes('subkeg')) &&
@@ -510,39 +541,63 @@ export const parseRealisasiFromExcelData = (
         continue;
       }
 
-      // 1. Detect / update Kode Sub Kegiatan
+      // 1. Detect / update Kode Program (Kolom M / Index 12)
+      let rowProgCode = '';
+      let rowProgName = '';
+      if (colProgCode >= 0 && row[colProgCode] && extractCode(row[colProgCode])) {
+        rowProgCode = extractCode(row[colProgCode]);
+        rowProgName = colProgName >= 0 ? String(row[colProgName] || '').trim() : String(row[colProgCode + 1] || '').trim();
+      } else if (row[12] && extractCode(row[12])) {
+        rowProgCode = extractCode(row[12]);
+        rowProgName = String(row[13] || '').trim();
+      }
+      if (rowProgCode) {
+        activeProgCode = rowProgCode;
+        if (rowProgName) activeProgName = rowProgName;
+      }
+
+      // 2. Detect / update Kode Kegiatan (Kolom O / Index 14)
+      let rowKegCode = '';
+      let rowKegName = '';
+      if (colKegCode >= 0 && row[colKegCode] && extractCode(row[colKegCode])) {
+        rowKegCode = extractCode(row[colKegCode]);
+        rowKegName = colKegName >= 0 ? String(row[colKegName] || '').trim() : String(row[colKegCode + 1] || '').trim();
+      } else if (row[14] && extractCode(row[14])) {
+        rowKegCode = extractCode(row[14]);
+        rowKegName = String(row[15] || '').trim();
+      }
+      if (rowKegCode) {
+        activeKegCode = rowKegCode;
+        if (rowKegName) activeKegName = rowKegName;
+      }
+
+      // 3. Detect / update Kode Sub Kegiatan (Kolom Q / Index 16)
       let rowSubCode = '';
       let rowSubName = '';
-
-      if (colSubCode >= 0 && isValidKodeSub(row[colSubCode])) {
+      if (colSubCode >= 0 && row[colSubCode] && extractCode(row[colSubCode])) {
         rowSubCode = extractCode(row[colSubCode]);
         rowSubName = colSubName >= 0 ? String(row[colSubName] || '').trim() : String(row[colSubCode + 1] || '').trim();
-      } else if (isValidKodeSub(row[16])) {
+      } else if (row[16] && extractCode(row[16])) {
         rowSubCode = extractCode(row[16]);
         rowSubName = String(row[17] || '').trim();
-      } else if (isValidKodeSub(row[12])) {
-        rowSubCode = extractCode(row[12]);
-        rowSubName = String(row[13] || '').trim();
       } else {
-        // Search across all columns
+        // Search across columns for valid Sub Kegiatan code
         for (let c = 0; c < row.length; c++) {
-          if (isValidKodeSub(row[c])) {
+          if (c !== 12 && c !== 14 && c !== 18 && isValidKodeSub(row[c])) {
             rowSubCode = extractCode(row[c]);
             rowSubName = String(row[c + 1] || '').trim();
             break;
           }
         }
       }
-
       if (rowSubCode) {
         activeSubCode = rowSubCode;
         if (rowSubName) activeSubName = rowSubName;
       }
 
-      // 2. Detect / update Kode Belanja
+      // 4. Detect / update Kode Belanja (Kolom S / Index 18)
       let rowBelCode = '';
       let rowBelName = '';
-
       if (colBelCode >= 0 && row[colBelCode] && extractCode(row[colBelCode]) && /^\d+(\.\d+){4,}$/.test(extractCode(row[colBelCode]))) {
         rowBelCode = extractCode(row[colBelCode]);
         rowBelName = colBelName >= 0 ? String(row[colBelName] || '').trim() : String(row[colBelCode + 1] || '').trim();
@@ -552,23 +607,22 @@ export const parseRealisasiFromExcelData = (
       } else {
         for (let c = 0; c < row.length; c++) {
           const cand = extractCode(row[c]);
-          if (cand && /^\d+(\.\d+){4,}$/.test(cand)) {
+          if (cand && /^\d+(\.\d+){4,}$/.test(cand) && c !== 12 && c !== 14 && c !== 16) {
             rowBelCode = cand;
             rowBelName = String(row[c + 1] || row[19] || '').trim();
             break;
           }
         }
       }
-
       if (rowBelCode) {
         activeBelCode = rowBelCode;
         if (rowBelName) activeBelName = rowBelName;
       }
 
-      // 3. Extract Nilai Realisasi (Rp) - Mengutamakan Kolom AA (Index 26 pada SIPD NTB)
+      // 5. Extract Nilai Realisasi (Rp) - Mengutamakan Kolom AA (Index 26 pada SIPD NTB)
       let nilaiVal = 0;
 
-      // Priotas 1: Jika baris memiliki nilai pada Kolom AA (Index 26)
+      // Prioritas 1: Jika baris memiliki nilai pada Kolom AA (Index 26)
       if (row[26] !== undefined && row[26] !== null && String(row[26]).trim() !== '') {
         const candAA = parseNumber(row[26]);
         if (candAA > 0 && candAA !== selectedTahun && candAA !== 2024 && candAA !== 2025 && candAA !== 2026 && candAA !== 2027) {
@@ -578,17 +632,15 @@ export const parseRealisasiFromExcelData = (
 
       // Prioritas 2: Kolom hasil deteksi header (tetapi mengabaikan kolom AH / index 33 jika AA tersedia)
       if (nilaiVal === 0 && colNilai >= 0 && row[colNilai] !== undefined && colNilai !== 33) {
-        nilaiVal = parseNumber(row[colNilai]);
+        const cand = parseNumber(row[colNilai]);
+        if (cand > 0 && cand !== selectedTahun && cand !== 2024 && cand !== 2025 && cand !== 2026 && cand !== 2027) {
+          nilaiVal = cand;
+        }
       }
 
-      // Prioritas 3: Kolom T (index 19) atau kolom terdekat sebelum kolom 30
+      // Prioritas 3: Kolom nilai umum terdekat (hanya sebelum kolom 31, hindari kolom AH / 33)
       if (nilaiVal === 0) {
-        nilaiVal = parseNumber(row[19]); // Col T (19)
-      }
-
-      if (nilaiVal === 0) {
-        // Search adjacent & common value columns (hanya sebelum kolom 31, hindari kolom AH / 33)
-        for (const cIdx of [25, 27, 28, 24, 20, 21, 22, 23, 29, 30, 18, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15]) {
+        for (const cIdx of [26, 25, 27, 28, 24, 20, 21, 22, 23, 29, 30, 19]) {
           if (cIdx < row.length) {
             const cand = parseNumber(row[cIdx]);
             if (cand > 0 && cand !== selectedTahun && cand !== 2024 && cand !== 2025 && cand !== 2026 && cand !== 2027) {
@@ -615,9 +667,15 @@ export const parseRealisasiFromExcelData = (
       // Skip row if no valid positive realisasi value
       if (nilaiVal <= 0) continue;
 
-      // 4. Extract Metadata
-      const namaSub = rowSubName || activeSubName || `Sub Kegiatan ${activeSubCode}`;
-      const namaBel = rowBelName || activeBelName || `Belanja ${activeBelCode}`;
+      // 6. Extract Metadata & Hierarchy Codes
+      // Prioritaskan pembacaan: Program (M/12), Kegiatan (O/14), Sub Kegiatan (Q/16), Belanja (S/18)
+      const finalProg = rowProgCode || activeProgCode || (rowKegCode ? deriveCodesFromSub(rowKegCode).prog : (rowSubCode ? deriveCodesFromSub(rowSubCode).prog : '5.01.01'));
+      const finalKeg = rowKegCode || activeKegCode || (rowSubCode ? deriveCodesFromSub(rowSubCode).keg : `${finalProg}.2.01`);
+      const finalSub = rowSubCode || activeSubCode || `${finalKeg}.01`;
+      const finalBel = rowBelCode || activeBelCode || '5.1.02.01.01.0024';
+
+      const namaSub = rowSubName || activeSubName || `Sub Kegiatan ${finalSub}`;
+      const namaBel = rowBelName || activeBelName || `Belanja ${finalBel}`;
 
       let uraianVal = '';
       if (colUraian >= 0 && row[colUraian]) {
@@ -660,19 +718,16 @@ export const parseRealisasiFromExcelData = (
       }
 
       const parsedDate = parseExcelDate(tglRaw, selectedTahun);
-
-      const { prog, keg, sub } = deriveCodesFromSub(rowSubCode || activeSubCode);
-      const bel = rowBelCode || activeBelCode || '5.1.02.01.01.0024';
       const yearToUse = selectedTahun; // Always bind to the active budget year so it shows up immediately
 
       results.push({
         rowNum: idx + 1,
         tahun: yearToUse,
-        kodeProgram: prog,
-        kodeKegiatan: keg,
-        kodeSub: sub,
+        kodeProgram: finalProg,
+        kodeKegiatan: finalKeg,
+        kodeSub: finalSub,
         namaSub: namaSub,
-        kodeBelanja: bel,
+        kodeBelanja: finalBel,
         namaBelanja: namaBel,
         noSP2D: rowSp2d || `SP2D-${yearToUse}-${idx + 1}`,
         noSPM: spmVal || (rowSp2d ? rowSp2d.replace('SP2D', 'SPM') : `SPM-${yearToUse}-${idx + 1}`),
@@ -695,11 +750,15 @@ export const parseRealisasiFromExcelData = (
       const subRaw = findRowValueByKeys(row, ['kodesubkegiatan', 'kodesub', 'subkegiatan', 'sub'], true);
       const belRaw = findRowValueByKeys(row, ['kodebelanja', 'koderekening', 'rekening', 'kode', 'belanja'], true);
 
-      const { prog, keg, sub } = deriveCodesFromSub(subRaw || kegRaw || progRaw || activeSubCode);
-      const finalProg = extractCode(progRaw) || prog;
-      const finalKeg = extractCode(kegRaw) || keg;
-      const finalSub = extractCode(subRaw) || sub || activeSubCode;
-      const bel = extractCode(belRaw) || activeBelCode || '5.1.02.01.01.0024';
+      const progCode = extractCode(progRaw);
+      const kegCode = extractCode(kegRaw);
+      const subCode = extractCode(subRaw);
+      const belCode = extractCode(belRaw);
+
+      const finalProg = progCode || activeProgCode || (kegCode ? deriveCodesFromSub(kegCode).prog : (subCode ? deriveCodesFromSub(subCode).prog : '5.01.01'));
+      const finalKeg = kegCode || activeKegCode || (subCode ? deriveCodesFromSub(subCode).keg : `${finalProg}.2.01`);
+      const finalSub = subCode || activeSubCode || `${finalKeg}.01`;
+      const finalBel = belCode || activeBelCode || '5.1.02.01.01.0024';
 
       const namaSub = findRowValueByKeys(row, ['namasubkegiatan', 'namasub', 'subkegiatan']) || activeSubName;
       const namaBel = findRowValueByKeys(row, ['namabelanja', 'uraianbelanja', 'namarekening', 'rekening']) || activeBelName;
@@ -723,7 +782,7 @@ export const parseRealisasiFromExcelData = (
         kodeKegiatan: finalKeg,
         kodeSub: finalSub,
         namaSub,
-        kodeBelanja: bel,
+        kodeBelanja: finalBel,
         namaBelanja: namaBel,
         noSP2D: sp2dVal || `SP2D-${thn}-${idx + 1}`,
         noSPM: spmVal || (sp2dVal ? sp2dVal.replace('SP2D', 'SPM') : `SPM-${thn}-${idx + 1}`),

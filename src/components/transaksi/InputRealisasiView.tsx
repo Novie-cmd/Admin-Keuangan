@@ -230,12 +230,12 @@ export const InputRealisasiView: React.FC = () => {
   const handleDownloadTemplate = () => {
     const wb = XLSX.utils.book_new();
 
-    // 1. Sheet Layout Q6-AQ6
+    // 1. Sheet Layout M, O, Q, S, AA
     const m6Data2D: any[][] = [
       ['PEMERINTAH PROVINSI NUSA TENGGARA BARAT'],
       ['BADAN KESATUAN BANGSA DAN POLITIK DALAM NEGERI (BAKESBANGPOLDAGRI)'],
       [`TEMPLATE IMPLEMENTASI IMPORT REALISASI SP2D - TAHUN ANGGARAN ${selectedTahun}`],
-      ['Format Urutan Kolom: Q6 (Kode Sub) | R6 (Nama Sub) | S6 (Kode Belanja) | T6 (Nama Belanja) | AA6 (Nilai Realisasi) | AP6 (No SP2D) | AQ6 (Tanggal SP2D) | AO6 (No SPM) | Z6 (Uraian) | AD6 (Rekanan) | AE6 (Keterangan)'],
+      ['Format Urutan Kolom: M (Kode Program) | O (Kode Kegiatan) | Q (Kode Sub Kegiatan) | S (Kode Rekening Belanja) | AA (Nilai Realisasi) | AP (No SP2D) | AQ (Tanggal SP2D)'],
       [''],
       [] // Row 6 (index 5)
     ];
@@ -243,6 +243,10 @@ export const InputRealisasiView: React.FC = () => {
     // Populate Row 6 Header
     m6Data2D[5][0] = 'No';
     m6Data2D[5][1] = 'Tahun';
+    m6Data2D[5][12] = 'Kode Program'; // Col M (index 12)
+    m6Data2D[5][13] = 'Nama Program'; // Col N (index 13)
+    m6Data2D[5][14] = 'Kode Kegiatan'; // Col O (index 14)
+    m6Data2D[5][15] = 'Nama Kegiatan'; // Col P (index 15)
     m6Data2D[5][16] = 'Kode Sub Kegiatan'; // Col Q (index 16)
     m6Data2D[5][17] = 'Nama Sub Kegiatan'; // Col R (index 17)
     m6Data2D[5][18] = 'Kode Rekening Belanja'; // Col S (index 18)
@@ -259,6 +263,10 @@ export const InputRealisasiView: React.FC = () => {
     const row7: any[] = [];
     row7[0] = 1;
     row7[1] = selectedTahun; // Automatic based on selected year
+    row7[12] = '5.01.01';
+    row7[13] = 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI';
+    row7[14] = '5.01.01.2.01';
+    row7[15] = 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah';
     row7[16] = '5.01.01.2.01.01';
     row7[17] = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
     row7[18] = '5.1.02.01.01.0024';
@@ -275,7 +283,7 @@ export const InputRealisasiView: React.FC = () => {
     const wsM6 = XLSX.utils.aoa_to_sheet(m6Data2D);
     XLSX.utils.book_append_sheet(wb, wsM6, 'Template_Layout_Realisasi');
 
-    safeDownloadExcel(wb, `Template_Import_Realisasi_Q6_AQ6_NTB_${selectedTahun}.xlsx`);
+    safeDownloadExcel(wb, `Template_Import_Realisasi_M_O_Q_S_AA_NTB_${selectedTahun}.xlsx`);
   };
 
   // Upload Excel Handler for Realisasi
