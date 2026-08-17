@@ -640,35 +640,94 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   const currentAnggaran = anggaranList.filter(a => Number(a.tahun) === Number(selectedTahun));
   const currentRealisasi = realisasiList.filter(r => Number(r.tahun) === Number(selectedTahun));
 
-  // Helper calculation for Laporan Per Program (Syced with Input Anggaran Pagu & Realisasi)
-  const allProgramKodes = Array.from(
-    new Set([
-      ...programs.filter(p => Number(p.tahun) === Number(selectedTahun)).map(p => p.kodeProgram.trim()),
-      ...currentAnggaran.map(a => a.kodeProgram.trim()),
-      ...currentRealisasi.map(r => r.kodeProgram.trim())
-    ])
-  );
+  // Helper to get canonical code representation based on available Pagu Anggaran & Master Data
+  const getCanonicalProg = (code: string): string => {
+    const trimmed = (code || '').trim();
+    if (!trimmed) return '';
+    // Priority 1: Match in currentAnggaran
+    const matchAng = currentAnggaran.find(a => isCodeEqual(a.kodeProgram, trimmed));
+    if (matchAng) return matchAng.kodeProgram.trim();
+    // Priority 2: Match in master programs for selected year
+    const matchProgYear = programs.find(p => Number(p.tahun) === Number(selectedTahun) && isCodeEqual(p.kodeProgram, trimmed));
+    if (matchProgYear) return matchProgYear.kodeProgram.trim();
+    const matchProg = programs.find(p => isCodeEqual(p.kodeProgram, trimmed));
+    if (matchProg) return matchProg.kodeProgram.trim();
+    // Priority 3: Normalize 5.01 -> 8.01 if 8.01 is present in budget/programs
+    if (trimmed.startsWith('5.01.')) {
+      const alt = '8.01.' + trimmed.substring(5);
+      if (currentAnggaran.some(a => isCodeEqual(a.kodeProgram, alt)) || programs.some(p => isCodeEqual(p.kodeProgram, alt))) {
+        return alt;
+      }
+    }
+    return trimmed;
+  };
+
+  const getCanonicalKeg = (code: string): string => {
+    const trimmed = (code || '').trim();
+    if (!trimmed) return '';
+    const matchAng = currentAnggaran.find(a => isCodeEqual(a.kodeKegiatan, trimmed));
+    if (matchAng) return matchAng.kodeKegiatan.trim();
+    const matchKegYear = kegiatanList.find(k => Number(k.tahun) === Number(selectedTahun) && isCodeEqual(k.kodeKegiatan, trimmed));
+    if (matchKegYear) return matchKegYear.kodeKegiatan.trim();
+    const matchKeg = kegiatanList.find(k => isCodeEqual(k.kodeKegiatan, trimmed));
+    if (matchKeg) return matchKeg.kodeKegiatan.trim();
+    if (trimmed.startsWith('5.01.')) {
+      const alt = '8.01.' + trimmed.substring(5);
+      if (currentAnggaran.some(a => isCodeEqual(a.kodeKegiatan, alt)) || kegiatanList.some(k => isCodeEqual(k.kodeKegiatan, alt))) {
+        return alt;
+      }
+    }
+    return trimmed;
+  };
+
+  const getCanonicalSub = (code: string): string => {
+    const trimmed = (code || '').trim();
+    if (!trimmed) return '';
+    const matchAng = currentAnggaran.find(a => isCodeEqual(a.kodeSub, trimmed));
+    if (matchAng) return matchAng.kodeSub.trim();
+    const matchSubYear = subKegiatanList.find(s => Number(s.tahun) === Number(selectedTahun) && isCodeEqual(s.kodeSub, trimmed));
+    if (matchSubYear) return matchSubYear.kodeSub.trim();
+    const matchSub = subKegiatanList.find(s => isCodeEqual(s.kodeSub, trimmed));
+    if (matchSub) return matchSub.kodeSub.trim();
+    if (trimmed.startsWith('5.01.')) {
+      const alt = '8.01.' + trimmed.substring(5);
+      if (currentAnggaran.some(a => isCodeEqual(a.kodeSub, alt)) || subKegiatanList.some(s => isCodeEqual(s.kodeSub, alt))) {
+        return alt;
+      }
+    }
+    return trimmed;
+  };
+
+  // Helper calculation for Laporan Per Program (Aligned with Pagu Anggaran & Realisasi)
+  const rawProgramKodes = [
+    ...currentAnggaran.map(a => a.kodeProgram.trim()),
+    ...programs.filter(p => Number(p.tahun) === Number(selectedTahun)).map(p => p.kodeProgram.trim()),
+    ...currentRealisasi.map(r => r.kodeProgram.trim())
+  ].filter(Boolean);
+
+  const allProgramKodes: string[] = [];
+  rawProgramKodes.forEach(raw => {
+    const canon = getCanonicalProg(raw);
+    if (canon && !allProgramKodes.some(existing => isCodeEqual(existing, canon))) {
+      allProgramKodes.push(canon);
+    }
+  });
 
   const programReportData = allProgramKodes.map(kode => {
-    const pObj = programs.find(p => isCodeEqual(p.kodeProgram, kode));
-    const paguMurni = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeProgram, kode))
-      .reduce((s, a) => s + a.pagu, 0);
-
-    const revisi = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeProgram, kode))
-      .reduce((s, a) => s + a.revisi, 0);
-
-    const nilaiSPD = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeProgram, kode))
-      .reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
-
-    const paguAkhir = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeProgram, kode))
-      .reduce((s, a) => s + a.paguAkhir, 0);
+    const pObj = programs.find(p => isCodeEqual(p.kodeProgram, kode) && Number(p.tahun) === Number(selectedTahun)) ||
+                 programs.find(p => isCodeEqual(p.kodeProgram, kode));
+    const aMatches = currentAnggaran.filter(a => isCodeEqual(a.kodeProgram, kode));
+    const paguMurni = aMatches.reduce((s, a) => s + a.pagu, 0);
+    const revisi = aMatches.reduce((s, a) => s + a.revisi, 0);
+    const nilaiSPD = aMatches.reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
+    const paguAkhir = aMatches.reduce((s, a) => s + a.paguAkhir, 0);
 
     const real = currentRealisasi
-      .filter(r => isCodeEqual(r.kodeProgram, kode))
+      .filter(r => {
+        if (isCodeEqual(r.kodeProgram, kode)) return true;
+        if (r.kodeSub && aMatches.some(a => isCodeEqual(a.kodeSub, r.kodeSub))) return true;
+        return false;
+      })
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - real;
@@ -676,7 +735,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
 
     return {
       kode,
-      nama: pObj?.namaProgram || `PROGRAM ${kode}`,
+      nama: pObj?.namaProgram || (aMatches.find(a => a.namaProgram)?.namaProgram) || `PROGRAM ${kode}`,
       paguMurni,
       revisi,
       nilaiSPD,
@@ -687,44 +746,45 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     };
   });
 
-  // Helper calculation for Laporan Per Kegiatan
-  const allKegiatanKodes = Array.from(
-    new Set([
-      ...kegiatanList.filter(k => Number(k.tahun) === Number(selectedTahun)).map(k => k.kodeKegiatan.trim()),
-      ...currentAnggaran.map(a => a.kodeKegiatan.trim()),
-      ...currentRealisasi.map(r => r.kodeKegiatan.trim())
-    ])
-  );
+  // Helper calculation for Laporan Per Kegiatan (Aligned with Pagu Anggaran & Realisasi)
+  const rawKegiatanKodes = [
+    ...currentAnggaran.map(a => a.kodeKegiatan.trim()),
+    ...kegiatanList.filter(k => Number(k.tahun) === Number(selectedTahun)).map(k => k.kodeKegiatan.trim()),
+    ...currentRealisasi.map(r => r.kodeKegiatan.trim())
+  ].filter(Boolean);
+
+  const allKegiatanKodes: string[] = [];
+  rawKegiatanKodes.forEach(raw => {
+    const canon = getCanonicalKeg(raw);
+    if (canon && !allKegiatanKodes.some(existing => isCodeEqual(existing, canon))) {
+      allKegiatanKodes.push(canon);
+    }
+  });
 
   const kegiatanReportData = allKegiatanKodes.map(kode => {
-    const kObj = kegiatanList.find(k => isCodeEqual(k.kodeKegiatan, kode));
-    const paguMurni = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
-      .reduce((s, a) => s + a.pagu, 0);
-
-    const revisi = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
-      .reduce((s, a) => s + a.revisi, 0);
-
-    const nilaiSPD = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
-      .reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
-
-    const paguAkhir = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeKegiatan, kode))
-      .reduce((s, a) => s + a.paguAkhir, 0);
+    const kObj = kegiatanList.find(k => isCodeEqual(k.kodeKegiatan, kode) && Number(k.tahun) === Number(selectedTahun)) ||
+                 kegiatanList.find(k => isCodeEqual(k.kodeKegiatan, kode));
+    const aMatches = currentAnggaran.filter(a => isCodeEqual(a.kodeKegiatan, kode));
+    const paguMurni = aMatches.reduce((s, a) => s + a.pagu, 0);
+    const revisi = aMatches.reduce((s, a) => s + a.revisi, 0);
+    const nilaiSPD = aMatches.reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
+    const paguAkhir = aMatches.reduce((s, a) => s + a.paguAkhir, 0);
 
     const real = currentRealisasi
-      .filter(r => isCodeEqual(r.kodeKegiatan, kode))
+      .filter(r => {
+        if (isCodeEqual(r.kodeKegiatan, kode)) return true;
+        if (r.kodeSub && aMatches.some(a => isCodeEqual(a.kodeSub, r.kodeSub))) return true;
+        return false;
+      })
       .reduce((s, r) => s + r.nilai, 0);
 
     const sisa = paguAkhir - real;
     const pct = paguAkhir > 0 ? (real / paguAkhir) * 100 : 0;
 
     return {
-      kodeProg: kObj?.kodeProgram || currentAnggaran.find(a => isCodeEqual(a.kodeKegiatan, kode))?.kodeProgram || '',
+      kodeProg: kObj?.kodeProgram || aMatches[0]?.kodeProgram || '',
       kodeKeg: kode,
-      namaKeg: kObj?.namaKegiatan || `Kegiatan ${kode}`,
+      namaKeg: kObj?.namaKegiatan || (aMatches.find(a => a.namaKegiatan)?.namaKegiatan) || `Kegiatan ${kode}`,
       paguMurni,
       revisi,
       nilaiSPD,
@@ -735,32 +795,29 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     };
   });
 
-  // Helper calculation for Laporan Per Sub Kegiatan
-  const allSubKodes = Array.from(
-    new Set([
-      ...subKegiatanList.filter(s => Number(s.tahun) === Number(selectedTahun)).map(s => s.kodeSub.trim()),
-      ...currentAnggaran.map(a => a.kodeSub.trim()),
-      ...currentRealisasi.map(r => r.kodeSub.trim())
-    ])
-  );
+  // Helper calculation for Laporan Per Sub Kegiatan (Aligned with Pagu Anggaran & Realisasi)
+  const rawSubKodes = [
+    ...currentAnggaran.map(a => a.kodeSub.trim()),
+    ...subKegiatanList.filter(s => Number(s.tahun) === Number(selectedTahun)).map(s => s.kodeSub.trim()),
+    ...currentRealisasi.map(r => r.kodeSub.trim())
+  ].filter(Boolean);
+
+  const allSubKodes: string[] = [];
+  rawSubKodes.forEach(raw => {
+    const canon = getCanonicalSub(raw);
+    if (canon && !allSubKodes.some(existing => isCodeEqual(existing, canon))) {
+      allSubKodes.push(canon);
+    }
+  });
 
   const subReportData = allSubKodes.map(kode => {
-    const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, kode));
-    const paguMurni = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeSub, kode))
-      .reduce((s, a) => s + a.pagu, 0);
-
-    const revisi = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeSub, kode))
-      .reduce((s, a) => s + a.revisi, 0);
-
-    const nilaiSPD = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeSub, kode))
-      .reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
-
-    const paguAkhir = currentAnggaran
-      .filter(a => isCodeEqual(a.kodeSub, kode))
-      .reduce((s, a) => s + a.paguAkhir, 0);
+    const sObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, kode) && Number(s.tahun) === Number(selectedTahun)) ||
+                 subKegiatanList.find(s => isCodeEqual(s.kodeSub, kode));
+    const aMatches = currentAnggaran.filter(a => isCodeEqual(a.kodeSub, kode));
+    const paguMurni = aMatches.reduce((s, a) => s + a.pagu, 0);
+    const revisi = aMatches.reduce((s, a) => s + a.revisi, 0);
+    const nilaiSPD = aMatches.reduce((s, a) => s + (a.nilaiSPD !== undefined ? a.nilaiSPD : a.paguAkhir), 0);
+    const paguAkhir = aMatches.reduce((s, a) => s + a.paguAkhir, 0);
 
     const real = currentRealisasi
       .filter(r => isCodeEqual(r.kodeSub, kode))
@@ -771,7 +828,7 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
 
     return {
       kodeSub: kode,
-      namaSub: sObj?.namaSub || `Sub-Kegiatan ${kode}`,
+      namaSub: sObj?.namaSub || (aMatches.find(a => a.namaSub)?.namaSub) || `Sub-Kegiatan ${kode}`,
       paguMurni,
       revisi,
       nilaiSPD,

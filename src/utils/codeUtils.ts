@@ -2,12 +2,25 @@ export const extractCode = (val: any): string => {
   if (val === undefined || val === null) return '';
   const str = String(val).trim();
   if (!str) return '';
-  // Regex to extract budget codes like 5.1.02.01.01.0024 or 5.01.01.2.01.01 or 5.01.01
+  // Regex to extract budget codes like 5.1.02.01.01.0024 or 5.01.01.2.01.01 or 5.01.01 or 8.01.01
   const match = str.match(/\b\d+(\.\d+)+\b/);
   if (match) {
     return match[0];
   }
   return str;
+};
+
+export const getCanonicalCode = (val: any): string => {
+  const code = extractCode(val).trim();
+  if (!code) return '';
+  // Normalize 5.01 -> 8.01 for Kesbangpoldagri NTB domain (Urusan Kesbangpol Permendagri 90/SIPD)
+  if (code.startsWith('5.01.')) {
+    return '8.01.' + code.substring(5);
+  }
+  if (code === '5.01') {
+    return '8.01';
+  }
+  return code;
 };
 
 export const normalizeCode = (val: any): string => {
@@ -16,7 +29,27 @@ export const normalizeCode = (val: any): string => {
 
 export const isCodeEqual = (a: any, b: any): boolean => {
   if (!a || !b) return false;
-  return normalizeCode(a) === normalizeCode(b);
+  const normA = normalizeCode(a);
+  const normB = normalizeCode(b);
+  if (normA === normB) return true;
+
+  // Check canonical equivalent for Kesbangpol Urusan (8.01 <-> 5.01)
+  const canA = getCanonicalCode(a).toLowerCase();
+  const canB = getCanonicalCode(b).toLowerCase();
+  if (canA && canB && canA === canB) return true;
+
+  // Suffix matching for hierarchical sub-activities / activities (e.g. 5.01.01.2.01.01 vs 8.01.01.2.01.01)
+  const partsA = normA.split('.');
+  const partsB = normB.split('.');
+  if (partsA.length >= 3 && partsB.length >= 3 && partsA.length === partsB.length) {
+    const restA = partsA.slice(1).join('.');
+    const restB = partsB.slice(1).join('.');
+    if (restA === restB && ((partsA[0] === '5' && partsB[0] === '8') || (partsA[0] === '8' && partsB[0] === '5'))) {
+      return true;
+    }
+  }
+
+  return false;
 };
 
 export const findRowValueByKeys = (
@@ -313,11 +346,11 @@ export const makeRealisasiCompositeKey = (
 };
 
 export const deriveCodesFromSub = (subCodeRaw: string) => {
-  const clean = extractCode(subCodeRaw) || '5.01.01.2.01.01';
+  const clean = extractCode(subCodeRaw) || '8.01.01.2.01.01';
   const parts = clean.split('.');
 
-  let prog = '5.01.01';
-  let keg = '5.01.01.2.01';
+  let prog = '8.01.01';
+  let keg = '8.01.01.2.01';
   let sub = clean;
 
   if (parts.length >= 6) {
@@ -361,11 +394,11 @@ export const parseRealisasiFromExcelData = (
   }[] = [];
 
   // Sticky Context Variables for hierarchical/grouped Excel sheets
-  let activeProgCode = '5.01.01';
+  let activeProgCode = '8.01.01';
   let activeProgName = 'PROGRAM PENUNJANG URUSAN PEMERINTAHAN DAERAH PROVINSI';
-  let activeKegCode = '5.01.01.2.01';
+  let activeKegCode = '8.01.01.2.01';
   let activeKegName = 'Perencanaan, Penganggaran, dan Evaluasi Kinerja Perangkat Daerah';
-  let activeSubCode = '5.01.01.2.01.01';
+  let activeSubCode = '8.01.01.2.01.01';
   let activeSubName = 'Penyusunan Dokumen Perencanaan dan Evaluasi Kinerja Perangkat Daerah';
   let activeBelCode = '5.1.02.01.01.0024';
   let activeBelName = 'Belanja Alat/Bahan untuk Kegiatan Kantor-Alat Tulis Kantor';

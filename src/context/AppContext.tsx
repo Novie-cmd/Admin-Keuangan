@@ -676,15 +676,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         // Auto lookup parent code structure from existing anggaranList or default
         const angMatch = anggaranList.find(a =>
+          isCodeEqual(a.kodeBelanja, cleanBelanja) && (isCodeEqual(a.kodeSub, cleanSub) || !cleanSub) && Number(a.tahun) === rowTahun
+        ) || anggaranList.find(a =>
           isCodeEqual(a.kodeBelanja, cleanBelanja) && Number(a.tahun) === rowTahun
         ) || anggaranList.find(a =>
           isCodeEqual(a.kodeBelanja, cleanBelanja)
         );
 
         const finalBelanja = cleanBelanja || angMatch?.kodeBelanja || '5.1.02.01.01.0024';
-        const finalSub = cleanSub || angMatch?.kodeSub || '5.01.01.2.01.01';
-        const finalKeg = cleanKeg || angMatch?.kodeKegiatan || '5.01.01.2.01';
-        const finalProg = cleanProg || angMatch?.kodeProgram || '5.01.01';
+        const finalSub = cleanSub || angMatch?.kodeSub || '8.01.01.2.01.01';
+        const finalKeg = cleanKeg || angMatch?.kodeKegiatan || (angMatch ? angMatch.kodeKegiatan : '8.01.01.2.01');
+        const finalProg = cleanProg || angMatch?.kodeProgram || (angMatch ? angMatch.kodeProgram : '8.01.01');
         const sp2dStr = (row.sp2d || '').trim();
 
         const key = makeRealisasiCompositeKey(sp2dStr, finalBelanja, finalSub, row.nilai, row.uraian, rowTahun);

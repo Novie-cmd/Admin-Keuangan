@@ -108,7 +108,7 @@ export const Dashboard: React.FC = () => {
         .reduce((sum, r) => sum + r.nilai, 0);
 
       return {
-        name: k.kodeKegiatan.replace('5.01.', ''),
+        name: k.kodeKegiatan.replace(/^(5\.01\.|8\.01\.)/, ''),
         fullTitle: k.namaKegiatan,
         Anggaran: Math.round(paguKeg / 1000000),
         Realisasi: Math.round(realKeg / 1000000)
