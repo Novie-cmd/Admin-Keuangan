@@ -20,7 +20,10 @@ import {
   Trash2,
   Search,
   AlertTriangle,
-  FileText
+  FileText,
+  Cloud,
+  Smartphone,
+  Laptop
 } from 'lucide-react';
 
 export const PengaturanView: React.FC = () => {
@@ -34,6 +37,8 @@ export const PengaturanView: React.FC = () => {
     setSheetConfig,
     syncStatus,
     syncWithSpreadsheet,
+    cloudSync,
+    forceSyncCloud,
     activityLogs,
     deleteActivityLog,
     clearAllActivityLogs,
@@ -41,7 +46,7 @@ export const PengaturanView: React.FC = () => {
     currentUser
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'spreadsheet' | 'backup' | 'logs'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'cloud' | 'spreadsheet' | 'backup' | 'logs'>('cloud');
 
   // Search filter
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,6 +129,7 @@ export const PengaturanView: React.FC = () => {
       {/* Tabs */}
       <div className="flex overflow-x-auto gap-2 border-b border-slate-800 pb-2 scrollbar-none">
         {[
+          { id: 'cloud', label: 'Cloud Real-Time Sync (Laptop ⇄ HP)', icon: Cloud },
           { id: 'users', label: 'Manajemen Pengguna (User)', icon: Users },
           { id: 'spreadsheet', label: 'Integrasi Google Spreadsheet', icon: Database },
           { id: 'backup', label: 'Backup & Restore Database', icon: HardDrive },
@@ -149,6 +155,93 @@ export const PengaturanView: React.FC = () => {
           );
         })}
       </div>
+
+      {/* TAB: CLOUD REAL-TIME DATABASE */}
+      {activeTab === 'cloud' && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 p-6 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                  <Cloud className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Sinkronisasi Cloud Real-Time Firebase</h3>
+                  <p className="text-xs text-slate-400">
+                    Otomatis menyelaraskan seluruh data anggaran, master, dan realisasi SPJ antara Laptop dan HP secara langsung.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1.5 rounded-full bg-emerald-950 px-3 py-1 text-xs font-bold text-emerald-300 border border-emerald-700">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+                  Status: {cloudSync.status === 'syncing' ? 'Menyinkronkan...' : cloudSync.status === 'error' ? 'Offline' : 'Aktif (Real-Time Live)'}
+                </span>
+              </div>
+            </div>
+
+            {/* Illustration / Card sync */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-2 text-center">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-slate-200">
+                  <Laptop className="h-5 w-5" />
+                </div>
+                <h4 className="text-xs font-bold text-white">Input di Laptop</h4>
+                <p className="text-[11px] text-slate-400">
+                  Semua input pagu anggaran, revisi, import Excel, maupun SPJ realisasi yang dibuat di Laptop langsung dikirim ke Cloud.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4 space-y-2 text-center">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg">
+                  <Cloud className="h-5 w-5" />
+                </div>
+                <h4 className="text-xs font-bold text-emerald-300">Firebase Cloud Database</h4>
+                <p className="text-[11px] text-emerald-200/80">
+                  Tersimpan di Cloud Firestore berkecepatan tinggi dengan auto-caching dan sinkronisasi real-time instan.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-4 space-y-2 text-center">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-slate-200">
+                  <Smartphone className="h-5 w-5" />
+                </div>
+                <h4 className="text-xs font-bold text-white">Otomatis Muncul di HP</h4>
+                <p className="text-[11px] text-slate-400">
+                  Buka link aplikasi di HP, seluruh data langsung sama persis tanpa perlu ekspor/impor file backup manual.
+                </p>
+              </div>
+            </div>
+
+            {/* Sync details and action */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-xl bg-slate-950 p-4 border border-slate-800">
+              <div className="text-xs text-slate-300 space-y-1">
+                <div>
+                  <span className="text-slate-400">Terakhir Diperbarui: </span>
+                  <span className="font-semibold text-white">
+                    {cloudSync.lastSyncedAt ? new Date(cloudSync.lastSyncedAt).toLocaleString('id-ID') : 'Hari ini'}
+                  </span>
+                </div>
+                {cloudSync.lastUpdatedBy && (
+                  <div>
+                    <span className="text-slate-400">Oleh: </span>
+                    <span className="font-semibold text-emerald-400">{cloudSync.lastUpdatedBy}</span>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => forceSyncCloud()}
+                disabled={cloudSync.status === 'syncing'}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-xs font-bold text-white transition shadow-lg shadow-emerald-900/30 w-full sm:w-auto justify-center"
+              >
+                <RefreshCw className={`h-4 w-4 ${cloudSync.status === 'syncing' ? 'animate-spin' : ''}`} />
+                <span>{cloudSync.status === 'syncing' ? 'Menyinkronkan...' : 'Paksa Sinkronkan Cloud Sekarang'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TAB 1: MANAJEMEN PENGGUNA */}
       {activeTab === 'users' && (

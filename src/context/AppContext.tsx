@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { extractCode, isCodeEqual, parseExcelDate, makeRealisasiCompositeKey } from '../utils/codeUtils';
 import {
   User,
@@ -17,9 +17,16 @@ import {
   ActivityLog,
   SystemNotification,
   FilterState,
-  GoogleSheetConfig
+  GoogleSheetConfig,
+  CloudSyncStatus
 } from '../types';
 import {
+  subscribeToSharedData,
+  saveSharedDataToFirestore,
+  fetchSharedDataOnce
+} from '../services/firestoreSync';
+import {
+
   INITIAL_USERS,
   INITIAL_TAHUN,
   INITIAL_OPD,
@@ -69,6 +76,10 @@ interface AppContextType {
   setSheetConfig: React.Dispatch<React.SetStateAction<GoogleSheetConfig>>;
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
   syncWithSpreadsheet: () => Promise<void>;
+  
+  // Cloud Real-Time Firebase Sync
+  cloudSync: CloudSyncStatus;
+  forceSyncCloud: () => Promise<void>;
   
   // Actions
   addAnggaran: (anggaran: Omit<Anggaran, 'id' | 'paguAkhir' | 'tanggalInput'>) => void;
@@ -238,6 +249,125 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   );
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
 
+  // Cloud Real-Time Firebase Sync State
+  const [cloudSync, setCloudSync] = useState<CloudSyncStatus>({
+    status: 'connected',
+    lastSyncedAt: new Date().toISOString()
+  });
+
+  // Ref to prevent circular updates between Firestore listener and local state
+  const isApplyingRemoteChange = useRef(false);
+  const isInitialCloudLoad = useRef(true);
+
+  // 1. Subscribe to Firestore Real-Time Updates
+  useEffect(() => {
+    const unsubscribe = subscribeToSharedData(
+      remoteData => {
+        if (!remoteData) return;
+        isApplyingRemoteChange.current = true;
+
+        if (remoteData.users && Array.isArray(remoteData.users)) {
+          setUsers(remoteData.users);
+        }
+        if (remoteData.selectedTahun) {
+          setSelectedTahun(remoteData.selectedTahun);
+        }
+        if (remoteData.tahunList && Array.isArray(remoteData.tahunList)) {
+          setTahunList(remoteData.tahunList);
+        }
+        if (remoteData.opdList && Array.isArray(remoteData.opdList)) {
+          setOpdList(remoteData.opdList);
+        }
+        if (remoteData.programs && Array.isArray(remoteData.programs)) {
+          setPrograms(remoteData.programs);
+        }
+        if (remoteData.kegiatanList && Array.isArray(remoteData.kegiatanList)) {
+          setKegiatanList(remoteData.kegiatanList);
+        }
+        if (remoteData.subKegiatanList && Array.isArray(remoteData.subKegiatanList)) {
+          setSubKegiatanList(remoteData.subKegiatanList);
+        }
+        if (remoteData.belanjaList && Array.isArray(remoteData.belanjaList)) {
+          setBelanjaList(remoteData.belanjaList);
+        }
+        if (remoteData.sumberDanaList && Array.isArray(remoteData.sumberDanaList)) {
+          setSumberDanaList(remoteData.sumberDanaList);
+        }
+        if (remoteData.rekananList && Array.isArray(remoteData.rekananList)) {
+          setRekananList(remoteData.rekananList);
+        }
+        if (remoteData.anggaranList && Array.isArray(remoteData.anggaranList)) {
+          setAnggaranList(remoteData.anggaranList);
+        }
+        if (remoteData.realisasiList && Array.isArray(remoteData.realisasiList)) {
+          setRealisasiList(remoteData.realisasiList);
+        }
+        if (remoteData.importLogs && Array.isArray(remoteData.importLogs)) {
+          setImportLogs(remoteData.importLogs);
+        }
+        if (remoteData.activityLogs && Array.isArray(remoteData.activityLogs)) {
+          setActivityLogs(remoteData.activityLogs);
+        }
+        if (remoteData.sheetConfig) {
+          setSheetConfig(remoteData.sheetConfig);
+        }
+
+        setCloudSync({
+          status: 'connected',
+          lastSyncedAt: remoteData.updatedAt || new Date().toISOString(),
+          lastUpdatedBy: remoteData.updatedBy || 'Cloud Sync'
+        });
+
+        setTimeout(() => {
+          isApplyingRemoteChange.current = false;
+        }, 100);
+      },
+      err => {
+        console.warn('Cloud sync offline or error:', err);
+        setCloudSync(prev => ({ ...prev, status: 'error' }));
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Initial cloud state check or bootstrap initial data to Firestore
+  useEffect(() => {
+    const bootstrapFirestore = async () => {
+      try {
+        const existingData = await fetchSharedDataOnce();
+        if (!existingData) {
+          // Cloud is empty, push initial dataset
+          await saveSharedDataToFirestore(
+            {
+              users,
+              selectedTahun,
+              tahunList,
+              opdList,
+              programs,
+              kegiatanList,
+              subKegiatanList,
+              belanjaList,
+              sumberDanaList,
+              rekananList,
+              anggaranList,
+              realisasiList,
+              importLogs,
+              activityLogs,
+              sheetConfig
+            },
+            'Initial Seed'
+          );
+        }
+      } catch (err) {
+        console.warn('Initial cloud seed skipped/cached:', err);
+      } finally {
+        isInitialCloudLoad.current = false;
+      }
+    };
+    bootstrapFirestore();
+  }, []);
+
   // Filter State
   const [filters, setFilters] = useState<FilterState>({
     tahun: selectedTahun,
@@ -256,7 +386,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setFilters(prev => ({ ...prev, tahun: selectedTahun }));
   }, [selectedTahun]);
 
-  // Save to localStorage on state changes
+  // Save to localStorage AND Sync to Cloud Firestore when local data changes
   useEffect(() => {
     const dataToStore = {
       currentUser,
@@ -277,10 +407,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       activityLogs,
       sheetConfig
     };
+
+    // Save to local cache
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore));
     } catch (e) {
       console.error('Error writing to localStorage:', e);
+    }
+
+    // Sync to Cloud Firestore if change originated locally (not from remote listener)
+    if (!isApplyingRemoteChange.current && !isInitialCloudLoad.current) {
+      setCloudSync(prev => ({ ...prev, status: 'syncing' }));
+      const timeoutId = setTimeout(() => {
+        saveSharedDataToFirestore(
+          {
+            users,
+            selectedTahun,
+            tahunList,
+            opdList,
+            programs,
+            kegiatanList,
+            subKegiatanList,
+            belanjaList,
+            sumberDanaList,
+            rekananList,
+            anggaranList,
+            realisasiList,
+            importLogs,
+            activityLogs,
+            sheetConfig
+          },
+          currentUser.nama || currentUser.username
+        )
+          .then(() => {
+            setCloudSync({
+              status: 'connected',
+              lastSyncedAt: new Date().toISOString(),
+              lastUpdatedBy: currentUser.nama
+            });
+          })
+          .catch(err => {
+            console.error('Failed to sync to Cloud Firestore:', err);
+            setCloudSync(prev => ({ ...prev, status: 'error' }));
+          });
+      }, 500); // 500ms debounce to batch rapid edits
+
+      return () => clearTimeout(timeoutId);
     }
   }, [
     currentUser,
@@ -301,6 +473,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     activityLogs,
     sheetConfig
   ]);
+
+  // Force manual cloud sync trigger
+  const forceSyncCloud = async () => {
+    setCloudSync(prev => ({ ...prev, status: 'syncing' }));
+    try {
+      await saveSharedDataToFirestore(
+        {
+          users,
+          selectedTahun,
+          tahunList,
+          opdList,
+          programs,
+          kegiatanList,
+          subKegiatanList,
+          belanjaList,
+          sumberDanaList,
+          rekananList,
+          anggaranList,
+          realisasiList,
+          importLogs,
+          activityLogs,
+          sheetConfig
+        },
+        `${currentUser.nama} (Manual Sync)`
+      );
+      setCloudSync({
+        status: 'connected',
+        lastSyncedAt: new Date().toISOString(),
+        lastUpdatedBy: currentUser.nama
+      });
+      logActivity(`Sinkronisasi Database Cloud (Firebase) manual berhasil`);
+    } catch (err) {
+      setCloudSync(prev => ({ ...prev, status: 'error' }));
+      throw err;
+    }
+  };
 
   // Log activity helper
   const logActivity = (aktivitas: string) => {
@@ -1228,6 +1436,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSheetConfig,
         syncStatus,
         syncWithSpreadsheet,
+        cloudSync,
+        forceSyncCloud,
         addAnggaran,
         updateAnggaran,
         deleteAnggaran,

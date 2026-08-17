@@ -16,7 +16,10 @@ import {
   Layers,
   Database,
   Download,
-  Smartphone
+  Smartphone,
+  Cloud,
+  CloudCheck,
+  Radio
 } from 'lucide-react';
 
 export const Navbar: React.FC<{
@@ -33,6 +36,8 @@ export const Navbar: React.FC<{
     sheetConfig,
     syncStatus,
     syncWithSpreadsheet,
+    cloudSync,
+    forceSyncCloud,
     opd
   } = useApp();
 
@@ -125,11 +130,51 @@ export const Navbar: React.FC<{
           </select>
         </div>
 
+        {/* Real-time Firebase Cloud Sync Badge */}
+        <button
+          onClick={() => forceSyncCloud()}
+          disabled={cloudSync.status === 'syncing'}
+          className={`flex items-center gap-1.5 rounded-xl border px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
+            cloudSync.status === 'syncing'
+              ? 'border-cyan-500/50 bg-cyan-950/60 text-cyan-300 animate-pulse'
+              : cloudSync.status === 'error'
+              ? 'border-rose-500/50 bg-rose-950/40 text-rose-300 hover:border-rose-400'
+              : 'border-emerald-500/40 bg-emerald-950/40 text-emerald-300 hover:border-emerald-400 hover:text-white'
+          }`}
+          title={`Cloud Real-Time Database: ${cloudSync.status === 'syncing' ? 'Menyinkronkan...' : 'Terhubung Real-Time (Laptop ⇄ HP)'}. Klik untuk paksa sinkronisasi sekarang.`}
+          id="btn-cloud-sync"
+        >
+          <span className="relative flex h-2 w-2">
+            <span
+              className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                cloudSync.status === 'syncing'
+                  ? 'bg-cyan-400 animate-ping'
+                  : cloudSync.status === 'error'
+                  ? 'bg-rose-500 animate-ping'
+                  : 'bg-emerald-400 animate-ping'
+              }`}
+            />
+            <span
+              className={`relative inline-flex h-2 w-2 rounded-full ${
+                cloudSync.status === 'syncing'
+                  ? 'bg-cyan-400'
+                  : cloudSync.status === 'error'
+                  ? 'bg-rose-500'
+                  : 'bg-emerald-500'
+              }`}
+            />
+          </span>
+          <Cloud className={`h-3.5 w-3.5 ${cloudSync.status === 'syncing' ? 'animate-bounce text-cyan-300' : 'text-emerald-400'}`} />
+          <span className="hidden lg:inline font-semibold">
+            {cloudSync.status === 'syncing' ? 'Syncing...' : 'Cloud Live'}
+          </span>
+        </button>
+
         {/* Google Spreadsheet Sync Status */}
         <button
           onClick={syncWithSpreadsheet}
           disabled={syncStatus === 'syncing'}
-          className={`hidden items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all sm:flex ${
+          className={`hidden items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all xl:flex ${
             syncStatus === 'syncing'
               ? 'border-emerald-500/50 bg-emerald-900/30 text-emerald-300'
               : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-emerald-500 hover:text-white'
@@ -142,7 +187,7 @@ export const Navbar: React.FC<{
               syncStatus === 'syncing' ? 'animate-spin' : ''
             }`}
           />
-          <span className="hidden xl:inline">Google Sheet:</span>
+          <span className="hidden xl:inline">Sheet:</span>
           <span className="font-semibold text-emerald-400">
             {syncStatus === 'syncing' ? 'Syncing...' : 'Connected'}
           </span>
