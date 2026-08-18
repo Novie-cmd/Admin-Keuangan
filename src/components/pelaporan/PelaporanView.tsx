@@ -634,6 +634,8 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
   const [filterBulan, setFilterBulan] = useState<number | 'all'>('all');
   const [filterSelectedSub, setFilterSelectedSub] = useState<string>('all');
   const [filterSelectedBelanja, setFilterSelectedBelanja] = useState<string>('all');
+  const [hibahSearchTerm, setHibahSearchTerm] = useState<string>('');
+  const [hibahFilterStatus, setHibahFilterStatus] = useState<'all' | 'unexecuted' | 'partial' | 'full'>('all');
   const [silpaFilterStatus, setSilpaFilterStatus] = useState<'all' | 'unexecuted' | 'partial' | 'full'>('all');
   const [silpaSearchTerm, setSilpaSearchTerm] = useState<string>('');
 
@@ -1012,6 +1014,89 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     return true;
   });
 
+  // Calculation for Laporan Semua Belanja Hibah
+  const isHibahAccount = (kodeBelanja: string, namaBelanja: string, jenisBelanja?: string) => {
+    const kb = (kodeBelanja || '').trim();
+    const nb = (namaBelanja || '').toLowerCase();
+    const jb = (jenisBelanja || '').toLowerCase();
+    return (
+      kb.startsWith('5.1.05') ||
+      kb.startsWith('5.1.5') ||
+      kb.startsWith('5.4') ||
+      nb.includes('hibah') ||
+      jb.includes('hibah')
+    );
+  };
+
+  const hibahAnggaranList = currentAnggaran.filter(a => {
+    const belObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, a.kodeBelanja));
+    return isHibahAccount(a.kodeBelanja, a.namaBelanja || belObj?.namaBelanja || '', belObj?.jenisBelanja);
+  });
+
+  // Also include any realisasi that belongs to hibah even if not in anggaran
+  const hibahReportData = hibahAnggaranList.map((ang, idx) => {
+    const subObj = subKegiatanList.find(s => isCodeEqual(s.kodeSub, ang.kodeSub));
+    const belObj = belanjaList.find(b => isCodeEqual(b.kodeBelanja, ang.kodeBelanja));
+
+    const totalReal = currentRealisasi
+      .filter(r => isCodeEqual(r.kodeBelanja, ang.kodeBelanja) && (isCodeEqual(r.kodeSub, ang.kodeSub) || !r.kodeSub))
+      .reduce((s, r) => s + r.nilai, 0);
+
+    const paguMurni = ang.pagu;
+    const revisi = ang.revisi;
+    const nilaiSPD = ang.nilaiSPD !== undefined ? ang.nilaiSPD : ang.paguAkhir;
+    const paguAkhir = ang.paguAkhir;
+    const sisa = paguAkhir - totalReal;
+    const persen = paguAkhir > 0 ? (totalReal / paguAkhir) * 100 : 0;
+
+    let status: 'unexecuted' | 'partial' | 'full' = 'full';
+    let statusText = 'Terserap Penuh';
+    if (totalReal === 0) {
+      status = 'unexecuted';
+      statusText = '100% Belum Dicairkan';
+    } else if (sisa > 0) {
+      status = 'partial';
+      statusText = 'Dicairkan Sebagian';
+    }
+
+    return {
+      id: ang.id,
+      no: idx + 1,
+      kodeSub: ang.kodeSub,
+      namaSub: subObj?.namaSub || ang.namaSub || ang.kodeSub,
+      kodeBelanja: ang.kodeBelanja,
+      namaBelanja: belObj?.namaBelanja || ang.namaBelanja || ang.kodeBelanja,
+      sumberDana: ang.sumberDana || 'DAU',
+      paguMurni,
+      revisi,
+      nilaiSPD,
+      paguAkhir,
+      realisasi: totalReal,
+      sisa,
+      persen,
+      status,
+      statusText,
+      kodeProgram: ang.kodeProgram,
+      kodeKegiatan: ang.kodeKegiatan
+    };
+  });
+
+  const filteredHibahData = hibahReportData.filter(item => {
+    if (hibahFilterStatus === 'unexecuted' && item.status !== 'unexecuted') return false;
+    if (hibahFilterStatus === 'partial' && item.status !== 'partial') return false;
+    if (hibahFilterStatus === 'full' && item.status !== 'full') return false;
+
+    if (hibahSearchTerm) {
+      const term = hibahSearchTerm.toLowerCase();
+      const matchSub = item.kodeSub.toLowerCase().includes(term) || item.namaSub.toLowerCase().includes(term);
+      const matchBel = item.kodeBelanja.toLowerCase().includes(term) || item.namaBelanja.toLowerCase().includes(term);
+      const matchSumber = item.sumberDana.toLowerCase().includes(term);
+      if (!matchSub && !matchBel && !matchSumber) return false;
+    }
+
+    return true;
+  });
+
   // Calculation for Laporan Bulanan (Target Anggaran vs Realisasi per Bulan)
   const monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -1120,7 +1205,25 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
     let exportRows: any[] = [];
     let titleName = 'Laporan_Keuangan_BFMS_NTB';
 
-    if (activeTab === 'laporan-silpa') {
+    if (activeTab === 'laporan-hibah') {
+      titleName = `Laporan_Semua_Belanja_Hibah_NTB_${selectedTahun}`;
+      exportRows = filteredHibahData.map(r => ({
+        'No': r.no,
+        'Kode Sub Kegiatan': r.kodeSub,
+        'Nama Sub Kegiatan': r.namaSub,
+        'Kode Rekening Belanja': r.kodeBelanja,
+        'Uraian Rekening Hibah': r.namaBelanja,
+        'Sumber Dana': r.sumberDana,
+        'Pagu Murni (Rp)': r.paguMurni,
+        'Pergeseran/Revisi (Rp)': r.revisi,
+        'Nilai SPD (Rp)': r.nilaiSPD,
+        'Pagu Akhir (Rp)': r.paguAkhir,
+        'Realisasi SP2D (Rp)': r.realisasi,
+        'Sisa Pagu (Rp)': r.sisa,
+        'Persentase Serapan (%)': r.persen.toFixed(2),
+        'Status Penyerapan': r.statusText
+      }));
+    } else if (activeTab === 'laporan-silpa') {
       titleName = `Detail_Belanja_SiLPA_NTB_${selectedTahun}`;
       exportRows = filteredSilpaData.map(r => ({
         'Kode Sub Kegiatan': r.kodeSub,
@@ -1360,11 +1463,12 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
           { id: 'laporan-kegiatan', label: '2. Per Kegiatan' },
           { id: 'laporan-subkegiatan', label: '3. Per Sub Kegiatan' },
           { id: 'laporan-belanja', label: '4. Per Rekening Belanja' },
-          { id: 'laporan-bulanan', label: '5. Laporan Bulanan' },
-          { id: 'laporan-triwulan', label: '6. Laporan Triwulan' },
-          { id: 'laporan-semester', label: '7. Laporan Semester' },
-          { id: 'laporan-tahunan', label: '8. Laporan Tahunan' },
-          { id: 'laporan-silpa', label: '9. Detail Belanja SiLPA' }
+          { id: 'laporan-hibah', label: '5. Semua Belanja Hibah' },
+          { id: 'laporan-bulanan', label: '6. Laporan Bulanan' },
+          { id: 'laporan-triwulan', label: '7. Laporan Triwulan' },
+          { id: 'laporan-semester', label: '8. Laporan Semester' },
+          { id: 'laporan-tahunan', label: '9. Laporan Tahunan' },
+          { id: 'laporan-silpa', label: '10. Detail Belanja SiLPA' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -1995,14 +2099,314 @@ export const PelaporanView: React.FC<PelaporanViewProps> = ({
           </div>
         )}
 
-        {/* 9. LAPORAN DETAIL BELANJA SILPA (TIDAK TEREKSEKUSI) */}
+        {/* 5. LAPORAN SEMUA BELANJA HIBAH */}
+        {activeTab === 'laporan-hibah' && (
+          <div className="space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+              <div>
+                <h3 className="text-xs font-bold uppercase text-amber-400 print:text-slate-900 flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-emerald-400 print:hidden" />
+                  <span>V. Laporan Realisasi Semua Belanja Hibah</span>
+                </h3>
+                <p className="text-[11px] text-slate-400 print:text-slate-700 mt-0.5">
+                  Daftar seluruh alokasi dan realisasi anggaran Belanja Hibah (Organisasi Kemasyarakatan, Partai Politik, Lembaga, dan Hibah Lainnya) TA {selectedTahun}.
+                </p>
+              </div>
+
+              {/* Status filter badge in print */}
+              <div className="hidden print:block text-right text-xs">
+                <span className="font-bold text-slate-900">
+                  Total {filteredHibahData.length} Rekening Belanja Hibah
+                </span>
+              </div>
+            </div>
+
+            {/* STAT CARDS FOR BELANJA HIBAH */}
+            {(() => {
+              const totalMurni = filteredHibahData.reduce((s, r) => s + r.paguMurni, 0);
+              const totalRev = filteredHibahData.reduce((s, r) => s + r.revisi, 0);
+              const totalAkhir = filteredHibahData.reduce((s, r) => s + r.paguAkhir, 0);
+              const totalReal = filteredHibahData.reduce((s, r) => s + r.realisasi, 0);
+              const totalSisa = filteredHibahData.reduce((s, r) => s + r.sisa, 0);
+              const pctSerapan = totalAkhir > 0 ? (totalReal / totalAkhir) * 100 : 0;
+              const unexecutedCount = filteredHibahData.filter(r => r.status === 'unexecuted').length;
+              const partialCount = filteredHibahData.filter(r => r.status === 'partial').length;
+              const fullCount = filteredHibahData.filter(r => r.status === 'full').length;
+
+              return (
+                <div className="print:hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="rounded-2xl border border-emerald-500/30 bg-slate-950 p-3.5 shadow-sm">
+                    <div className="text-xs text-emerald-400 font-bold mb-1">Total Pagu Belanja Hibah</div>
+                    <div className="text-lg font-black text-white font-mono">
+                      Rp {totalAkhir.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                      Pagu Murni: Rp {totalMurni.toLocaleString('id-ID')} | Rev: {totalRev >= 0 ? '+' : ''}Rp {totalRev.toLocaleString('id-ID')}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-500/30 bg-slate-950 p-3.5 shadow-sm">
+                    <div className="text-xs text-emerald-400 font-bold mb-1">Total Realisasi Hibah (SP2D)</div>
+                    <div className="text-lg font-black text-emerald-300 font-mono">
+                      Rp {totalReal.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-[10px] text-emerald-400/80 mt-1">
+                      {pctSerapan.toFixed(2)}% Tercairkan ({fullCount} Terserap Penuh)
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-rose-500/30 bg-slate-950 p-3.5 shadow-sm">
+                    <div className="text-xs text-rose-400 font-bold mb-1">Sisa Pagu Hibah Belum Cair</div>
+                    <div className="text-lg font-black text-rose-300 font-mono">
+                      Rp {totalSisa.toLocaleString('id-ID')}
+                    </div>
+                    <div className="text-[10px] text-rose-300/80 mt-1">
+                      {(100 - pctSerapan).toFixed(2)}% Sisa ({unexecutedCount} Belum Cair, {partialCount} Sebagian)
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-500/30 bg-slate-950 p-3.5 shadow-sm">
+                    <div className="text-xs text-amber-400 font-bold mb-1">Jumlah Rekening Hibah</div>
+                    <div className="text-lg font-black text-amber-200 font-mono">
+                      {filteredHibahData.length} <span className="text-xs font-sans text-slate-400">Rekening</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                      Terdaftar di DPA BAKESBANGPOLDAGRI
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* CONTROLS & FILTER BAR */}
+            <div className="print:hidden flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-slate-400 font-bold mr-1 flex items-center gap-1">
+                  <Filter className="h-3.5 w-3.5 text-emerald-400" />
+                  Status Pencairan:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setHibahFilterStatus('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    hibahFilterStatus === 'all'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white'
+                  }`}
+                >
+                  Semua Hibah ({hibahReportData.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHibahFilterStatus('unexecuted')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    hibahFilterStatus === 'unexecuted'
+                      ? 'bg-rose-600 text-white shadow-md'
+                      : 'bg-slate-900 text-rose-400 hover:bg-slate-800'
+                  }`}
+                >
+                  100% Belum Cair ({hibahReportData.filter(r => r.status === 'unexecuted').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHibahFilterStatus('partial')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    hibahFilterStatus === 'partial'
+                      ? 'bg-amber-600 text-white shadow-md'
+                      : 'bg-slate-900 text-amber-400 hover:bg-slate-800'
+                  }`}
+                >
+                  Cair Sebagian ({hibahReportData.filter(r => r.status === 'partial').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHibahFilterStatus('full')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                    hibahFilterStatus === 'full'
+                      ? 'bg-emerald-600 text-white shadow-md'
+                      : 'bg-slate-900 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Tercairkan Penuh ({hibahReportData.filter(r => r.status === 'full').length})
+                </button>
+              </div>
+
+              <div className="relative max-w-xs w-full">
+                <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+                <input
+                  type="text"
+                  value={hibahSearchTerm}
+                  onChange={e => setHibahSearchTerm(e.target.value)}
+                  placeholder="Cari Rekening Hibah / Sub Kegiatan / Sumber Dana..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                />
+                {hibahSearchTerm && (
+                  <button
+                    onClick={() => setHibahSearchTerm('')}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-white text-xs font-bold"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* HIBAH TABLE */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-950 print:bg-slate-200 text-slate-300 print:text-slate-900 font-bold uppercase border-b border-slate-800">
+                  <tr>
+                    <th className="p-3 w-10 text-center">No</th>
+                    <th className="p-3 min-w-[200px]">Sub Kegiatan</th>
+                    <th className="p-3 min-w-[240px]">Rekening Belanja Hibah</th>
+                    <th className="p-3 text-center">Sumber Dana</th>
+                    <th className="p-3 text-right">Pagu Murni (Rp)</th>
+                    <th className="p-3 text-right">Pergeseran (Rp)</th>
+                    <th className="p-3 text-right">Pagu Akhir (Rp)</th>
+                    <th className="p-3 text-right">Realisasi SP2D (Rp)</th>
+                    <th className="p-3 text-right">Sisa Pagu (Rp)</th>
+                    <th className="p-3 text-center">% Serapan</th>
+                    <th className="p-3 text-center min-w-[140px]">Status Pencairan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800 print:divide-slate-300">
+                  {filteredHibahData.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="p-8 text-center text-slate-400">
+                        <AlertCircle className="h-8 w-8 text-emerald-500/60 mx-auto mb-2" />
+                        <p className="font-semibold text-sm">Tidak ada data Rekening Belanja Hibah yang sesuai filter.</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Pastikan rekening belanja hibah sudah diinput pada menu Input Anggaran atau Master Belanja (dengan kode 5.1.05.x atau memiliki kata "Hibah").
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredHibahData.map((r, idx) => (
+                      <tr key={r.id || `${r.kodeSub}-${r.kodeBelanja}-${idx}`} className="hover:bg-slate-800/40">
+                        <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
+                        <td className="p-3">
+                          <div className="text-white print:text-slate-900 font-bold text-xs">{r.namaSub}</div>
+                          <div className="font-mono text-[11px] font-semibold text-teal-400 print:text-slate-700 mt-0.5">
+                            Kode: {r.kodeSub}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="text-white print:text-slate-900 font-semibold line-clamp-2">{r.namaBelanja}</div>
+                          <div className="font-mono text-[11px] font-bold text-emerald-400 print:text-slate-700 mt-0.5">
+                            Kode: {r.kodeBelanja}
+                          </div>
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className="inline-block px-2 py-0.5 rounded bg-slate-800 print:bg-slate-200 font-mono text-[10px] font-bold text-slate-300 print:text-slate-900">
+                            {r.sumberDana}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-mono text-slate-300 print:text-slate-900">
+                          Rp {r.paguMurni.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-amber-300 print:text-slate-900">
+                          {r.revisi >= 0 ? '+' : ''}Rp {r.revisi.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono font-bold text-white print:text-slate-900">
+                          Rp {r.paguAkhir.toLocaleString('id-ID')}
+                        </td>
+                        <td
+                          onClick={() =>
+                            setSelectedRealisasiFilter({
+                              title: `Rincian Realisasi / SP2D Belanja Hibah`,
+                              subtitle: `${r.kodeBelanja} - ${r.namaBelanja} (${r.kodeSub})`,
+                              kodeBelanja: r.kodeBelanja,
+                              kodeSub: r.kodeSub
+                            })
+                          }
+                          className="p-3 text-right font-mono text-emerald-400 hover:text-emerald-200 hover:underline cursor-pointer print:text-slate-900 font-bold"
+                          title="Klik untuk melihat rincian SP2D transaksi"
+                        >
+                          <span className="inline-flex items-center gap-1 justify-end">
+                            <span>Rp {r.realisasi.toLocaleString('id-ID')}</span>
+                            <Eye className="h-3.5 w-3.5 text-emerald-400/80 print:hidden" />
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-mono font-black text-rose-400 print:text-slate-900 bg-rose-950/30 print:bg-transparent">
+                          Rp {r.sisa.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-center font-bold text-slate-200 print:text-slate-900 font-mono">
+                          {r.persen.toFixed(2)} %
+                        </td>
+                        <td className="p-3 text-center">
+                          {r.status === 'unexecuted' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-950/80 text-rose-300 border border-rose-500/40 print:border-slate-800 print:text-slate-900">
+                              <XCircle className="h-3 w-3 text-rose-400 shrink-0 print:hidden" />
+                              100% Belum Cair
+                            </span>
+                          ) : r.status === 'partial' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-950/80 text-amber-300 border border-amber-500/40 print:border-slate-800 print:text-slate-900">
+                              <AlertTriangle className="h-3 w-3 text-amber-400 shrink-0 print:hidden" />
+                              Cair Sebagian
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 print:border-slate-800 print:text-slate-900">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0 print:hidden" />
+                              Tercairkan Penuh
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                <tfoot className="bg-slate-950 font-bold border-t-2 border-slate-700 text-white print:bg-slate-100 print:text-black">
+                  {(() => {
+                    const totalMurni = filteredHibahData.reduce((s, r) => s + r.paguMurni, 0);
+                    const totalRev = filteredHibahData.reduce((s, r) => s + r.revisi, 0);
+                    const totalAkhir = filteredHibahData.reduce((s, r) => s + r.paguAkhir, 0);
+                    const totalReal = filteredHibahData.reduce((s, r) => s + r.realisasi, 0);
+                    const totalSisa = filteredHibahData.reduce((s, r) => s + r.sisa, 0);
+                    const totalPct = totalAkhir > 0 ? (totalReal / totalAkhir) * 100 : 0;
+
+                    return (
+                      <tr>
+                        <td colSpan={4} className="p-3 text-right uppercase">
+                          TOTAL BELANJA HIBAH ({filteredHibahData.length} REKENING):
+                        </td>
+                        <td className="p-3 text-right font-mono text-slate-300">
+                          Rp {totalMurni.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-amber-300">
+                          {totalRev >= 0 ? '+' : ''}Rp {totalRev.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-emerald-400">
+                          Rp {totalAkhir.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-emerald-300">
+                          Rp {totalReal.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-right font-mono text-rose-400 font-black">
+                          Rp {totalSisa.toLocaleString('id-ID')}
+                        </td>
+                        <td className="p-3 text-center text-amber-300 font-mono">
+                          {totalPct.toFixed(2)} %
+                        </td>
+                        <td className="p-3 text-center text-xs text-slate-400 font-normal">
+                          {filteredHibahData.filter(r => r.status === 'full').length} Terserap Penuh
+                        </td>
+                      </tr>
+                    );
+                  })()}
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 10. LAPORAN DETAIL BELANJA SILPA (TIDAK TEREKSEKUSI) */}
         {activeTab === 'laporan-silpa' && (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-800 pb-2">
               <div>
                 <h3 className="text-xs font-bold uppercase text-amber-400 print:text-slate-900 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-rose-400 print:hidden" />
-                  <span>IX. Laporan Detail Belanja SiLPA (Tidak Tereksekusi / Sisa Pagu Anggaran)</span>
+                  <span>X. Laporan Detail Belanja SiLPA (Tidak Tereksekusi / Sisa Pagu Anggaran)</span>
                 </h3>
                 <p className="text-[11px] text-slate-400 print:text-slate-700 mt-0.5">
                   Rincian seluruh Rekening Belanja yang mengalami sisa pagu anggaran (SiLPA) atau 100% tidak tereksekusi pada TA {selectedTahun}.
