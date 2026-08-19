@@ -388,7 +388,8 @@ export const parseRealisasiFromExcelData = (
       let matchedHeaders = 0;
 
       row.forEach((cell, cIdx) => {
-        const text = String(cell || '').trim().toLowerCase().replace(/[\s_\-()/.:]/g, '');
+        const rawText = String(cell || '').trim().toLowerCase();
+        const text = rawText.replace(/[\s_\-()/.:]/g, '');
         if (!text) return;
 
         if (text.includes('sp2d') || text.includes('nosp2d') || text.includes('nomorsp2d')) {
@@ -432,14 +433,16 @@ export const parseRealisasiFromExcelData = (
           text.includes('realisasisumberdana') ||
           text.includes('realisasi') ||
           text.includes('nilai(rp)') ||
-          text.includes('nilai') ||
           text.includes('jumlah') ||
           text.includes('total') ||
           text.includes('cair') ||
-          text.includes('nominal')
+          text.includes('nominal') ||
+          text === 'nilai' ||
+          text === 'rupiah' ||
+          text === 'rp'
         ) {
-          // If column is already detected, prefer earlier columns (e.g. AA / Col 26 over AH / Col 33)
-          if (colNilai === -1 || (cIdx <= 27 && colNilai > 27)) {
+          // Prioritize explicitly matched realisasi header
+          if (colNilai === -1 || text.includes('realisasi') || text.includes('sp2d')) {
             colNilai = cIdx;
           }
           matchedHeaders++;
@@ -565,31 +568,37 @@ export const parseRealisasiFromExcelData = (
         if (rowBelName) activeBelName = rowBelName;
       }
 
-      // 3. Extract Nilai Realisasi (Rp) - Mengutamakan Kolom AA (Index 26 pada SIPD NTB)
+      // 3. Extract Nilai Realisasi (Rp)
       let nilaiVal = 0;
 
-      // Priotas 1: Jika baris memiliki nilai pada Kolom AA (Index 26)
-      if (row[26] !== undefined && row[26] !== null && String(row[26]).trim() !== '') {
+      // Prioritas 1: Kolom hasil deteksi header jika ada
+      if (colNilai >= 0 && row[colNilai] !== undefined && row[colNilai] !== null && String(row[colNilai]).trim() !== '') {
+        const cand = parseNumber(row[colNilai]);
+        if (cand > 0 && cand !== selectedTahun && cand !== 2024 && cand !== 2025 && cand !== 2026 && cand !== 2027) {
+          nilaiVal = cand;
+        }
+      }
+
+      // Prioritas 2: Kolom AA (Index 26 pada SIPD NTB standar)
+      if (nilaiVal === 0 && row[26] !== undefined && row[26] !== null && String(row[26]).trim() !== '') {
         const candAA = parseNumber(row[26]);
         if (candAA > 0 && candAA !== selectedTahun && candAA !== 2024 && candAA !== 2025 && candAA !== 2026 && candAA !== 2027) {
           nilaiVal = candAA;
         }
       }
 
-      // Prioritas 2: Kolom hasil deteksi header (tetapi mengabaikan kolom AH / index 33 jika AA tersedia)
-      if (nilaiVal === 0 && colNilai >= 0 && row[colNilai] !== undefined && colNilai !== 33) {
-        nilaiVal = parseNumber(row[colNilai]);
+      // Prioritas 3: Kolom T (index 19) atau kolom terdekat
+      if (nilaiVal === 0 && row[19] !== undefined) {
+        const cand19 = parseNumber(row[19]);
+        if (cand19 > 0 && cand19 !== selectedTahun && cand19 !== 2024 && cand19 !== 2025 && cand19 !== 2026 && cand19 !== 2027) {
+          nilaiVal = cand19;
+        }
       }
 
-      // Prioritas 3: Kolom T (index 19) atau kolom terdekat sebelum kolom 30
+      // Prioritas 4: Scan common currency columns
       if (nilaiVal === 0) {
-        nilaiVal = parseNumber(row[19]); // Col T (19)
-      }
-
-      if (nilaiVal === 0) {
-        // Search adjacent & common value columns (hanya sebelum kolom 31, hindari kolom AH / 33)
-        for (const cIdx of [25, 27, 28, 24, 20, 21, 22, 23, 29, 30, 18, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15]) {
-          if (cIdx < row.length) {
+        for (const cIdx of [25, 27, 28, 24, 20, 21, 22, 23, 29, 30, 18, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15, 33]) {
+          if (cIdx < row.length && row[cIdx] !== undefined) {
             const cand = parseNumber(row[cIdx]);
             if (cand > 0 && cand !== selectedTahun && cand !== 2024 && cand !== 2025 && cand !== 2026 && cand !== 2027) {
               nilaiVal = cand;
@@ -599,13 +608,12 @@ export const parseRealisasiFromExcelData = (
         }
       }
 
+      // Prioritas 5: Fallback scan all columns
       if (nilaiVal === 0) {
-        // Fallback: scan any positive currency number in row (hindari kolom AH / 33)
         for (let c = 0; c < row.length; c++) {
-          if (c === 33) continue; // Jangan ambil kolom AH
           const cand = parseNumber(row[c]);
           if (cand > 0 && cand !== selectedTahun && cand !== 2024 && cand !== 2025 && cand !== 2026 && cand !== 2027) {
-            if (cand < 31 && c <= 2) continue;
+            if (cand < 31 && c <= 2) continue; // avoid row number or day
             nilaiVal = cand;
             break;
           }
